@@ -333,15 +333,25 @@ def get_class_names(path, parent_path=None, subset_path=None):
     try:
         with pathmgr.open(path, "r") as f:
             class2idx = json.load(f)
+            # print(class2idx)
+
+            
     except Exception as err:
         print("Fail to load file from {} with error {}".format(path, err))
         return
 
-    max_key = max(class2idx.values())
-    class_names = [None] * (max_key + 1)
+    max_key = 0
+    for val in class2idx.values():
+        if int(val) > max_key:
+            max_key = int(val)
+    #max_key = int(max(class2idx.values()))
 
+    #class_names = [None] * (max_key + 1) # Error here saying can only concatenate str to str
+    class_names = []
+    for i in range(max_key + 1):
+        class_names += [None]
     for k, i in class2idx.items():
-        class_names[i] = k
+        class_names[int(i)] = k
 
     class_parent = None
     if parent_path is not None and parent_path != "":

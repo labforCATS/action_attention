@@ -334,6 +334,7 @@ def get_layer(model, layer_name):
     """
     layer_ls = layer_name.split("/")
     prev_module = model
+    # print(model)
     for layer in layer_ls:
         prev_module = prev_module._modules[layer]
 

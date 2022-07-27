@@ -57,6 +57,7 @@ class VideoManager:
             self.output_file = self.get_output_file(
                 cfg.DEMO.OUTPUT_FILE, fps=self.output_fps
             )
+        self.output_file = None
         self.id = -1
         self.buffer = []
         self.buffer_size = cfg.DEMO.BUFFER_SIZE
@@ -89,6 +90,7 @@ class VideoManager:
         while was_read and len(frames) < self.seq_length:
             was_read, frame = self.cap.read()
             frames.append(frame)
+            
         if was_read and self.buffer_size != 0:
             self.buffer = frames[-self.buffer_size :]
 
@@ -120,8 +122,10 @@ class VideoManager:
             task (TaskInfo object): task object that contain
                 the necessary information for prediction visualization. (e.g. visualized frames.)
         """
+        print("Reached function")
         for frame in task.frames[task.num_buffer_frames :]:
             if self.output_file is None:
+                print("star wars > star track")
                 cv2.imshow("SlowFast", frame)
                 time.sleep(1 / self.output_fps)
             else:
@@ -163,9 +167,12 @@ class ThreadVideoManager:
         self.source = (
             cfg.DEMO.WEBCAM if cfg.DEMO.WEBCAM > -1 else cfg.DEMO.INPUT_VIDEO
         )
+        print("Source video is: ", self.source)
 
         self.display_width = cfg.DEMO.DISPLAY_WIDTH
         self.display_height = cfg.DEMO.DISPLAY_HEIGHT
+        print("Display width is: ", self.display_width)
+        print("Display height is: ", self.display_height)
 
         self.cap = cv2.VideoCapture(self.source)
 
@@ -185,18 +192,25 @@ class ThreadVideoManager:
             self.output_fps = self.cap.get(cv2.CAP_PROP_FPS)
         else:
             self.output_fps = cfg.DEMO.OUTPUT_FPS
+        print("Output fps is: ", self.output_fps)
         if cfg.DEMO.OUTPUT_FILE != "":
             self.output_file = self.get_output_file(
                 cfg.DEMO.OUTPUT_FILE, fps=self.output_fps
             )
+        print("Output file is: ", self.output_file)
         self.num_skip = cfg.DEMO.NUM_CLIPS_SKIP + 1
+        print("Clips to skip is: ", self.num_skip)
         self.get_id = -1
         self.put_id = -1
         self.buffer = []
         self.buffer_size = cfg.DEMO.BUFFER_SIZE
+        print("Buffer size is: ", self.buffer_size)
         self.seq_length = cfg.DATA.NUM_FRAMES * cfg.DATA.SAMPLING_RATE
+        print("equence length is: ", self.seq_length)
         self.test_crop_size = cfg.DATA.TEST_CROP_SIZE
         self.clip_vis_size = cfg.DEMO.CLIP_VIS_SIZE
+        print("Test crop size is: ", self.test_crop_size)
+        print("Clip vis size is: ", self.clip_vis_size)
 
         self.read_queue = queue.Queue()
         self.write_queue = {}
@@ -246,6 +260,7 @@ class ThreadVideoManager:
                 was_read, frame = self.cap.read()
                 if was_read:
                     frames.append(frame)
+                    print("Grabbed a frame")
             self.input_lock.release()
             if was_read:
                 self.buffer = frames[-self.buffer_size :]

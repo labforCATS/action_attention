@@ -28,19 +28,25 @@ def run_demo(cfg, frame_provider):
             with necessary information such as `frames`, `id` and `num_buffer_frames` for the
             prediction and visualization pipeline.
     """
+    print("print statement 1")
     # Set random seed from configs.
     np.random.seed(cfg.RNG_SEED)
     torch.manual_seed(cfg.RNG_SEED)
+    print("Print statement 2")
     # Setup logging format.
     logging.setup_logging(cfg.OUTPUT_DIR)
     # Print config.
+    print("Print statement 3")
     logger.info("Run demo with config:")
+    print("Print statement 5")
     logger.info(cfg)
+    print("Print statement 6")
     common_classes = (
         cfg.DEMO.COMMON_CLASS_NAMES
         if len(cfg.DEMO.LABEL_FILE_PATH) != 0
         else None
     )
+    print(common_classes)
 
     video_vis = VideoVisualizer(
         num_classes=cfg.MODEL.NUM_CLASSES,
@@ -52,30 +58,35 @@ def run_demo(cfg, frame_provider):
         colormap=cfg.TENSORBOARD.MODEL_VIS.COLORMAP,
         mode=cfg.DEMO.VIS_MODE,
     )
-
+    print("Print statement 7")
     async_vis = AsyncVis(video_vis, n_workers=cfg.DEMO.NUM_VIS_INSTANCES)
-
+    print("Print statement 8")
     if cfg.NUM_GPUS <= 1:
+        print("Correct number of gpus")
         model = ActionPredictor(cfg=cfg, async_vis=async_vis)
     else:
+        print("We stole some somewhere")
         model = AsyncDemo(cfg=cfg, async_vis=async_vis)
-
+    print("Print statement 10")
     seq_len = cfg.DATA.NUM_FRAMES * cfg.DATA.SAMPLING_RATE
-
+    print("Print statement 11")
     assert (
         cfg.DEMO.BUFFER_SIZE <= seq_len // 2
     ), "Buffer size cannot be greater than half of sequence length."
+    print("Print statement 12")
     num_task = 0
     # Start reading frames.
     frame_provider.start()
+    print("Print statement 13--oh no")
     for able_to_read, task in frame_provider:
+        print("print me", able_to_read)
         if not able_to_read:
             break
         if task is None:
             time.sleep(0.02)
             continue
         num_task += 1
-
+        
         model.put(task)
         try:
             task = model.get()
@@ -85,6 +96,7 @@ def run_demo(cfg, frame_provider):
             continue
 
     while num_task != 0:
+        print("task left")
         try:
             task = model.get()
             num_task -= 1
@@ -101,18 +113,21 @@ def demo(cfg):
             slowfast/config/defaults.py
     """
     # AVA format-specific visualization with precomputed boxes.
+
+
     if cfg.DETECTION.ENABLE and cfg.DEMO.PREDS_BOXES != "":
         precomputed_box_vis = AVAVisualizerWithPrecomputedBox(cfg)
         precomputed_box_vis()
+
     else:
         start = time.time()
         if cfg.DEMO.THREAD_ENABLE:
             frame_provider = ThreadVideoManager(cfg)
         else:
             frame_provider = VideoManager(cfg)
-
-        for task in tqdm.tqdm(run_demo(cfg, frame_provider)):
+        for task in run_demo(cfg, frame_provider):
             frame_provider.display(task)
+            
 
         frame_provider.join()
         frame_provider.clean()
