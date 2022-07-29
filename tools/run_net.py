@@ -20,9 +20,11 @@ def main():
     print("config files: {}".format(args.cfg_files))
     for path_to_config in args.cfg_files:
         cfg = load_config(args, path_to_config)
-
+        #We added the line below
+        cfg.NUM_GPUS = 1
         # Perform training.
         if cfg.TRAIN.ENABLE:
+            print("Starting training")
             launch_job(cfg=cfg, init_method=args.init_method, func=train)
 
         # Perform multi-clip testing.

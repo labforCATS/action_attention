@@ -7,6 +7,7 @@ import math
 import numpy as np
 import pprint
 import torch
+import torch.nn as nn
 from fvcore.nn.precise_bn import get_bn_modules, update_bn_stats
 
 import slowfast.models.losses as losses
@@ -80,8 +81,15 @@ def train_epoch(
         )
     if cfg.MODEL.FROZEN_BN:
         misc.frozen_bn_stats(model)
+
+    weights = torch.tensor([10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 7.5, 11.54, 6.82])
+    weights = weights.cuda()
     # Explicitly declare reduction to mean.
-    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(reduction="mean")
+    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(weight = weights, reduction="mean")
+
+    # if cfg.MODEL.LOSS_FUNC == 'cross_entropy':
+    #     loss_fun = loss_fun(weights = [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82])
+    #     print("Using weights: ", [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82])
 
     for cur_iter, (inputs, labels, index, time, meta) in enumerate(
         train_loader
@@ -618,7 +626,13 @@ def train(cfg):
         start_epoch = checkpoint_epoch + 1
     else:
         start_epoch = 0
-
+    
+    # ### FINE_TUNING SPECIFIC CODE ####
+    # for param in model.parameters():
+    #     param.requires_grad = False
+    # # Parameters of newly constructed modules have requires_grad=True by default
+    # num_ftrs = model.fc.in_features
+    # model.fc = nn.Linear(num_ftrs, cfg.MODEL.NUM_CLASSES)
     # Create the video train and val loaders.
     train_loader = loader.construct_loader(cfg, "train")
     val_loader = loader.construct_loader(cfg, "val")

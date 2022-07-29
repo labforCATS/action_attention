@@ -145,6 +145,18 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         if cfg.NUM_GPUS:
             all_preds = all_preds.cpu()
             all_labels = all_labels.cpu()
+            new_preds = list(all_preds)
+            predictions = []
+            for pred in range(len(new_preds)):
+                new_preds[pred] = list(new_preds[pred])
+                num = max(new_preds[pred])
+                p = new_preds[pred].index(num)
+                predictions += [p]
+            #     for p in range(len(new_preds[pred])):
+            #         new_preds[pred][p] = float(new_preds[pred][p] - num)
+            # print(new_preds)
+            print(all_labels)
+            print(predictions)
         if writer is not None:
             writer.plot_eval(preds=all_preds, labels=all_labels)
 

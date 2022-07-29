@@ -78,7 +78,10 @@ def run_visualization(vis_loader, model, cfg, writer=None):
         )
     logger.info("Finish drawing weights.")
     global_idx = -1
-    for inputs, labels, _, meta in tqdm.tqdm(vis_loader):
+
+    count = 1
+    for inputs, labels, _, _, meta in tqdm.tqdm(vis_loader):
+        
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
             if isinstance(inputs, (list,)):
@@ -102,9 +105,10 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             activations, preds = model_vis.get_activations(inputs)
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
-                inputs, preds = gradcam(inputs, labels=labels)
+                inputs, preds = gradcam(inputs, count, labels=labels)
             else:
-                inputs, preds = gradcam(inputs)
+                inputs, preds = gradcam(inputs, count)
+
         if cfg.NUM_GPUS:
             inputs = du.all_gather_unaligned(inputs)
             activations = du.all_gather_unaligned(activations)
@@ -185,7 +189,7 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                             batch_idx=cur_batch_idx,
                             indexing_dict=indexing_dict,
                         )
-
+        count += 1
 
 def perform_wrong_prediction_vis(vis_loader, model, cfg):
     """

@@ -161,6 +161,7 @@ class GradCAM:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
+        print("hi")
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
@@ -176,13 +177,13 @@ class GradCAM:
                 for j in localization_map.numpy()[0][t]:
                     if j.any() != 0:
                         count += 1
-            print(i, count)
+            # print(i, i)
             map_to_save = localization_map.numpy()[0]
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255
                 # print(frame_map)
                 name = "./heatmaps/heatmap" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
-                # print(name)
+                print(name)
                 cv2.imwrite(name, frame_map)
             # print(i, count)
             # numpy.savetxt("heatmap" + str(i) + ".txt", localization_map.numpy()[0][0])
@@ -202,7 +203,7 @@ class GradCAM:
                 frame_map = inp_to_save[f] *255
                 # print(frame_map)
                 name = "./inputs/input" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
-                # print(name)
+                print(name)
                 cv2.imwrite(name, frame_map)
 
             heatmap = torch.from_numpy(heatmap)
