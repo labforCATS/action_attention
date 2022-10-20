@@ -143,6 +143,10 @@ def save_checkpoint(path_to_job, model, optimizer, epoch, cfg, scaler=None):
     path_to_checkpoint = get_path_to_checkpoint(
         path_to_job, epoch + 1, cfg.TASK
     )
+    print(path_to_checkpoint)
+    if not os.path.exists(path_to_checkpoint):
+        with open(path_to_checkpoint, "w") as f:
+            pass
     with pathmgr.open(path_to_checkpoint, "wb") as f:
         torch.save(checkpoint, f)
     return path_to_checkpoint

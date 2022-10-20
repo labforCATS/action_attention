@@ -37,7 +37,9 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             slowfast/config/defaults.py
         writer (TensorboardWriter, optional): TensorboardWriter object
             to writer Tensorboard log.
+
     """
+    print(model)
     n_devices = cfg.NUM_GPUS * cfg.NUM_SHARDS
     prefix = "module/" if n_devices > 1 else ""
     # Get a list of selected layer names and indexing.
@@ -263,7 +265,7 @@ def visualize(cfg):
         or cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE
     ):
         # Set up environment.
-        du.init_distributed_training(cfg)
+        du.init_distributed_training(cfg.NUM_GPUS, cfg.SHARD_ID)
         # Set random seed from configs.
         np.random.seed(cfg.RNG_SEED)
         torch.manual_seed(cfg.RNG_SEED)

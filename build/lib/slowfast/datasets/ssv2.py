@@ -116,7 +116,9 @@ class Ssv2(torch.utils.data.Dataset):
         self._path_to_videos, _ = utils.load_image_lists(
             path_to_file, self.cfg.DATA.PATH_PREFIX
         )
-
+        print("data path", self.cfg.DATA.PATH_PREFIX)
+        print("path to file:", path_to_file)
+        
         assert len(self._path_to_videos) == len(self._video_names), (
             len(self._path_to_videos),
             len(self._video_names),

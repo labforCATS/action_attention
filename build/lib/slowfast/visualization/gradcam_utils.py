@@ -8,6 +8,9 @@ import torch.nn.functional as F
 import slowfast.datasets.utils as data_utils
 from slowfast.visualization.utils import get_layer
 
+import numpy 
+import sys
+import cv2
 
 class GradCAM:
     """
@@ -78,6 +81,8 @@ class GradCAM:
                 each corresponding input.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
+        # print(self.model)
+        # print(self.target_layers)
         assert len(inputs) == len(
             self.target_layers
         ), "Must register the same number of target layers as the number of input pathways."
@@ -92,12 +97,17 @@ class GradCAM:
             score = torch.gather(preds, dim=1, index=labels)
 
         self.model.zero_grad()
+        # local_score = score.cpu()
+        # print("Initial score: ", local_score)
         score = torch.sum(score)
+        # score = score * 0.9
+        # local_score = score.cpu()
+        # print("Score after sum: ", local_score)
         score.backward()
         localization_maps = []
         for i, inp in enumerate(inputs):
             _, _, T, H, W = inp.size()
-
+            # print(self.gradients.keys())
             gradients = self.gradients[self.target_layers[i]]
             activations = self.activations[self.target_layers[i]]
             B, C, Tg, _, _ = gradients.size()
@@ -139,7 +149,7 @@ class GradCAM:
 
         return localization_maps, preds
 
-    def __call__(self, inputs, labels=None, alpha=0.5):
+    def __call__(self, inputs, input_name, labels=None, alpha=0.5):
         """
         Visualize the localization maps on their corresponding inputs as heatmap,
         using Grad-CAM.
@@ -151,6 +161,7 @@ class GradCAM:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
+        alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
             inputs, labels=labels
@@ -160,8 +171,24 @@ class GradCAM:
             localization_map = localization_map.squeeze(dim=1)
             if localization_map.device != torch.device("cpu"):
                 localization_map = localization_map.cpu()
-            heatmap = self.colormap(localization_map)
+            count = 0
+            for t in range(len(localization_map.numpy()[0])):
+                for j in localization_map.numpy()[0][t]:
+                    if j.any() != 0:
+                        count += 1
+            # print(i, i)
+            map_to_save = localization_map.numpy()[0]
+            for f in range(len(map_to_save)):
+                frame_map = map_to_save[f] * 255
+                # print(frame_map)
+                name = "./output/heatmaps/heatmap" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                # print(name)
+                cv2.imwrite(name, frame_map)
+            # print(i, count)
+            # numpy.savetxt("heatmap" + str(i) + ".txt", localization_map.numpy()[0][0])
+            heatmap = self.colormap(localization_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
+
             # Permute input from (B, C, T, H, W) to (B, T, H, W, C)
             curr_inp = inputs[i].permute(0, 2, 3, 4, 1)
             if curr_inp.device != torch.device("cpu"):
@@ -169,6 +196,15 @@ class GradCAM:
             curr_inp = data_utils.revert_tensor_normalize(
                 curr_inp, self.data_mean, self.data_std
             )
+
+            inp_to_save = curr_inp.numpy()[0]
+            for f in range(len(inp_to_save)):
+                frame_map = inp_to_save[f] *255
+                # print(frame_map)
+                name = "./output/inputs/input" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                # print(name)
+                cv2.imwrite(name, frame_map)
+
             heatmap = torch.from_numpy(heatmap)
             curr_inp = alpha * heatmap + (1 - alpha) * curr_inp
             # Permute inp to (B, T, C, H, W)

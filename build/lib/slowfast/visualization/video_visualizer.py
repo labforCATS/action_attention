@@ -320,7 +320,10 @@ class ImgVisualizer(Visualizer):
             textbox_width (float): the width of the box wrapped around text label.
         """
         dist_to_top = box_coordinate[1]
-        num_text_top = dist_to_top // textbox_width
+        # num_text_top = dist_to_top // textbox_width
+
+        #To fix deprecation warning
+        num_text_top = torch.div(dist_to_top, textbox_width, rounding_mode='floor')
 
         if isinstance(num_text_top, torch.Tensor):
             num_text_top = int(num_text_top.item())
@@ -383,6 +386,7 @@ class VideoVisualizer:
         )
         self.mode = mode
         self.num_classes = num_classes
+        print("THIS IS CLASS NAMES PATH: ", class_names_path)
         self.class_names, _, _ = get_class_names(class_names_path, None, None)
         self.top_k = top_k
         self.thres = thres

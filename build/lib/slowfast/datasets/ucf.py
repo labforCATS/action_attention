@@ -8,12 +8,14 @@ import random
 from itertools import chain as chain
 import torch
 import torch.utils.data
+from torchvision import transforms
 
 import slowfast.utils.logging as logging
 from slowfast.utils.env import pathmgr
 
 from . import utils as utils
 from .build import DATASET_REGISTRY
+from . import transform as transform
 
 logger = logging.get_logger(__name__)
 
@@ -21,7 +23,7 @@ logger = logging.get_logger(__name__)
 @DATASET_REGISTRY.register()
 class Ucf(torch.utils.data.Dataset):
     """
-    Ucf (Ucf) video loader. Construct the Ucf video loader,
+    University of Central Florida (Ucf) video loader. Construct the Ucf video loader,
     then sample clips from the videos. For training and validation, a single
     clip is randomly sampled from every video with random cropping, scaling, and
     flipping. For testing, multiple clips are uniformaly sampled from every
@@ -33,8 +35,7 @@ class Ucf(torch.utils.data.Dataset):
     def __init__(self, cfg, mode, num_retries=10):
         """
         Load Ucf data (frame paths, labels, etc. ) to a given
-        Dataset object. The dataset could be downloaded from Something-Something
-        official website (https://20bn.com/datasets/something-something).
+        Dataset object. The dataset could be downloaded from ...
         Please see datasets/DATASET.md for more information about the data format.
         Args:
             cfg (CfgNode): configs.
@@ -56,6 +57,11 @@ class Ucf(torch.utils.data.Dataset):
 
         self._video_meta = {}
         self._num_retries = num_retries
+
+        # FOR BLURRING
+        # self.blur = not self.cfg.DATA.RANDOM_FLIP
+        # print("Blurring is", self.blur)
+
         # For training or validation mode, one single clip is sampled from every
         # video. For testing, NUM_ENSEMBLE_VIEWS clips are sampled from every
         # video. For every clip, NUM_SPATIAL_CROPS is cropped spatially from
@@ -78,7 +84,7 @@ class Ucf(torch.utils.data.Dataset):
         with pathmgr.open(
             os.path.join(
                 self.cfg.DATA.PATH_TO_DATA_DIR,
-                "something-something-v2-labels.json",
+                "Ucf-labels.json",
             ),
             "r",
         ) as f:
@@ -87,7 +93,7 @@ class Ucf(torch.utils.data.Dataset):
         # Loading labels.
         label_file = os.path.join(
             self.cfg.DATA.PATH_TO_DATA_DIR,
-            "something-something-v2-{}.json".format(
+            "Ucf-{}.json".format(
                 "train" if self.mode == "train" else "validation"
             ),
         )
@@ -98,12 +104,11 @@ class Ucf(torch.utils.data.Dataset):
         self._labels = []
         for video in label_json:
             video_name = video["id"]
-            print(video_name)
             template = video["template"]
             template = template.replace("[", "")
             template = template.replace("]", "")
             label = int(label_dict[template])
-            self._video_names.append(video_name)
+            self._video_names.append(str(int(video_name)))
             self._labels.append(label)
 
         path_to_file = os.path.join(
@@ -118,17 +123,21 @@ class Ucf(torch.utils.data.Dataset):
             path_to_file, self.cfg.DATA.PATH_PREFIX
         )
 
+        
         assert len(self._path_to_videos) == len(self._video_names), (
             len(self._path_to_videos),
             len(self._video_names),
+            self._path_to_videos.keys(),
+            self._video_names
         )
-
+        # print(self._path_to_videos)
         # From dict to list.
         new_paths, new_labels = [], []
         for index in range(len(self._video_names)):
             if self._video_names[index] in self._path_to_videos:
                 new_paths.append(self._path_to_videos[self._video_names[index]])
                 new_labels.append(self._labels[index])
+
 
         self._labels = new_labels
         self._path_to_videos = new_paths
@@ -267,6 +276,12 @@ class Ucf(torch.utils.data.Dataset):
             random_horizontal_flip=self.cfg.DATA.RANDOM_FLIP,
             inverse_uniform_sampling=self.cfg.DATA.INV_UNIFORM_SAMPLE,
         )
+        # if self.mode in ["train"] and self.blur == True:
+        #     print("Applying blur")
+        #     gaussian = transforms.RandomApply([transform.GaussianBlur([0.1, 2.0])], p=0.5)
+        #     frames = gaussian(frames)
+        #     # for f in range(len(frames)):
+        #     #     frames[f] = gaussian(frames[f])
         frames = utils.pack_pathway_output(self.cfg, frames)
         return frames, label, index, 0, {}
 

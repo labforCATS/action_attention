@@ -111,8 +111,11 @@ def construct_loader(cfg, split, is_precise_bn=False):
         drop_last = False
 
     # Construct the dataset
+    # print("YOOOOOOOOOOOOOOOOO________")
+    # print(dataset_name)
+    # print(split)
     dataset = build_dataset(dataset_name, cfg, split)
-
+    
     if isinstance(dataset, torch.utils.data.IterableDataset):
         loader = torch.utils.data.DataLoader(
             dataset,

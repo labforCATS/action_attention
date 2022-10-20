@@ -29,9 +29,11 @@ def retry_load_images(image_paths, retry=10, backend="pytorch"):
     Returns:
         imgs (list): list of loaded images.
     """
+    #print("IMAGE PATHS: " , image_paths)
     for i in range(retry):
         imgs = []
         for image_path in image_paths:
+            # print("THIS IS IMAGE PATH: " , image_path)
             with pathmgr.open(image_path, "rb") as f:
                 img_str = np.frombuffer(f.read(), np.uint8)
                 img = cv2.imdecode(img_str, flags=cv2.IMREAD_COLOR)
@@ -248,7 +250,9 @@ def load_image_lists(frame_list_file, prefix="", return_list=False):
     with pathmgr.open(frame_list_file, "r") as f:
         assert f.readline().startswith("original_vido_id")
         for line in f:
+            # print(line)
             row = line.split()
+            # print(row)
             # original_vido_id video_id frame_id path labels
             assert len(row) == 5
             video_name = row[0]

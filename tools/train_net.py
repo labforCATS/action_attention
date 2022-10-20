@@ -363,6 +363,8 @@ def eval_epoch(
                 preds = torch.sum(probs, 1)
             else:
                 preds = model(inputs)
+                print("Labels = ", labels)
+                print("Preds = ", preds)
 
             if cfg.DATA.MULTI_LABEL:
                 if cfg.NUM_GPUS > 1:
@@ -554,7 +556,7 @@ def train(cfg):
             slowfast/config/defaults.py
     """
     # Set up environment.
-    du.init_distributed_training(cfg)
+    du.init_distributed_training(cfg.NUM_GPUS, cfg.SHARD_ID)
     # Set random seed from configs.
     np.random.seed(cfg.RNG_SEED)
     torch.manual_seed(cfg.RNG_SEED)

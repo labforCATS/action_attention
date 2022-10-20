@@ -161,12 +161,12 @@ class GradCAM:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
-        print("hi")
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
             inputs, labels=labels
         )
+        print(len(localization_maps))
         for i, localization_map in enumerate(localization_maps):
             # Convert (B, 1, T, H, W) to (B, T, H, W)
             localization_map = localization_map.squeeze(dim=1)
@@ -177,13 +177,13 @@ class GradCAM:
                 for j in localization_map.numpy()[0][t]:
                     if j.any() != 0:
                         count += 1
-            # print(i, i)
+            print(i)
             map_to_save = localization_map.numpy()[0]
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255
                 # print(frame_map)
-                name = "./heatmaps/heatmap" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
-                print(name)
+                name = "/research/cwloka/data/action_attn/output/heatmaps/heatmap" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                # print(name)
                 cv2.imwrite(name, frame_map)
             # print(i, count)
             # numpy.savetxt("heatmap" + str(i) + ".txt", localization_map.numpy()[0][0])
@@ -202,8 +202,8 @@ class GradCAM:
             for f in range(len(inp_to_save)):
                 frame_map = inp_to_save[f] *255
                 # print(frame_map)
-                name = "./inputs/input" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
-                print(name)
+                name = "/research/cwloka/data/action_attn/output/inputs/input" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                # print(name)
                 cv2.imwrite(name, frame_map)
 
             heatmap = torch.from_numpy(heatmap)
