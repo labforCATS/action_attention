@@ -107,9 +107,9 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             activations, preds = model_vis.get_activations(inputs)
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
-                inputs, preds = gradcam(inputs, count, labels=labels)
+                inputs, preds = gradcam(cfg.OUTPUT_DIR, inputs, count, labels=labels)
             else:
-                inputs, preds = gradcam(inputs, count)
+                inputs, preds = gradcam(cfg.OUTPUT_DIR, inputs, count)
 
         if cfg.NUM_GPUS:
             inputs = du.all_gather_unaligned(inputs)

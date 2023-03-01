@@ -20,7 +20,6 @@ def main():
     print("config files: {}".format(args.cfg_files))
     for path_to_config in args.cfg_files:
         cfg = load_config(args, path_to_config)
-        print(cfg.SHARD_ID)
         #We added the line below
         cfg.NUM_GPUS = 1
         # Perform training.
