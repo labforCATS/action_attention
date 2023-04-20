@@ -27,10 +27,6 @@ from slowfast.visualization.gradcam_utils import GradCAM
 # from pytorch_grad_cam import GradCAM
 # from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
 
-import cv2
-
-import pdb # take out later
-
 logger = logging.get_logger(__name__)
 
 def get_layer(model, layer_name):
@@ -50,7 +46,7 @@ def get_layer(model, layer_name):
 
     return prev_module
 
-def run_visualization(vis_loader, model, cfg, writer=None, use_old_cam = True):
+def run_visualization(vis_loader, model, cfg, writer=None):
     """
     Run model visualization (weights, activations and model inputs) and visualize
     them on Tensorboard.
@@ -63,12 +59,6 @@ def run_visualization(vis_loader, model, cfg, writer=None, use_old_cam = True):
             to writer Tensorboard log.
 
     """
-    # print(model)
-    # if use_old_cam:
-    #     from slowfast.visualization.gradcam_utils import GradCAM
-    # else:
-    #     from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
-    
     n_devices = cfg.NUM_GPUS * cfg.NUM_SHARDS
     prefix = "module/" if n_devices > 1 else ""
     # Get a list of selected layer names and indexing.
@@ -107,17 +97,10 @@ def run_visualization(vis_loader, model, cfg, writer=None, use_old_cam = True):
             target_layers=grad_cam_layer_ls,
             data_mean=cfg.DATA.MEAN,
             data_std=cfg.DATA.STD,
-            colormap=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP,
+            method = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            colormap=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP
         )
-        # gradcam = EigenCAM(
-        #     model=model,
-        #     target_layers=target,
-        #     use_cuda=True
-        #     # data_mean=cfg.DATA.MEAN,
-        #     # data_std=cfg.DATA.STD,
-        #     # colormap=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP,
-        # )
-        # pdb.set_trace()
+
     logger.info("Finish drawing weights.")
     global_idx = -1
 
@@ -146,110 +129,95 @@ def run_visualization(vis_loader, model, cfg, writer=None, use_old_cam = True):
         else:
             activations, preds = model_vis.get_activations(inputs)
             
-        # pdb.set_trace()
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
-            if use_old_cam:
-                if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
-                    inputs, preds = gradcam(inputs, count, labels)
-                else:
-                    inputs, preds = gradcam(inputs=inputs, input_name=count, labels=None, alpha=0.5, output_dir='/research/cwloka/data/action_attn/output/runs-Ucf')
-                    # inputs, preds = gradcam(inputs, count)
+            if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
+                inputs, preds = gradcam(inputs, count, labels)
             else:
-                if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
-                    cam = gradcam(inputs, count, labels)
-                else:
-                    cam = gradcam(inputs, count)
-                frameSize = (256,256)
-                out = cv2.VideoWriter('test_output_eigencam_1209_0.mp4',cv2.VideoWriter_fourcc(*'DIVX'), 10, frameSize)
-                for i in range(inputs[0].shape[2]):
-                    out.write(show_cam_on_image(inputs[0].cpu()[0,0,i,:,:], cam[0].cpu()[0,i,:,:]))
-                out.release()
-                pdb.set_trace()
+                inputs, preds = gradcam(inputs, count)
                 
-        if use_old_cam:
-            if cfg.NUM_GPUS:
-                inputs = du.all_gather_unaligned(inputs)
-                activations = du.all_gather_unaligned(activations)
-                preds = du.all_gather_unaligned(preds)
-                if isinstance(inputs[0], list):
-                    for i in range(len(inputs)):
-                        for j in range(len(inputs[0])):
-                            inputs[i][j] = inputs[i][j].cpu()
-                else:
-                    inputs = [inp.cpu() for inp in inputs]
-                preds = [pred.cpu() for pred in preds]
+        if cfg.NUM_GPUS:
+            inputs = du.all_gather_unaligned(inputs)
+            activations = du.all_gather_unaligned(activations)
+            preds = du.all_gather_unaligned(preds)
+            if isinstance(inputs[0], list):
+                for i in range(len(inputs)):
+                    for j in range(len(inputs[0])):
+                        inputs[i][j] = inputs[i][j].cpu()
             else:
-                inputs, activations, preds = [inputs], [activations], [preds]
+                inputs = [inp.cpu() for inp in inputs]
+            preds = [pred.cpu() for pred in preds]
+        else:
+            inputs, activations, preds = [inputs], [activations], [preds]
 
-            boxes = [None] * max(n_devices, 1)
-            if cfg.DETECTION.ENABLE and cfg.NUM_GPUS:
-                boxes = du.all_gather_unaligned(meta["boxes"])
-                boxes = [box.cpu() for box in boxes]
+        boxes = [None] * max(n_devices, 1)
+        if cfg.DETECTION.ENABLE and cfg.NUM_GPUS:
+            boxes = du.all_gather_unaligned(meta["boxes"])
+            boxes = [box.cpu() for box in boxes]
 
-            if writer is not None:
-                total_vids = 0
-                for i in range(max(n_devices, 1)):
-                    cur_input = inputs[i]
-                    cur_activations = activations[i]
-                    cur_batch_size = cur_input[0].shape[0]
-                    cur_preds = preds[i]
-                    cur_boxes = boxes[i]
-                    for cur_batch_idx in range(cur_batch_size):
-                        global_idx += 1
-                        total_vids += 1
-                        if (
-                            cfg.TENSORBOARD.MODEL_VIS.INPUT_VIDEO
-                            or cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE
-                        ):
-                            for path_idx, input_pathway in enumerate(cur_input):
-                                if cfg.TEST.DATASET == "ava" and cfg.AVA.BGR:
-                                    video = input_pathway[
-                                        cur_batch_idx, [2, 1, 0], ...
-                                    ]
-                                else:
-                                    video = input_pathway[cur_batch_idx]
+        if writer is not None:
+            total_vids = 0
+            for i in range(max(n_devices, 1)):
+                cur_input = inputs[i]
+                cur_activations = activations[i]
+                cur_batch_size = cur_input[0].shape[0]
+                cur_preds = preds[i]
+                cur_boxes = boxes[i]
+                for cur_batch_idx in range(cur_batch_size):
+                    global_idx += 1
+                    total_vids += 1
+                    if (
+                        cfg.TENSORBOARD.MODEL_VIS.INPUT_VIDEO
+                        or cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE
+                    ):
+                        for path_idx, input_pathway in enumerate(cur_input):
+                            if cfg.TEST.DATASET == "ava" and cfg.AVA.BGR:
+                                video = input_pathway[
+                                    cur_batch_idx, [2, 1, 0], ...
+                                ]
+                            else:
+                                video = input_pathway[cur_batch_idx]
 
-                                if not cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
-                                    # Permute to (T, H, W, C) from (C, T, H, W).
-                                    video = video.permute(1, 2, 3, 0)
-                                    video = data_utils.revert_tensor_normalize(
-                                        video, cfg.DATA.MEAN, cfg.DATA.STD
-                                    )
-                                else:
-                                    # Permute from (T, C, H, W) to (T, H, W, C)
-                                    video = video.permute(0, 2, 3, 1)
-                                bboxes = (
-                                    None if cur_boxes is None else cur_boxes[:, 1:]
+                            if not cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
+                                # Permute to (T, H, W, C) from (C, T, H, W).
+                                video = video.permute(1, 2, 3, 0)
+                                video = data_utils.revert_tensor_normalize(
+                                    video, cfg.DATA.MEAN, cfg.DATA.STD
                                 )
-                                cur_prediction = (
-                                    cur_preds
-                                    if cfg.DETECTION.ENABLE
-                                    else cur_preds[cur_batch_idx]
-                                )
-                                video = video_vis.draw_clip(
-                                    video, cur_prediction, bboxes=bboxes
-                                )
-                                video = (
-                                    torch.from_numpy(np.array(video))
-                                    .permute(0, 3, 1, 2)
-                                    .unsqueeze(0)
-                                )
-                                #TODO: figure out tensorboard
-                                
-                                writer.add_video(
-                                    video,
-                                    tag="Input {}/Pathway {}".format(
-                                        global_idx, path_idx + 1
-                                    ),
-                                )
-                        if cfg.TENSORBOARD.MODEL_VIS.ACTIVATIONS:
-                            writer.plot_weights_and_activations(
-                                cur_activations,
-                                tag="Input {}/Activations: ".format(global_idx),
-                                batch_idx=cur_batch_idx,
-                                indexing_dict=indexing_dict,
+                            else:
+                                # Permute from (T, C, H, W) to (T, H, W, C)
+                                video = video.permute(0, 2, 3, 1)
+                            bboxes = (
+                                None if cur_boxes is None else cur_boxes[:, 1:]
                             )
-            count += 1
+                            cur_prediction = (
+                                cur_preds
+                                if cfg.DETECTION.ENABLE
+                                else cur_preds[cur_batch_idx]
+                            )
+                            video = video_vis.draw_clip(
+                                video, cur_prediction, bboxes=bboxes
+                            )
+                            video = (
+                                torch.from_numpy(np.array(video))
+                                .permute(0, 3, 1, 2)
+                                .unsqueeze(0)
+                            )
+                            #TODO: figure out tensorboard
+                            
+                            writer.add_video(
+                                video,
+                                tag="Input {}/Pathway {}".format(
+                                    global_idx, path_idx + 1
+                                ),
+                            )
+                    if cfg.TENSORBOARD.MODEL_VIS.ACTIVATIONS:
+                        writer.plot_weights_and_activations(
+                            cur_activations,
+                            tag="Input {}/Activations: ".format(global_idx),
+                            batch_idx=cur_batch_idx,
+                            indexing_dict=indexing_dict,
+                        )
+        count += 1
 
     def perform_wrong_prediction_vis(vis_loader, model, cfg):
         """

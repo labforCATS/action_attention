@@ -6,4 +6,5 @@
 
 def add_custom_config(_C):
     # Add your own customized configs.
-    pass
+    # (added 3/30): specific gradcam method to use for visualization.
+    _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD = "grad_cam"

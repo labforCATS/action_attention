@@ -4,7 +4,6 @@ import tqdm
 import pdb
 
 def get_model_weights(inputs = None, grads = None, activations = None, method = 'grad_cam'):
-    #(1,256,64)
     if method == 'grad_cam':
         return(torch.mean(grads,dim=3))
 
@@ -27,13 +26,14 @@ def get_model_weights(inputs = None, grads = None, activations = None, method = 
     elif method == 'eigen_cam':
         activations = activations.cpu().numpy().squeeze()
         activations[np.isnan(activations)] = 0
-        reshaped_activations = (activations).reshape(activations.shape[0], -1).transpose()
+        # reshaped_activations = (activations).reshape(activations.shape[0], -1).transpose()
+        reshaped_activations = (activations).reshape(activations.shape[-1], -1).transpose()
         # Centering before the SVD seems to be important here, otherwise the image returned is negative
         reshaped_activations = reshaped_activations - reshaped_activations.mean(axis=0)
         U, S, VT = np.linalg.svd(reshaped_activations, full_matrices=True)
         projection = reshaped_activations @ VT[0, :]
-        projection = projection.reshape(activations.shape[1:])
-        return torch.FloatTensor(projections)
+        projection = projection.reshape(activations.shape[:-1])
+        return(torch.FloatTensor(projection).cuda())
     
     elif method == 'score_cam':
         #TODO
@@ -43,7 +43,7 @@ def get_model_weights(inputs = None, grads = None, activations = None, method = 
             activation_tensor = torch.from_numpy(activations)
             if self.cuda:
                 activation_tensor = activation_tensor.cuda()
-
+    
             upsampled = upsample(activation_tensor)
 
             maxs = upsampled.view(upsampled.size(0), upsampled.size(1), -1).max(dim=-1)[0]
@@ -58,7 +58,6 @@ def get_model_weights(inputs = None, grads = None, activations = None, method = 
                 BATCH_SIZE = self.batch_size
             else:
                 BATCH_SIZE = 16
-            pdb.set_trace()
             scores = []
             for target, tensor in zip(targets, input_tensors):
                 for i in tqdm.tqdm(range(0, tensor.size(0), BATCH_SIZE)):
