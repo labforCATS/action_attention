@@ -28,6 +28,7 @@ slowfast/datasets/rand_augment.py
 slowfast/datasets/random_erasing.py
 slowfast/datasets/ssv2.py
 slowfast/datasets/transform.py
+slowfast/datasets/ucf.py
 slowfast/datasets/utils.py
 slowfast/datasets/video_container.py
 slowfast/models/__init__.py
@@ -80,6 +81,7 @@ slowfast/visualization/__init__.py
 slowfast/visualization/async_predictor.py
 slowfast/visualization/ava_demo_precomputed_boxes.py
 slowfast/visualization/demo_loader.py
+slowfast/visualization/frameEnergy.py
 slowfast/visualization/gradcam_utils.py
 slowfast/visualization/prediction_vis.py
 slowfast/visualization/predictor.py

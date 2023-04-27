@@ -134,7 +134,7 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                 inputs, preds = gradcam(inputs, count, labels)
             else:
                 inputs, preds = gradcam(inputs, count)
-                
+
         if cfg.NUM_GPUS:
             inputs = du.all_gather_unaligned(inputs)
             activations = du.all_gather_unaligned(activations)

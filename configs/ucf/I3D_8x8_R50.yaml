@@ -11,8 +11,18 @@ TRAIN:
   CHECKPOINT_EPOCH_RESET: True
 
 TENSORBOARD:
-  ENABLE: True
-  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf/Ucf-labels.json
+  ENABLE: False
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_high_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_low_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_rand_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_rand_0_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_rand_1_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_rand_2_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_rand_3_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_rand_4_singleframe_i3d/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_high_loop_i3d/Ucf-labels.json
+  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_backwards/Ucf-labels.json
   MODEL_VIS:
     ENABLE: True
     MODEL_WEIGHTS: False # Set to True to visualize model weights.
@@ -25,9 +35,19 @@ TENSORBOARD:
                   # The number of layer must be equal to the number of pathway(s).
       USE_TRUE_LABEL: False
 DATA:
-  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_high_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_low_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_rand_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_rand_0_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_rand_1_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_rand_2_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_rand_3_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_rand_4_singleframe_i3d
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_high_loop_i3d
+  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_backwards
   NUM_FRAMES: 64
-  SAMPLING_RATE: 2
+  SAMPLING_RATE: 1
   TRAIN_JITTER_SCALES: [256, 320]
   TRAIN_CROP_SIZE: 256
   TEST_CROP_SIZE: 256
@@ -69,7 +89,7 @@ MODEL:
   DROPOUT_RATE: 0.5
   # DETACH_FINAL_FC: True
 TEST:
-  ENABLE: False
+  ENABLE: True
   DATASET: ucf
   BATCH_SIZE: 1
   NUM_ENSEMBLE_VIEWS: 1
@@ -80,5 +100,15 @@ DATA_LOADER:
 NUM_GPUS: 1
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/data/action_attn/output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/output_i3d
+# OUTPUT_DIR: /research/cwloka/data/action_attn/high_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/low_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/rand_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/rand_0_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/rand_1_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/rand_2_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/rand_3_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/rand_4_singleframe_i3d_output
+# OUTPUT_DIR: /research/cwloka/data/action_attn/high_loop_i3d_output
+OUTPUT_DIR: /research/cwloka/data/action_attn/ucf_backwards_output_i3d
 LOG_MODEL_INFO: False

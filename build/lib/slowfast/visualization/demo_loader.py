@@ -125,7 +125,6 @@ class VideoManager:
         print("Reached function")
         for frame in task.frames[task.num_buffer_frames :]:
             if self.output_file is None:
-                print("star wars > star track")
                 cv2.imshow("SlowFast", frame)
                 time.sleep(1 / self.output_fps)
             else:

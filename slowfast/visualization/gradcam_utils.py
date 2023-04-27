@@ -149,7 +149,7 @@ class GradCAM:
 
         return localization_maps, preds
 
-    def __call__(self, inputs, input_name, labels=None, alpha=0.5):
+    def __call__(self, output_dir, inputs, input_name, labels=None, alpha=0.5):
         """
         Visualize the localization maps on their corresponding inputs as heatmap,
         using Grad-CAM.
@@ -157,7 +157,7 @@ class GradCAM:
             inputs (list of tensor(s)): the input clips.
             labels (Optional[tensor]): labels of the current input clips.
             alpha (float): transparency level of the heatmap, in the range [0, 1].
-        Returns:
+        Returns: 
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
@@ -182,7 +182,7 @@ class GradCAM:
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255
                 # print(frame_map)
-                name = "/research/cwloka/data/action_attn/output/heatmaps/heatmap" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                name = output_dir + "/heatmaps/heatmap" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
                 # print(name)
                 cv2.imwrite(name, frame_map)
             # print(i, count)
@@ -202,7 +202,7 @@ class GradCAM:
             for f in range(len(inp_to_save)):
                 frame_map = inp_to_save[f] *255
                 # print(frame_map)
-                name = "/research/cwloka/data/action_attn/output/inputs/input" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                name = output_dir + "/inputs/input" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
                 # print(name)
                 cv2.imwrite(name, frame_map)
 

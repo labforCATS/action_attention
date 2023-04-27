@@ -40,6 +40,7 @@ def build_model(cfg, gpu_id=None):
         ), "Cuda is not available. Please set `NUM_GPUS: 0 for running on CPUs."
 
     # Construct the model
+    # DEBUG MODEL TYPE
     name = cfg.MODEL.MODEL_NAME
     model = MODEL_REGISTRY.get(name)(cfg)
 

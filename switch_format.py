@@ -233,6 +233,10 @@ def create_train_csv(write_path):
         writer = csv.writer(f,  delimiter=' ')
         writer.writerows(new_csv)
 
+boring_test = [ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', 
+                '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', 
+                '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', 
+                '39', '40', '41', '42', '43', '44', '45', '46', '47']
 def create_val_csv(new_path):
     """
     Create the val csv
@@ -243,7 +247,7 @@ def create_val_csv(new_path):
     new_csv = [["original_vido_id", "video_id", "frame_id", "path", "''"]]
 
     # Loop through the testing videos
-    for vid in test:
+    for vid in boring_test:
         path = new_path + vid
         allfiles = list(os.walk(path))
         for item in allfiles:
@@ -251,10 +255,11 @@ def create_val_csv(new_path):
             for filename in LoFiles:
                 if filename[-3:] == "jpg":
                     filename_parts = filename.split("_")
-                    new_path = "/media/cats/32b7c353-4595-42d8-81aa-d029f1556567/ucf/" + vid + "/" + filename
+                    # new_path = "/media/cats/32b7c353-4595-42d8-81aa-d029f1556567/ucf/" + vid + "/" + filename
+                    new_p = "/research/cwloka/data/action_attn/ucf_singleframe/" + vid + "/" + filename
 
                     # Create the row for the frame
-                    row = [int(vid), int(vid), filename_parts[-1][:-4], new_path, '""']
+                    row = [int(vid), int(vid), filename_parts[-1][:-4], new_p, '""']
                     new_csv += [row]
 
     # Write the data to the file
