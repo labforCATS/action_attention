@@ -4,6 +4,7 @@
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
+from slowfast.visualization.weight_calcs import get_model_weights
 
 import slowfast.datasets.utils as data_utils
 from slowfast.visualization.utils import get_layer
@@ -20,7 +21,7 @@ class GradCAM:
     """
 
     def __init__(
-        self, model, target_layers, data_mean, data_std, colormap="viridis"
+        self, model, target_layers, data_mean, data_std, method, colormap="viridis"
     ):
         """
         Args:
@@ -40,11 +41,11 @@ class GradCAM:
 
         self.gradients = {}
         self.activations = {}
+        self.method = method
         self.colormap = plt.get_cmap(colormap)
         self.data_mean = data_mean
         self.data_std = data_std
         self._register_hooks()
-
     def _register_single_hook(self, layer_name):
         """
         Register forward and backward hook to a layer, given layer_name,
@@ -70,7 +71,7 @@ class GradCAM:
         for layer_name in self.target_layers:
             self._register_single_hook(layer_name=layer_name)
 
-    def _calculate_localization_map(self, inputs, labels=None):
+    def _calculate_localization_map(self, inputs, labels=None, method='grad_cam'):
         """
         Calculate localization map for all inputs with Grad-CAM.
         Args:
@@ -107,13 +108,12 @@ class GradCAM:
         localization_maps = []
         for i, inp in enumerate(inputs):
             _, _, T, H, W = inp.size()
-            # print(self.gradients.keys())
+
             gradients = self.gradients[self.target_layers[i]]
             activations = self.activations[self.target_layers[i]]
             B, C, Tg, _, _ = gradients.size()
 
-            weights = torch.mean(gradients.view(B, C, Tg, -1), dim=3)
-
+            weights = get_model_weights(inputs, gradients.view(B,C,Tg,-1), activations.view(B,C,Tg,-1), method = self.method)
             weights = weights.view(B, C, Tg, 1, 1)
             localization_map = torch.sum(
                 weights * activations, dim=1, keepdim=True
@@ -164,9 +164,9 @@ class GradCAM:
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
-            inputs, labels=labels
+            inputs, labels=labels, method = self.method
         )
-        print(len(localization_maps))
+        # print(len(localization_maps))
         for i, localization_map in enumerate(localization_maps):
             # Convert (B, 1, T, H, W) to (B, T, H, W)
             localization_map = localization_map.squeeze(dim=1)
@@ -177,7 +177,7 @@ class GradCAM:
                 for j in localization_map.numpy()[0][t]:
                     if j.any() != 0:
                         count += 1
-            print(i)
+            # print(i)
             map_to_save = localization_map.numpy()[0]
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255

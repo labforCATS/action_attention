@@ -995,6 +995,8 @@ _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST = []
 # If True, visualize Grad-CAM using true labels for each instances.
 # If False, use the highest predicted class.
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL = False
+# (added 3/30): specific gradcam method to use for visualization.
+_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD = "grad_cam"
 # Colormap to for text boxes and bounding boxes colors
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP = "viridis"
 

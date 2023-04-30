@@ -15,7 +15,6 @@ import slowfast.visualization.tensorboard_vis as tb
 from slowfast.datasets import loader
 from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
-from slowfast.visualization.gradcam_utils import GradCAM
 from slowfast.visualization.prediction_vis import WrongPredictionVis
 from slowfast.visualization.utils import (
     GetWeightAndActivation,
@@ -23,8 +22,29 @@ from slowfast.visualization.utils import (
 )
 from slowfast.visualization.video_visualizer import VideoVisualizer
 
+# from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from slowfast.visualization.gradcam_utils import GradCAM
+# from pytorch_grad_cam import GradCAM
+# from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
+
 logger = logging.get_logger(__name__)
 
+def get_layer(model, layer_name):
+    """
+    Return the targeted layer (nn.Module Object) given a hierarchical layer name,
+    separated by /.
+    Args:
+        model (model): model to get layers from.
+        layer_name (str): name of the layer.
+    Returns:
+        prev_module (nn.Module): the layer from the model with `layer_name` name.
+    """
+    layer_ls = layer_name.split("/")
+    prev_module = model
+    for layer in layer_ls:
+        prev_module = prev_module._modules[layer]
+
+    return prev_module
 
 def run_visualization(vis_loader, model, cfg, writer=None):
     """
@@ -39,7 +59,6 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             to writer Tensorboard log.
 
     """
-    print(model)
     n_devices = cfg.NUM_GPUS * cfg.NUM_SHARDS
     prefix = "module/" if n_devices > 1 else ""
     # Get a list of selected layer names and indexing.
@@ -71,13 +90,17 @@ def run_visualization(vis_loader, model, cfg, writer=None):
         grad_cam_layer_ls = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST
 
     if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
+        target = [get_layer(model, layer) for layer in grad_cam_layer_ls]
+        # target = [getattr(getattr(model, layer.split('/')[0]), layer.split('/')[1]) for layer in grad_cam_layer_ls]
         gradcam = GradCAM(
             model,
             target_layers=grad_cam_layer_ls,
             data_mean=cfg.DATA.MEAN,
             data_std=cfg.DATA.STD,
-            colormap=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP,
+            method = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            colormap=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP
         )
+
     logger.info("Finish drawing weights.")
     global_idx = -1
 
@@ -105,11 +128,12 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             )
         else:
             activations, preds = model_vis.get_activations(inputs)
+            
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
-                inputs, preds = gradcam(cfg.OUTPUT_DIR, inputs, count, labels=labels)
+                inputs, preds = gradcam(inputs, count, labels)
             else:
-                inputs, preds = gradcam(cfg.OUTPUT_DIR, inputs, count)
+                inputs, preds = gradcam(inputs, count)
 
         if cfg.NUM_GPUS:
             inputs = du.all_gather_unaligned(inputs)
@@ -178,6 +202,8 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                                 .permute(0, 3, 1, 2)
                                 .unsqueeze(0)
                             )
+                            #TODO: figure out tensorboard
+                            
                             writer.add_video(
                                 video,
                                 tag="Input {}/Pathway {}".format(
@@ -193,64 +219,65 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                         )
         count += 1
 
-def perform_wrong_prediction_vis(vis_loader, model, cfg):
-    """
-    Visualize video inputs with wrong predictions on Tensorboard.
-    Args:
-        vis_loader (loader): video visualization loader.
-        model (model): the video model to visualize.
-        cfg (CfgNode): configs. Details can be found in
-            slowfast/config/defaults.py
-    """
-    wrong_prediction_visualizer = WrongPredictionVis(cfg=cfg)
-    for batch_idx, (inputs, labels, _, _) in tqdm.tqdm(enumerate(vis_loader)):
-        if cfg.NUM_GPUS:
-            # Transfer the data to the current GPU device.
-            if isinstance(inputs, (list,)):
-                for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(non_blocking=True)
-            else:
-                inputs = inputs.cuda(non_blocking=True)
-            labels = labels.cuda()
+    def perform_wrong_prediction_vis(vis_loader, model, cfg):
+        """
+        Visualize video inputs with wrong predictions on Tensorboard.
+        Args:
+            vis_loader (loader): video visualization loader.
+            model (model): the video model to visualize.
+            cfg (CfgNode): configs. Details can be found in
+                slowfast/config/defaults.py
+        """
+        wrong_prediction_visualizer = WrongPredictionVis(cfg=cfg)
+        for batch_idx, (inputs, labels, _, _) in tqdm.tqdm(enumerate(vis_loader)):
+            if cfg.NUM_GPUS:
+                # Transfer the data to the current GPU device.
+                if isinstance(inputs, (list,)):
+                    for i in range(len(inputs)):
+                        inputs[i] = inputs[i].cuda(non_blocking=True)
+                else:
+                    inputs = inputs.cuda(non_blocking=True)
+                labels = labels.cuda()
 
-        # Some model modify the original input.
-        inputs_clone = [inp.clone() for inp in inputs]
+            # Some model modify the original input.
+            inputs_clone = [inp.clone() for inp in inputs]
 
-        preds = model(inputs)
+            preds = model(inputs)
 
-        if cfg.NUM_GPUS > 1:
-            preds, labels = du.all_gather([preds, labels])
-            if isinstance(inputs_clone, (list,)):
-                inputs_clone = du.all_gather(inputs_clone)
-            else:
-                inputs_clone = du.all_gather([inputs_clone])[0]
+            if cfg.NUM_GPUS > 1:
+                preds, labels = du.all_gather([preds, labels])
+                if isinstance(inputs_clone, (list,)):
+                    inputs_clone = du.all_gather(inputs_clone)
+                else:
+                    inputs_clone = du.all_gather([inputs_clone])[0]
 
-        if cfg.NUM_GPUS:
-            # Transfer the data to the current CPU device.
-            labels = labels.cpu()
-            preds = preds.cpu()
-            if isinstance(inputs_clone, (list,)):
-                for i in range(len(inputs_clone)):
-                    inputs_clone[i] = inputs_clone[i].cpu()
-            else:
-                inputs_clone = inputs_clone.cpu()
+            if cfg.NUM_GPUS:
+                # Transfer the data to the current CPU device.
+                labels = labels.cpu()
+                preds = preds.cpu()
+                if isinstance(inputs_clone, (list,)):
+                    for i in range(len(inputs_clone)):
+                        inputs_clone[i] = inputs_clone[i].cpu()
+                else:
+                    inputs_clone = inputs_clone.cpu()
 
-        # If using CPU (NUM_GPUS = 0), 1 represent 1 CPU.
-        n_devices = max(cfg.NUM_GPUS, 1)
-        for device_idx in range(1, n_devices + 1):
-            wrong_prediction_visualizer.visualize_vid(
-                video_input=inputs_clone,
-                labels=labels,
-                preds=preds.detach().clone(),
-                batch_idx=device_idx * batch_idx,
-            )
+            # If using CPU (NUM_GPUS = 0), 1 represent 1 CPU.
+            n_devices = max(cfg.NUM_GPUS, 1)
+            for device_idx in range(1, n_devices + 1):
+                wrong_prediction_visualizer.visualize_vid(
+                    video_input=inputs_clone,
+                    labels=labels,
+                    preds=preds.detach().clone(),
+                    batch_idx=device_idx * batch_idx,
+                )
+    #TODO: reinstate
 
-    logger.info(
-        "Class indices with wrong predictions: {}".format(
-            sorted(wrong_prediction_visualizer.wrong_class_prediction)
-        )
-    )
-    wrong_prediction_visualizer.clean()
+    # logger.info(
+    #     "Class indices with wrong predictions: {}".format(
+    #         sorted(wrong_prediction_visualizer.wrong_class_prediction)
+    #     )
+    # )
+    # wrong_prediction_visualizer.clean()
 
 
 def visualize(cfg):
