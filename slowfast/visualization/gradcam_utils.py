@@ -12,6 +12,7 @@ from slowfast.visualization.utils import get_layer
 import numpy
 import sys
 import cv2
+import os
 
 
 class GradCAM:
@@ -20,7 +21,6 @@ class GradCAM:
     and overlap the maps over the input videos as heatmaps.
     https://arxiv.org/pdf/1610.02391.pdf
     """
-
     def __init__(self,
                  model,
                  target_layers,
@@ -58,7 +58,6 @@ class GradCAM:
         Args:
             layer_name (str): name of the layer.
         """
-
         def get_gradients(module, grad_input, grad_output):
             self.gradients[layer_name] = grad_output[0].detach()
 
@@ -157,13 +156,21 @@ class GradCAM:
 
         return localization_maps, preds
 
-    def __call__(self, output_dir, inputs, input_name, labels=None, alpha=0.5):
+    def __call__(self,
+                 output_dir,
+                 inputs,
+                 input_name,
+                 cfg,
+                 labels=None,
+                 alpha=0.5):
         """
         Visualize the localization maps on their corresponding inputs as heatmap,
         using Grad-CAM.
         Args:
             inputs (list of tensor(s)): the input clips.
             labels (Optional[tensor]): labels of the current input clips.
+            cfg (CfgNode): configs. Details can be found in
+                slowfast/config/defaults.py
             alpha (float): transparency level of the heatmap, in the range [0, 1].
         Returns:
             result_ls (list of tensor(s)): the visualized inputs.
@@ -192,9 +199,19 @@ class GradCAM:
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255
                 # print(frame_map)
-                name = (output_dir + "/heatmaps/heatmap_" + str(input_name) +
-                        "_pathway" + str(i) + "frame" + str(f) + ".jpg")
+                name = (output_dir + "/heatmaps/" +
+                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD +
+                        "/heatmap_" + str(input_name) + "_pathway" + str(i) +
+                        "frame" + str(f) + ".jpg")
                 # print(name)
+                heatmap_path = os.path.join(output_dir + "/heatmaps")
+                visualization_path = os.path.join(
+                    heatmap_path + '/',
+                    cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
+                if not os.path.exists(heatmap_path):
+                    os.makedirs(heatmap_path)
+                if not os.path.exists(visualization_path):
+                    os.makedirs(visualization_path)
                 cv2.imwrite(name, frame_map)
             # print(i, count)
             # numpy.savetxt("heatmap" + str(i) + ".txt", localization_map.numpy()[0][0])
