@@ -9,9 +9,10 @@ from slowfast.visualization.weight_calcs import get_model_weights
 import slowfast.datasets.utils as data_utils
 from slowfast.visualization.utils import get_layer
 
-import numpy 
+import numpy
 import sys
 import cv2
+
 
 class GradCAM:
     """
@@ -33,7 +34,6 @@ class GradCAM:
             colormap (Optional[str]): matplotlib colormap used to create heatmap.
                 See https://matplotlib.org/3.3.0/tutorials/colors/colormaps.html
         """
-
         self.model = model
         # Run in eval mode.
         self.model.eval()
@@ -46,6 +46,7 @@ class GradCAM:
         self.data_mean = data_mean
         self.data_std = data_std
         self._register_hooks()
+
     def _register_single_hook(self, layer_name):
         """
         Register forward and backward hook to a layer, given layer_name,
@@ -71,7 +72,7 @@ class GradCAM:
         for layer_name in self.target_layers:
             self._register_single_hook(layer_name=layer_name)
 
-    def _calculate_localization_map(self, inputs, labels=None, method='grad_cam'):
+    def _calculate_localization_map(self, inputs, labels=None, method="grad_cam"):
         """
         Calculate localization map for all inputs with Grad-CAM.
         Args:
@@ -113,11 +114,14 @@ class GradCAM:
             activations = self.activations[self.target_layers[i]]
             B, C, Tg, _, _ = gradients.size()
 
-            weights = get_model_weights(inputs, gradients.view(B,C,Tg,-1), activations.view(B,C,Tg,-1), method = self.method)
-            weights = weights.view(B, C, Tg, 1, 1)
-            localization_map = torch.sum(
-                weights * activations, dim=1, keepdim=True
+            weights = get_model_weights(
+                inputs,
+                gradients.view(B, C, Tg, -1),
+                activations.view(B, C, Tg, -1),
+                method=self.method,
             )
+            weights = weights.view(B, C, Tg, 1, 1)
+            localization_map = torch.sum(weights * activations, dim=1, keepdim=True)
             localization_map = F.relu(localization_map)
             localization_map = F.interpolate(
                 localization_map,
@@ -126,12 +130,8 @@ class GradCAM:
                 align_corners=False,
             )
             localization_map_min, localization_map_max = (
-                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[
-                    0
-                ],
-                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[
-                    0
-                ],
+                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
+                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
             )
             localization_map_min = torch.reshape(
                 localization_map_min, shape=(B, 1, 1, 1, 1)
@@ -157,14 +157,14 @@ class GradCAM:
             inputs (list of tensor(s)): the input clips.
             labels (Optional[tensor]): labels of the current input clips.
             alpha (float): transparency level of the heatmap, in the range [0, 1].
-        Returns: 
+        Returns:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
-            inputs, labels=labels, method = self.method
+            inputs, labels=labels, method=self.method
         )
         # print(len(localization_maps))
         for i, localization_map in enumerate(localization_maps):
@@ -179,10 +179,22 @@ class GradCAM:
                         count += 1
             # print(i)
             map_to_save = localization_map.numpy()[0]
+            print(type(map_to_save))
+            print(len(map_to_save))
+
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255
                 # print(frame_map)
-                name = output_dir + "/heatmaps/heatmap" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                name = (
+                    output_dir
+                    + "/heatmaps/heatmap_"
+                    + str(input_name)
+                    + "_pathway"
+                    + str(i)
+                    + "frame"
+                    + str(f)
+                    + ".jpg"
+                )
                 # print(name)
                 cv2.imwrite(name, frame_map)
             # print(i, count)
@@ -200,9 +212,18 @@ class GradCAM:
 
             inp_to_save = curr_inp.numpy()[0]
             for f in range(len(inp_to_save)):
-                frame_map = inp_to_save[f] *255
+                frame_map = inp_to_save[f] * 255
                 # print(frame_map)
-                name = output_dir + "/inputs/input" + str(input_name) + "pathway" + str(i) + "frame" + str(f) + ".jpg"
+                name = (
+                    output_dir
+                    + "/inputs/input_"
+                    + str(input_name)
+                    + "_pathway"
+                    + str(i)
+                    + "frame"
+                    + str(f)
+                    + ".jpg"
+                )
                 # print(name)
                 cv2.imwrite(name, frame_map)
 

@@ -4,7 +4,7 @@ import tqdm
 import pdb
 
 def get_model_weights(inputs = None, grads = None, activations = None, method = 'grad_cam'):
-    pdb.set_trace()
+    # pdb.set_trace()
     if method == 'grad_cam':
         return(torch.mean(grads,dim=3))
 
@@ -19,14 +19,14 @@ def get_model_weights(inputs = None, grads = None, activations = None, method = 
         # And zero out aijs where the activations are 0
         aij = torch.where(grads != 0, aij, 0)
         weights = torch.maximum(grads, torch.zeros_like(grads)) * aij
-        weights = torhc.sum(weights, axis=3)
+        weights = torch.sum(weights, axis=3)
         return(weights)
         
     elif method == 'eigen_cam':
         activations = activations.squeeze()
         activations[torch.isnan(activations)] = 0
-        # reshaped_activations = (activations).reshape(activations.shape[0], -1).transpose()
-        reshaped_activations = (new_activations).reshape(new_activations.shape[-1], -1).transpose(0,1)
+        reshaped_activations = (activations).reshape(activations.shape[-1], -1).transpose(0, 1)
+        # reshaped_activations = (new_activations).reshape(new_activations.shape[-1], -1).transpose(0,1)
         # Centering before the SVD seems to be important here, otherwise the image returned is negative
         reshaped_activations = reshaped_activations - torch.mean(reshaped_activations, axis=0)
         U, S, VT = torch.linalg.svd(reshaped_activations, full_matrices=True)

@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import torch
 import tqdm
+import os
 
 import slowfast.datasets.utils as data_utils
 import slowfast.utils.checkpoint as cu
@@ -125,15 +126,27 @@ def run_visualization(vis_loader, model, cfg, writer=None):
         if cfg.DETECTION.ENABLE:
             activations, preds = model_vis.get_activations(
                 inputs, meta["boxes"]
-            )
+            )   
+            
         else:
             activations, preds = model_vis.get_activations(inputs)
             
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
+            # TODO: verify with andy if the parameters output_dir, input_name, and count are as intended
+            # it seems like the count variable isn't used for anything besides debugging? 
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
-                inputs, preds = gradcam(inputs, count, labels)
+                # TODO: where is this output_dir even being used? 
+                inputs, preds = gradcam(
+                    output_dir=os.path.join(cfg.OUTPUT_DIR, 
+                                            cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD), 
+                    inputs=inputs, input_name='', labels=labels)
+
             else:
-                inputs, preds = gradcam(inputs, count)
+                print(os.path.join(cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD))
+                inputs, preds = gradcam(
+                    output_dir=os.path.join(cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD), 
+                    inputs=inputs, input_name='')
+
 
         if cfg.NUM_GPUS:
             inputs = du.all_gather_unaligned(inputs)
