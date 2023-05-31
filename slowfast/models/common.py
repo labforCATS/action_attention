@@ -5,6 +5,7 @@ import torch.nn as nn
 
 
 class Mlp(nn.Module):
+
     def __init__(
         self,
         in_features,
@@ -35,6 +36,7 @@ class Mlp(nn.Module):
 
 
 class Permute(nn.Module):
+
     def __init__(self, dims):
         super().__init__()
         self.dims = dims
@@ -50,9 +52,8 @@ def drop_path(x, drop_prob: float = 0.0, training: bool = False):
     if drop_prob == 0.0 or not training:
         return x
     keep_prob = 1 - drop_prob
-    shape = (x.shape[0],) + (1,) * (
-        x.ndim - 1
-    )  # work with diff dim tensors, not just 2D ConvNets
+    shape = (x.shape[0], ) + (1, ) * (
+        x.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
     mask = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
     mask.floor_()  # binarize
     output = x.div(keep_prob) * mask

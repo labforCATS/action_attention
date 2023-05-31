@@ -63,7 +63,8 @@ def get_sequence(center_idx, half_len, sample_rate, num_frames):
     Returns:
         seq (list): list of indexes of sampled frames in this clip.
     """
-    seq = list(range(center_idx - half_len, center_idx + half_len, sample_rate))
+    seq = list(range(center_idx - half_len, center_idx + half_len,
+                     sample_rate))
 
     for seq_idx in range(len(seq)):
         if seq[seq_idx] < 0:
@@ -94,18 +95,15 @@ def pack_pathway_output(cfg, frames):
         slow_pathway = torch.index_select(
             frames,
             1,
-            torch.linspace(
-                0, frames.shape[1] - 1, frames.shape[1] // cfg.SLOWFAST.ALPHA
-            ).long(),
+            torch.linspace(0, frames.shape[1] - 1,
+                           frames.shape[1] // cfg.SLOWFAST.ALPHA).long(),
         )
         frame_list = [slow_pathway, fast_pathway]
     else:
-        raise NotImplementedError(
-            "Model arch {} is not in {}".format(
-                cfg.MODEL.ARCH,
-                cfg.MODEL.SINGLE_PATHWAY_ARCH + cfg.MODEL.MULTI_PATHWAY_ARCH,
-            )
-        )
+        raise NotImplementedError("Model arch {} is not in {}".format(
+            cfg.MODEL.ARCH,
+            cfg.MODEL.SINGLE_PATHWAY_ARCH + cfg.MODEL.MULTI_PATHWAY_ARCH,
+        ))
     return frame_list
 
 
@@ -158,11 +156,8 @@ def spatial_sampling(
             )
             frames, _ = transform.random_crop(frames, crop_size)
         else:
-            transform_func = (
-                transform.random_resized_crop_with_shift
-                if motion_shift
-                else transform.random_resized_crop
-            )
+            transform_func = (transform.random_resized_crop_with_shift if
+                              motion_shift else transform.random_resized_crop)
             frames = transform_func(
                 images=frames,
                 target_height=crop_size,
@@ -177,8 +172,7 @@ def spatial_sampling(
         # min_scale, max_scale, and crop_size are expect to be the same.
         assert len({min_scale, max_scale}) == 1
         frames, _ = transform.random_short_side_scale_jitter(
-            frames, min_scale, max_scale
-        )
+            frames, min_scale, max_scale)
         frames, _ = transform.uniform_crop(frames, crop_size, spatial_idx)
     return frames
 
@@ -192,7 +186,7 @@ def as_binary_vector(labels, num_classes):
     Returns:
         labels (numpy array): the resulting binary vector.
     """
-    label_arr = np.zeros((num_classes,))
+    label_arr = np.zeros((num_classes, ))
 
     for lbl in set(labels):
         label_arr[lbl] = 1.0
@@ -264,8 +258,7 @@ def load_image_lists(frame_list_file, prefix="", return_list=False):
             frame_labels = row[-1].replace('"', "")
             if frame_labels != "":
                 labels[video_name].append(
-                    [int(x) for x in frame_labels.split(",")]
-                )
+                    [int(x) for x in frame_labels.split(",")])
             else:
                 labels[video_name].append([])
 

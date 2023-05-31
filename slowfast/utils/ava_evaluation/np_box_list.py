@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Numpy BoxList classes and functions."""
 
 from __future__ import (
@@ -52,13 +51,10 @@ class BoxList(object):
             raise ValueError("Invalid dimensions for box data.")
         if data.dtype != np.float32 and data.dtype != np.float64:
             raise ValueError(
-                "Invalid data type for box data: float is required."
-            )
+                "Invalid data type for box data: float is required.")
         if not self._is_valid_boxes(data):
-            raise ValueError(
-                "Invalid box data. data must be a numpy array of "
-                "N*[y_min, x_min, y_max, x_max]"
-            )
+            raise ValueError("Invalid box data. data must be a numpy array of "
+                             "N*[y_min, x_min, y_max, x_max]")
         self.data = {"boxes": data}
 
     def num_boxes(self):
@@ -85,7 +81,8 @@ class BoxList(object):
         """
         if self.has_field(field):
             raise ValueError("Field " + field + "already exists")
-        if len(field_data.shape) < 1 or field_data.shape[0] != self.num_boxes():
+        if len(field_data.shape) < 1 or field_data.shape[0] != self.num_boxes(
+        ):
             raise ValueError("Invalid dimensions for field data")
         self.data[field] = field_data
 

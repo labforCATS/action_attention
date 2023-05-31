@@ -9,8 +9,7 @@ import tqdm
 from slowfast.utils import logging
 from slowfast.visualization.async_predictor import AsyncDemo, AsyncVis
 from slowfast.visualization.ava_demo_precomputed_boxes import (
-    AVAVisualizerWithPrecomputedBox,
-)
+    AVAVisualizerWithPrecomputedBox, )
 from slowfast.visualization.demo_loader import ThreadVideoManager, VideoManager
 from slowfast.visualization.predictor import ActionPredictor
 from slowfast.visualization.video_visualizer import VideoVisualizer
@@ -41,11 +40,8 @@ def run_demo(cfg, frame_provider):
     print("Print statement 5")
     logger.info(cfg)
     print("Print statement 6")
-    common_classes = (
-        cfg.DEMO.COMMON_CLASS_NAMES
-        if len(cfg.DEMO.LABEL_FILE_PATH) != 0
-        else None
-    )
+    common_classes = (cfg.DEMO.COMMON_CLASS_NAMES
+                      if len(cfg.DEMO.LABEL_FILE_PATH) != 0 else None)
     print(common_classes)
 
     video_vis = VideoVisualizer(
@@ -70,9 +66,8 @@ def run_demo(cfg, frame_provider):
     print("Print statement 10")
     seq_len = cfg.DATA.NUM_FRAMES * cfg.DATA.SAMPLING_RATE
     print("Print statement 11")
-    assert (
-        cfg.DEMO.BUFFER_SIZE <= seq_len // 2
-    ), "Buffer size cannot be greater than half of sequence length."
+    assert (cfg.DEMO.BUFFER_SIZE <= seq_len //
+            2), "Buffer size cannot be greater than half of sequence length."
     print("Print statement 12")
     num_task = 0
     # Start reading frames.
@@ -86,7 +81,7 @@ def run_demo(cfg, frame_provider):
             time.sleep(0.02)
             continue
         num_task += 1
-        
+
         model.put(task)
         try:
             task = model.get()
@@ -114,7 +109,6 @@ def demo(cfg):
     """
     # AVA format-specific visualization with precomputed boxes.
 
-
     if cfg.DETECTION.ENABLE and cfg.DEMO.PREDS_BOXES != "":
         precomputed_box_vis = AVAVisualizerWithPrecomputedBox(cfg)
         precomputed_box_vis()
@@ -127,7 +121,6 @@ def demo(cfg):
             frame_provider = VideoManager(cfg)
         for task in run_demo(cfg, frame_provider):
             frame_provider.display(task)
-            
 
         frame_provider.join()
         frame_provider.clean()

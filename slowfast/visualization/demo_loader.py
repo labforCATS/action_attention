@@ -25,13 +25,11 @@ class VideoManager:
             cfg (CfgNode): configs. Details can be found in
             slowfast/config/defaults.py
         """
-        assert (
-            cfg.DEMO.WEBCAM > -1 or cfg.DEMO.INPUT_VIDEO != ""
-        ), "Must specify a data source as input."
+        assert (cfg.DEMO.WEBCAM > -1 or cfg.DEMO.INPUT_VIDEO
+                != ""), "Must specify a data source as input."
 
-        self.source = (
-            cfg.DEMO.WEBCAM if cfg.DEMO.WEBCAM > -1 else cfg.DEMO.INPUT_VIDEO
-        )
+        self.source = (cfg.DEMO.WEBCAM
+                       if cfg.DEMO.WEBCAM > -1 else cfg.DEMO.INPUT_VIDEO)
 
         self.display_width = cfg.DEMO.DISPLAY_WIDTH
         self.display_height = cfg.DEMO.DISPLAY_HEIGHT
@@ -54,9 +52,8 @@ class VideoManager:
         else:
             self.output_fps = cfg.DEMO.OUTPUT_FPS
         if cfg.DEMO.OUTPUT_FILE != "":
-            self.output_file = self.get_output_file(
-                cfg.DEMO.OUTPUT_FILE, fps=self.output_fps
-            )
+            self.output_file = self.get_output_file(cfg.DEMO.OUTPUT_FILE,
+                                                    fps=self.output_fps)
         self.output_file = None
         self.id = -1
         self.buffer = []
@@ -90,9 +87,9 @@ class VideoManager:
         while was_read and len(frames) < self.seq_length:
             was_read, frame = self.cap.read()
             frames.append(frame)
-            
+
         if was_read and self.buffer_size != 0:
-            self.buffer = frames[-self.buffer_size :]
+            self.buffer = frames[-self.buffer_size:]
 
         task.add_frames(self.id, frames)
         task.num_buffer_frames = 0 if self.id == 0 else self.buffer_size
@@ -123,7 +120,7 @@ class VideoManager:
                 the necessary information for prediction visualization. (e.g. visualized frames.)
         """
         print("Reached function")
-        for frame in task.frames[task.num_buffer_frames :]:
+        for frame in task.frames[task.num_buffer_frames:]:
             if self.output_file is None:
                 print("star wars > star track")
                 cv2.imshow("SlowFast", frame)
@@ -160,13 +157,11 @@ class ThreadVideoManager:
             cfg (CfgNode): configs. Details can be found in
             slowfast/config/defaults.py
         """
-        assert (
-            cfg.DEMO.WEBCAM > -1 or cfg.DEMO.INPUT_VIDEO != ""
-        ), "Must specify a data source as input."
+        assert (cfg.DEMO.WEBCAM > -1 or cfg.DEMO.INPUT_VIDEO
+                != ""), "Must specify a data source as input."
 
-        self.source = (
-            cfg.DEMO.WEBCAM if cfg.DEMO.WEBCAM > -1 else cfg.DEMO.INPUT_VIDEO
-        )
+        self.source = (cfg.DEMO.WEBCAM
+                       if cfg.DEMO.WEBCAM > -1 else cfg.DEMO.INPUT_VIDEO)
         print("Source video is: ", self.source)
 
         self.display_width = cfg.DEMO.DISPLAY_WIDTH
@@ -194,9 +189,8 @@ class ThreadVideoManager:
             self.output_fps = cfg.DEMO.OUTPUT_FPS
         print("Output fps is: ", self.output_fps)
         if cfg.DEMO.OUTPUT_FILE != "":
-            self.output_file = self.get_output_file(
-                cfg.DEMO.OUTPUT_FILE, fps=self.output_fps
-            )
+            self.output_file = self.get_output_file(cfg.DEMO.OUTPUT_FILE,
+                                                    fps=self.output_fps)
         print("Output file is: ", self.output_file)
         self.num_skip = cfg.DEMO.NUM_CLIPS_SKIP + 1
         print("Clips to skip is: ", self.num_skip)
@@ -263,12 +257,11 @@ class ThreadVideoManager:
                     print("Grabbed a frame")
             self.input_lock.release()
             if was_read:
-                self.buffer = frames[-self.buffer_size :]
+                self.buffer = frames[-self.buffer_size:]
 
             task.add_frames(self.put_id + 1, frames)
-            task.num_buffer_frames = (
-                0 if self.put_id == -1 else self.buffer_size
-            )
+            task.num_buffer_frames = (0 if self.put_id == -1 else
+                                      self.buffer_size)
             with self.put_id_lock:
                 self.put_id += 1
                 self.not_end = was_read
@@ -318,10 +311,8 @@ class ThreadVideoManager:
                 if not not_end and self.get_id == put_id:
                     break
                 # If the next frames are not available, wait.
-                if (
-                    len(self.write_queue) == 0
-                    or self.write_queue.get(self.get_id + 1) is None
-                ):
+                if (len(self.write_queue) == 0
+                        or self.write_queue.get(self.get_id + 1) is None):
                     time.sleep(0.02)
                     continue
                 else:
@@ -330,7 +321,7 @@ class ThreadVideoManager:
                     del self.write_queue[self.get_id]
 
             with self.output_lock:
-                for frame in task.frames[task.num_buffer_frames :]:
+                for frame in task.frames[task.num_buffer_frames:]:
                     if self.output_file is None:
                         cv2.imshow("SlowFast", frame)
                         time.sleep(1 / self.output_fps)
@@ -351,13 +342,15 @@ class ThreadVideoManager:
         """
         Start threads to read and write frames.
         """
-        self.put_thread = threading.Thread(
-            target=self.put_fn, args=(), name="VidRead-Thread", daemon=True
-        )
+        self.put_thread = threading.Thread(target=self.put_fn,
+                                           args=(),
+                                           name="VidRead-Thread",
+                                           daemon=True)
         self.put_thread.start()
-        self.get_thread = threading.Thread(
-            target=self.get_fn, args=(), name="VidDisplay-Thread", daemon=True
-        )
+        self.get_thread = threading.Thread(target=self.get_fn,
+                                           args=(),
+                                           name="VidDisplay-Thread",
+                                           daemon=True)
         self.get_thread.start()
 
         return self

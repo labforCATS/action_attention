@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Distributed helpers."""
 
 import functools
@@ -10,13 +9,10 @@ import torch
 import torch.distributed as dist
 
 from pytorchvideo.layers.distributed import (  # noqa
-    get_world_size,
-    cat_all_gather,
-    init_distributed_training,
-    get_local_size,
-    get_local_rank,
-    get_local_process_group,
+    get_world_size, cat_all_gather, init_distributed_training, get_local_size,
+    get_local_rank, get_local_process_group,
 )
+
 
 def all_gather(tensors):
     """
@@ -173,13 +169,12 @@ def _serialize_to_tensor(data, group):
     device = torch.device("cpu" if backend == "gloo" else "cuda")
 
     buffer = pickle.dumps(data)
-    if len(buffer) > 1024 ** 3:
+    if len(buffer) > 1024**3:
         logger = logging.getLogger(__name__)
         logger.warning(
-            "Rank {} trying to all-gather {:.2f} GB of data on device {}".format(
-                get_rank(), len(buffer) / (1024 ** 3), device
-            )
-        )
+            "Rank {} trying to all-gather {:.2f} GB of data on device {}".
+            format(get_rank(),
+                   len(buffer) / (1024**3), device))
     storage = torch.ByteStorage.from_buffer(buffer)
     tensor = torch.ByteTensor(storage).to(device=device)
     return tensor
@@ -199,9 +194,9 @@ def _pad_to_largest_tensor(tensor, group):
     assert (
         world_size >= 1
     ), "comm.gather/all_gather must be called from ranks within the given group!"
-    local_size = torch.tensor(
-        [tensor.numel()], dtype=torch.int64, device=tensor.device
-    )
+    local_size = torch.tensor([tensor.numel()],
+                              dtype=torch.int64,
+                              device=tensor.device)
     size_list = [
         torch.zeros([1], dtype=torch.int64, device=tensor.device)
         for _ in range(world_size)
@@ -214,9 +209,9 @@ def _pad_to_largest_tensor(tensor, group):
     # we pad the tensor because torch all_gather does not support
     # gathering tensors of different shapes
     if local_size != max_size:
-        padding = torch.zeros(
-            (max_size - local_size,), dtype=torch.uint8, device=tensor.device
-        )
+        padding = torch.zeros((max_size - local_size, ),
+                              dtype=torch.uint8,
+                              device=tensor.device)
         tensor = torch.cat((tensor, padding), dim=0)
     return size_list, tensor
 
@@ -247,7 +242,7 @@ def all_gather_unaligned(data, group=None):
 
     # receiving Tensor from all ranks
     tensor_list = [
-        torch.empty((max_size,), dtype=torch.uint8, device=tensor.device)
+        torch.empty((max_size, ), dtype=torch.uint8, device=tensor.device)
         for _ in size_list
     ]
     dist.all_gather(tensor_list, tensor, group=group)
@@ -266,13 +261,15 @@ class GatherLayer(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input):
         ctx.save_for_backward(input)
-        output = [torch.zeros_like(input) for _ in range(dist.get_world_size())]
+        output = [
+            torch.zeros_like(input) for _ in range(dist.get_world_size())
+        ]
         dist.all_gather(output, input)
         return tuple(output)
 
     @staticmethod
     def backward(ctx, *grads):
-        (input,) = ctx.saved_tensors
+        (input, ) = ctx.saved_tensors
         grad_out = torch.zeros_like(input)
         grad_out[:] = grads[dist.get_rank()]
         return grad_out
@@ -299,7 +296,6 @@ class AllGatherWithGradient(torch.autograd.Function):
         N = grad_output.size(0)
         mini_batchsize = N // world_size
         cur_gpu = torch.distributed.get_rank()
-        grad_output = grad_output[
-            cur_gpu * mini_batchsize : (cur_gpu + 1) * mini_batchsize
-        ]
+        grad_output = grad_output[cur_gpu * mini_batchsize:(cur_gpu + 1) *
+                                  mini_batchsize]
         return grad_output

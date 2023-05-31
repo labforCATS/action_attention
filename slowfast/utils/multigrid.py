@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Helper functions for multigrid training."""
 
 import numpy as np
@@ -37,11 +36,10 @@ class MultigridSchedule(object):
             self.schedule = self.get_long_cycle_schedule(cfg)
             cfg.SOLVER.STEPS = [0] + [s[-1] for s in self.schedule]
             # Fine-tuning phase.
-            cfg.SOLVER.STEPS[-1] = (
-                cfg.SOLVER.STEPS[-2] + cfg.SOLVER.STEPS[-1]
-            ) // 2
+            cfg.SOLVER.STEPS[-1] = (cfg.SOLVER.STEPS[-2] +
+                                    cfg.SOLVER.STEPS[-1]) // 2
             cfg.SOLVER.LRS = [
-                cfg.SOLVER.GAMMA ** s[0] * s[1][0] for s in self.schedule
+                cfg.SOLVER.GAMMA**s[0] * s[1][0] for s in self.schedule
             ]
             # Fine-tuning phase.
             cfg.SOLVER.LRS = cfg.SOLVER.LRS[:-1] + [
@@ -55,9 +53,8 @@ class MultigridSchedule(object):
             cfg.SOLVER.STEPS = [
                 int(s * cfg.MULTIGRID.EPOCH_FACTOR) for s in cfg.SOLVER.STEPS
             ]
-            cfg.SOLVER.MAX_EPOCH = int(
-                cfg.SOLVER.MAX_EPOCH * cfg.MULTIGRID.EPOCH_FACTOR
-            )
+            cfg.SOLVER.MAX_EPOCH = int(cfg.SOLVER.MAX_EPOCH *
+                                       cfg.MULTIGRID.EPOCH_FACTOR)
         return cfg
 
     def update_long_cycle(self, cfg, cur_epoch):
@@ -74,18 +71,15 @@ class MultigridSchedule(object):
             changed (bool): do we change long cycle shape at this epoch?
         """
         base_b, base_t, base_s = get_current_long_cycle_shape(
-            self.schedule, cur_epoch
-        )
+            self.schedule, cur_epoch)
         if base_s != cfg.DATA.TRAIN_CROP_SIZE or base_t != cfg.DATA.NUM_FRAMES:
 
             cfg.DATA.NUM_FRAMES = base_t
             cfg.DATA.TRAIN_CROP_SIZE = base_s
             cfg.TRAIN.BATCH_SIZE = base_b * cfg.MULTIGRID.DEFAULT_B
 
-            bs_factor = (
-                float(cfg.TRAIN.BATCH_SIZE / cfg.NUM_GPUS)
-                / cfg.MULTIGRID.BN_BASE_SIZE
-            )
+            bs_factor = (float(cfg.TRAIN.BATCH_SIZE / cfg.NUM_GPUS) /
+                         cfg.MULTIGRID.BN_BASE_SIZE)
 
             if bs_factor < 1:
                 cfg.BN.NORM_TYPE = "sync_batchnorm"
@@ -97,25 +91,21 @@ class MultigridSchedule(object):
                 cfg.BN.NORM_TYPE = "batchnorm"
 
             cfg.MULTIGRID.LONG_CYCLE_SAMPLING_RATE = cfg.DATA.SAMPLING_RATE * (
-                cfg.MULTIGRID.DEFAULT_T // cfg.DATA.NUM_FRAMES
-            )
+                cfg.MULTIGRID.DEFAULT_T // cfg.DATA.NUM_FRAMES)
             logger.info("Long cycle updates:")
             logger.info("\tBN.NORM_TYPE: {}".format(cfg.BN.NORM_TYPE))
             if cfg.BN.NORM_TYPE == "sync_batchnorm":
-                logger.info(
-                    "\tBN.NUM_SYNC_DEVICES: {}".format(cfg.BN.NUM_SYNC_DEVICES)
-                )
+                logger.info("\tBN.NUM_SYNC_DEVICES: {}".format(
+                    cfg.BN.NUM_SYNC_DEVICES))
             elif cfg.BN.NORM_TYPE == "sub_batchnorm":
                 logger.info("\tBN.NUM_SPLITS: {}".format(cfg.BN.NUM_SPLITS))
             logger.info("\tTRAIN.BATCH_SIZE: {}".format(cfg.TRAIN.BATCH_SIZE))
             logger.info(
                 "\tDATA.NUM_FRAMES x LONG_CYCLE_SAMPLING_RATE: {}x{}".format(
-                    cfg.DATA.NUM_FRAMES, cfg.MULTIGRID.LONG_CYCLE_SAMPLING_RATE
-                )
-            )
-            logger.info(
-                "\tDATA.TRAIN_CROP_SIZE: {}".format(cfg.DATA.TRAIN_CROP_SIZE)
-            )
+                    cfg.DATA.NUM_FRAMES,
+                    cfg.MULTIGRID.LONG_CYCLE_SAMPLING_RATE))
+            logger.info("\tDATA.TRAIN_CROP_SIZE: {}".format(
+                cfg.DATA.TRAIN_CROP_SIZE))
             return cfg, True
         else:
             return cfg, False
@@ -134,9 +124,7 @@ class MultigridSchedule(object):
 
         steps = cfg.SOLVER.STEPS
 
-        default_size = float(
-            cfg.DATA.NUM_FRAMES * cfg.DATA.TRAIN_CROP_SIZE ** 2
-        )
+        default_size = float(cfg.DATA.NUM_FRAMES * cfg.DATA.TRAIN_CROP_SIZE**2)
         default_iters = steps[-1]
 
         # Get shapes and average batch size for each long cycle shape.
@@ -149,13 +137,13 @@ class MultigridSchedule(object):
                 shapes = [
                     [
                         base_t,
-                        cfg.MULTIGRID.DEFAULT_S
-                        * cfg.MULTIGRID.SHORT_CYCLE_FACTORS[0],
+                        cfg.MULTIGRID.DEFAULT_S *
+                        cfg.MULTIGRID.SHORT_CYCLE_FACTORS[0],
                     ],
                     [
                         base_t,
-                        cfg.MULTIGRID.DEFAULT_S
-                        * cfg.MULTIGRID.SHORT_CYCLE_FACTORS[1],
+                        cfg.MULTIGRID.DEFAULT_S *
+                        cfg.MULTIGRID.SHORT_CYCLE_FACTORS[1],
                     ],
                     [base_t, base_s],
                 ]
@@ -163,10 +151,9 @@ class MultigridSchedule(object):
                 shapes = [[base_t, base_s]]
 
             # (T, S) -> (B, T, S)
-            shapes = [
-                [int(round(default_size / (s[0] * s[1] * s[1]))), s[0], s[1]]
-                for s in shapes
-            ]
+            shapes = [[
+                int(round(default_size / (s[0] * s[1] * s[1]))), s[0], s[1]
+            ] for s in shapes]
             avg_bs.append(np.mean([s[0] for s in shapes]))
             all_shapes.append(shapes)
 
@@ -177,9 +164,8 @@ class MultigridSchedule(object):
             step_epochs = steps[step_index + 1] - steps[step_index]
 
             for long_cycle_index, shapes in enumerate(all_shapes):
-                cur_epochs = (
-                    step_epochs * avg_bs[long_cycle_index] / sum(avg_bs)
-                )
+                cur_epochs = (step_epochs * avg_bs[long_cycle_index] /
+                              sum(avg_bs))
 
                 cur_iters = cur_epochs / avg_bs[long_cycle_index]
                 total_iters += cur_iters
@@ -196,11 +182,8 @@ class MultigridSchedule(object):
         schedule.append((step_index + 1, all_shapes[-1][2], ft_epochs))
 
         # Obtrain final schedule given desired cfg.MULTIGRID.EPOCH_FACTOR.
-        x = (
-            cfg.SOLVER.MAX_EPOCH
-            * cfg.MULTIGRID.EPOCH_FACTOR
-            / sum(s[-1] for s in schedule)
-        )
+        x = (cfg.SOLVER.MAX_EPOCH * cfg.MULTIGRID.EPOCH_FACTOR /
+             sum(s[-1] for s in schedule))
 
         final_schedule = []
         total_epochs = 0

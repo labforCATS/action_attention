@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Multi-view test a video classification model."""
 
 import numpy as np
@@ -46,13 +45,12 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
     model.eval()
     test_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(
-        test_loader
-    ):
+    for cur_iter, (inputs, labels, video_idx, time,
+                   meta) in enumerate(test_loader):
 
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
-            if isinstance(inputs, (list,)):
+            if isinstance(inputs, (list, )):
                 for i in range(len(inputs)):
                     inputs[i] = inputs[i].cuda(non_blocking=True)
             else:
@@ -61,7 +59,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             labels = labels.cuda()
             video_idx = video_idx.cuda()
             for key, val in meta.items():
-                if isinstance(val, (list,)):
+                if isinstance(val, (list, )):
                     for i in range(len(val)):
                         val[i] = val[i].cuda(non_blocking=True)
                 else:
@@ -75,16 +73,15 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             metadata = meta["metadata"]
 
             preds = preds.detach().cpu() if cfg.NUM_GPUS else preds.detach()
-            ori_boxes = (
-                ori_boxes.detach().cpu() if cfg.NUM_GPUS else ori_boxes.detach()
-            )
-            metadata = (
-                metadata.detach().cpu() if cfg.NUM_GPUS else metadata.detach()
-            )
+            ori_boxes = (ori_boxes.detach().cpu()
+                         if cfg.NUM_GPUS else ori_boxes.detach())
+            metadata = (metadata.detach().cpu()
+                        if cfg.NUM_GPUS else metadata.detach())
 
             if cfg.NUM_GPUS > 1:
                 preds = torch.cat(du.all_gather_unaligned(preds), dim=0)
-                ori_boxes = torch.cat(du.all_gather_unaligned(ori_boxes), dim=0)
+                ori_boxes = torch.cat(du.all_gather_unaligned(ori_boxes),
+                                      dim=0)
                 metadata = torch.cat(du.all_gather_unaligned(metadata), dim=0)
 
             test_meter.iter_toc()
@@ -96,11 +93,8 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
                 test_meter.finalize_metrics()
                 return test_meter
             # preds = model(inputs, video_idx, time)
-            train_labels = (
-                model.module.train_labels
-                if hasattr(model, "module")
-                else model.train_labels
-            )
+            train_labels = (model.module.train_labels if hasattr(
+                model, "module") else model.train_labels)
             yd, yi = model(inputs, video_idx, time)
             batchSize = yi.shape[0]
             K = yi.shape[1]
@@ -122,8 +116,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         # Gather all the predictions across all the devices to perform ensemble.
         if cfg.NUM_GPUS > 1:
             preds, labels, video_idx = du.all_gather(
-                [preds, labels, video_idx]
-            )
+                [preds, labels, video_idx])
         if cfg.NUM_GPUS:
             preds = preds.cpu()
             labels = labels.cpu()
@@ -131,9 +124,8 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
         test_meter.iter_toc()
         # Update and log stats.
-        test_meter.update_stats(
-            preds.detach(), labels.detach(), video_idx.detach()
-        )
+        test_meter.update_stats(preds.detach(), labels.detach(),
+                                video_idx.detach())
         test_meter.log_iter_stats(cur_iter)
 
         test_meter.iter_tic()
@@ -161,15 +153,15 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             writer.plot_eval(preds=all_preds, labels=all_labels)
 
         if cfg.TEST.SAVE_RESULTS_PATH != "":
-            save_path = os.path.join(cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH)
+            save_path = os.path.join(cfg.OUTPUT_DIR,
+                                     cfg.TEST.SAVE_RESULTS_PATH)
 
             if du.is_root_proc():
                 with pathmgr.open(save_path, "wb") as f:
                     pickle.dump([all_preds, all_labels], f)
 
-            logger.info(
-                "Successfully saved prediction results to {}".format(save_path)
-            )
+            logger.info("Successfully saved prediction results to {}".format(
+                save_path))
 
     test_meter.finalize_metrics()
     return test_meter
@@ -203,11 +195,8 @@ def test(cfg):
     if du.is_master_proc() and cfg.LOG_MODEL_INFO:
         misc.log_model_info(model, cfg, use_train_input=False)
 
-    if (
-        cfg.TASK == "ssl"
-        and cfg.MODEL.MODEL_NAME == "ContrastiveModel"
-        and cfg.CONTRASTIVE.KNN_ON
-    ):
+    if (cfg.TASK == "ssl" and cfg.MODEL.MODEL_NAME == "ContrastiveModel"
+            and cfg.CONTRASTIVE.KNN_ON):
         train_loader = loader.construct_loader(cfg, "train")
         out_str_prefix = "knn"
         if hasattr(model, "module"):
@@ -226,18 +215,15 @@ def test(cfg):
         test_meter = AVAMeter(len(test_loader), cfg, mode="test")
     else:
         assert (
-            test_loader.dataset.num_videos
-            % (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS)
-            == 0
-        )
+            test_loader.dataset.num_videos %
+            (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS) == 0)
         # Create meters for multi-view testing.
         test_meter = TestMeter(
-            test_loader.dataset.num_videos
-            // (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS),
+            test_loader.dataset.num_videos //
+            (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS),
             cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS,
-            cfg.MODEL.NUM_CLASSES
-            if not cfg.TASK == "ssl"
-            else cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM,
+            cfg.MODEL.NUM_CLASSES if not cfg.TASK == "ssl" else
+            cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM,
             len(test_loader),
             cfg.DATA.MULTI_LABEL,
             cfg.DATA.ENSEMBLE_METHOD,
@@ -245,8 +231,7 @@ def test(cfg):
 
     # Set up writer for logging to Tensorboard format.
     if cfg.TENSORBOARD.ENABLE and du.is_master_proc(
-        cfg.NUM_GPUS * cfg.NUM_SHARDS
-    ):
+            cfg.NUM_GPUS * cfg.NUM_SHARDS):
         writer = tb.TensorboardWriter(cfg)
     else:
         writer = None
@@ -266,8 +251,7 @@ def test(cfg):
             misc.gpu_mem_usage(),
             cfg.TEST.DATASET[0],
             cfg.MODEL.NUM_CLASSES,
-        )
-    )
+        ))
     logger.info("testing done: {}".format(result_string))
 
     return result_string

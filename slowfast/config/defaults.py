@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Configs."""
 import math
 
@@ -87,7 +86,6 @@ _C.CONTRASTIVE.SWAV_QEUE_LEN = 0
 
 # Wether to run online kNN evaluation during training
 _C.CONTRASTIVE.KNN_ON = True
-
 
 # ---------------------------------------------------------------------------- #
 # Batch norm options
@@ -335,7 +333,6 @@ _C.NONLOCAL.GROUP = [[1], [1], [1], [1]]
 # Instatiation to use for non-local layer.
 _C.NONLOCAL.INSTANTIATION = "dot_product"
 
-
 # Size of pooling layers used in Non-Local.
 _C.NONLOCAL.POOL = [
     # Res2
@@ -402,7 +399,6 @@ _C.MODEL.FROZEN_BN = False
 
 # If True, AllReduce gradients are compressed to fp16
 _C.MODEL.FP16_ALLREDUCE = False
-
 
 # -----------------------------------------------------------------------------
 # MViT options
@@ -487,7 +483,6 @@ _C.MVIT.SEP_POS_EMBED = False
 # Dropout rate for the MViT backbone.
 _C.MVIT.DROPOUT_RATE = 0.0
 
-
 # -----------------------------------------------------------------------------
 # SlowFast options
 # -----------------------------------------------------------------------------
@@ -507,7 +502,6 @@ _C.SLOWFAST.FUSION_CONV_CHANNEL_RATIO = 2
 # Kernel dimension used for fusing information from Fast pathway to Slow
 # pathway.
 _C.SLOWFAST.FUSION_KERNEL_SZ = 5
-
 
 # -----------------------------------------------------------------------------
 # Data options
@@ -648,7 +642,6 @@ _C.DATA.SSL_BLUR_SIGMA_MIN = [0.0, 0.1]
 # SimCLR / MoCo v2 blur augmentation maximum gaussian sigma
 _C.DATA.SSL_BLUR_SIGMA_MAX = [0.0, 2.0]
 
-
 # ---------------------------------------------------------------------------- #
 # Optimizer options
 # ---------------------------------------------------------------------------- #
@@ -766,7 +759,6 @@ _C.BENCHMARK.LOG_PERIOD = 100
 # If True, shuffle dataloader for epoch during benchmark.
 _C.BENCHMARK.SHUFFLE = True
 
-
 # ---------------------------------------------------------------------------- #
 # Common train/test data loader options
 # ---------------------------------------------------------------------------- #
@@ -780,7 +772,6 @@ _C.DATA_LOADER.PIN_MEMORY = True
 
 # Enable multi thread decoding.
 _C.DATA_LOADER.ENABLE_MULTI_THREAD_DECODE = False
-
 
 # ---------------------------------------------------------------------------- #
 # Detection options.
@@ -799,7 +790,6 @@ _C.DETECTION.SPATIAL_SCALE_FACTOR = 16
 # RoI tranformation resolution.
 _C.DETECTION.ROI_XFORM_RESOLUTION = 7
 
-
 # -----------------------------------------------------------------------------
 # AVA Dataset options
 # -----------------------------------------------------------------------------
@@ -810,13 +800,11 @@ _C.AVA.FRAME_DIR = "/mnt/fair-flash3-east/ava_trainval_frames.img/"
 
 # Directory path for files of frame lists.
 _C.AVA.FRAME_LIST_DIR = (
-    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/"
-)
+    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/")
 
 # Directory path for annotation files.
 _C.AVA.ANNOTATION_DIR = (
-    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/"
-)
+    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/")
 
 # Filenames of training samples list files.
 _C.AVA.TRAIN_LISTS = ["train.csv"]
@@ -879,13 +867,13 @@ _C.MULTIGRID.EPOCH_FACTOR = 1.5
 # Enable short cycles.
 _C.MULTIGRID.SHORT_CYCLE = False
 # Short cycle additional spatial dimensions relative to the default crop size.
-_C.MULTIGRID.SHORT_CYCLE_FACTORS = [0.5, 0.5 ** 0.5]
+_C.MULTIGRID.SHORT_CYCLE_FACTORS = [0.5, 0.5**0.5]
 
 _C.MULTIGRID.LONG_CYCLE = False
 # (Temporal, Spatial) dimensions relative to the default shape.
 _C.MULTIGRID.LONG_CYCLE_FACTORS = [
-    (0.25, 0.5 ** 0.5),
-    (0.5, 0.5 ** 0.5),
+    (0.25, 0.5**0.5),
+    (0.5, 0.5**0.5),
     (0.5, 1),
     (1, 1),
 ]
@@ -971,7 +959,6 @@ _C.TENSORBOARD.MODEL_VIS.ACTIVATIONS = False
 # If False, skip visualizing input videos.
 _C.TENSORBOARD.MODEL_VIS.INPUT_VIDEO = False
 
-
 # List of strings containing data about layer names and their indexing to
 # visualize weights and activations for. The indexing is meant for
 # choosing a subset of activations outputed by a layer for visualization.
@@ -1009,7 +996,6 @@ _C.TENSORBOARD.WRONG_PRED_VIS.TAG = "Incorrectly classified videos."
 # Subset of labels to visualize. Only wrong predictions with true labels
 # within this subset is visualized.
 _C.TENSORBOARD.WRONG_PRED_VIS.SUBSET_PATH = ""
-
 
 # ---------------------------------------------------------------------------- #
 # Demo options

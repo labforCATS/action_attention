@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Argument parser functions."""
 
 import argparse
@@ -26,8 +25,7 @@ def parse_args():
             overwrites the config loaded from file.
     """
     parser = argparse.ArgumentParser(
-        description="Provide SlowFast video training and testing pipeline."
-    )
+        description="Provide SlowFast video training and testing pipeline.")
     parser.add_argument(
         "--shard_id",
         help="The shard id of current node, Starts from 0 to num_shards - 1",

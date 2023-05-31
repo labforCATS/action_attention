@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Meters."""
 
 import datetime
@@ -67,20 +66,16 @@ class AVAMeter(object):
         self.all_metadata = []
         self.overall_iters = overall_iters
         self.excluded_keys = read_exclusions(
-            os.path.join(cfg.AVA.ANNOTATION_DIR, cfg.AVA.EXCLUSION_FILE)
-        )
+            os.path.join(cfg.AVA.ANNOTATION_DIR, cfg.AVA.EXCLUSION_FILE))
         self.categories, self.class_whitelist = read_labelmap(
-            os.path.join(cfg.AVA.ANNOTATION_DIR, cfg.AVA.LABEL_MAP_FILE)
-        )
-        gt_filename = os.path.join(
-            cfg.AVA.ANNOTATION_DIR, cfg.AVA.GROUNDTRUTH_FILE
-        )
+            os.path.join(cfg.AVA.ANNOTATION_DIR, cfg.AVA.LABEL_MAP_FILE))
+        gt_filename = os.path.join(cfg.AVA.ANNOTATION_DIR,
+                                   cfg.AVA.GROUNDTRUTH_FILE)
         self.full_groundtruth = read_csv(gt_filename, self.class_whitelist)
         self.mini_groundtruth = get_ava_mini_groundtruth(self.full_groundtruth)
 
         _, self.video_idx_to_name = ava_helper.load_image_lists(
-            cfg, mode == "train"
-        )
+            cfg, mode == "train")
         self.output_dir = cfg.OUTPUT_DIR
 
         self.min_top1_err = 100.0
@@ -104,31 +99,45 @@ class AVAMeter(object):
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         if self.mode == "train":
             stats = {
-                "_type": "{}_iter".format(self.mode),
-                "cur_epoch": "{}/{}".format(
-                    cur_epoch + 1, self.cfg.SOLVER.MAX_EPOCH
-                ),
-                "cur_iter": "{}".format(cur_iter + 1),
-                "eta": eta,
-                "dt": self.iter_timer.seconds(),
-                "dt_data": self.data_timer.seconds(),
-                "dt_net": self.net_timer.seconds(),
-                "mode": self.mode,
-                "loss": self.loss.get_win_median(),
-                "lr": self.lr,
+                "_type":
+                "{}_iter".format(self.mode),
+                "cur_epoch":
+                "{}/{}".format(cur_epoch + 1, self.cfg.SOLVER.MAX_EPOCH),
+                "cur_iter":
+                "{}".format(cur_iter + 1),
+                "eta":
+                eta,
+                "dt":
+                self.iter_timer.seconds(),
+                "dt_data":
+                self.data_timer.seconds(),
+                "dt_net":
+                self.net_timer.seconds(),
+                "mode":
+                self.mode,
+                "loss":
+                self.loss.get_win_median(),
+                "lr":
+                self.lr,
             }
         elif self.mode == "val":
             stats = {
-                "_type": "{}_iter".format(self.mode),
-                "cur_epoch": "{}/{}".format(
-                    cur_epoch + 1, self.cfg.SOLVER.MAX_EPOCH
-                ),
-                "cur_iter": "{}".format(cur_iter + 1),
-                "eta": eta,
-                "dt": self.iter_timer.seconds(),
-                "dt_data": self.data_timer.seconds(),
-                "dt_net": self.net_timer.seconds(),
-                "mode": self.mode,
+                "_type":
+                "{}_iter".format(self.mode),
+                "cur_epoch":
+                "{}/{}".format(cur_epoch + 1, self.cfg.SOLVER.MAX_EPOCH),
+                "cur_iter":
+                "{}".format(cur_iter + 1),
+                "eta":
+                eta,
+                "dt":
+                self.iter_timer.seconds(),
+                "dt_data":
+                self.data_timer.seconds(),
+                "dt_net":
+                self.net_timer.seconds(),
+                "mode":
+                self.mode,
             }
         elif self.mode == "test":
             stats = {
@@ -288,11 +297,9 @@ class TestMeter(object):
         if multi_label:
             self.video_preds -= 1e10
 
-        self.video_labels = (
-            torch.zeros((num_videos, num_cls))
-            if multi_label
-            else torch.zeros((num_videos)).long()
-        )
+        self.video_labels = (torch.zeros(
+            (num_videos, num_cls)) if multi_label else torch.zeros(
+                (num_videos)).long())
         self.clip_count = torch.zeros((num_videos)).long()
         self.topk_accs = []
         self.stats = {}
@@ -334,15 +341,12 @@ class TestMeter(object):
             if self.ensemble_method == "sum":
                 self.video_preds[vid_id] += preds[ind]
             elif self.ensemble_method == "max":
-                self.video_preds[vid_id] = torch.max(
-                    self.video_preds[vid_id], preds[ind]
-                )
+                self.video_preds[vid_id] = torch.max(self.video_preds[vid_id],
+                                                     preds[ind])
             else:
                 raise NotImplementedError(
                     "Ensemble Method {} is not supported".format(
-                        self.ensemble_method
-                    )
-                )
+                        self.ensemble_method))
             self.clip_count[vid_id] += 1
 
     def log_iter_stats(self, cur_iter):
@@ -387,37 +391,30 @@ class TestMeter(object):
         """
         clip_check = self.clip_count == self.num_clips
         if not all(clip_check):
-            logger.warning(
-                "clip count Ids={} = {} (should be {})".format(
-                    np.argwhere(~clip_check),
-                    self.clip_count[~clip_check],
-                    self.num_clips,
-                )
-            )
+            logger.warning("clip count Ids={} = {} (should be {})".format(
+                np.argwhere(~clip_check),
+                self.clip_count[~clip_check],
+                self.num_clips,
+            ))
 
         self.stats = {"split": "test_final"}
         if self.multi_label:
-            mean_ap = get_map(
-                self.video_preds.cpu().numpy(), self.video_labels.cpu().numpy()
-            )
+            mean_ap = get_map(self.video_preds.cpu().numpy(),
+                              self.video_labels.cpu().numpy())
             map_str = "{:.{prec}f}".format(mean_ap * 100.0, prec=2)
             self.stats["map"] = map_str
             self.stats["top1_acc"] = map_str
             self.stats["top5_acc"] = map_str
         else:
-            num_topks_correct = metrics.topks_correct(
-                self.video_preds, self.video_labels, ks
-            )
-            topks = [
-                (x / self.video_preds.size(0)) * 100.0
-                for x in num_topks_correct
-            ]
+            num_topks_correct = metrics.topks_correct(self.video_preds,
+                                                      self.video_labels, ks)
+            topks = [(x / self.video_preds.size(0)) * 100.0
+                     for x in num_topks_correct]
             assert len({len(ks), len(topks)}) == 1
             for k, topk in zip(ks, topks):
                 # self.stats["top{}_acc".format(k)] = topk.cpu().numpy()
                 self.stats["top{}_acc".format(k)] = "{:.{prec}f}".format(
-                    topk, prec=2
-                )
+                    topk, prec=2)
         logging.log_json_stats(self.stats)
 
 
@@ -565,22 +562,29 @@ class TrainMeter(object):
         if (cur_iter + 1) % self._cfg.LOG_PERIOD != 0:
             return
         eta_sec = self.iter_timer.seconds() * (
-            self.MAX_EPOCH - (cur_epoch * self.epoch_iters + cur_iter + 1)
-        )
+            self.MAX_EPOCH - (cur_epoch * self.epoch_iters + cur_iter + 1))
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         stats = {
-            "_type": "train_iter_{}".format(
-                "ssl" if self._cfg.TASK == "ssl" else ""
-            ),
-            "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
-            "iter": "{}/{}".format(cur_iter + 1, self.epoch_iters),
-            "dt": self.iter_timer.seconds(),
-            "dt_data": self.data_timer.seconds(),
-            "dt_net": self.net_timer.seconds(),
-            "eta": eta,
-            "loss": self.loss.get_win_median(),
-            "lr": self.lr,
-            "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
+            "_type":
+            "train_iter_{}".format("ssl" if self._cfg.TASK == "ssl" else ""),
+            "epoch":
+            "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
+            "iter":
+            "{}/{}".format(cur_iter + 1, self.epoch_iters),
+            "dt":
+            self.iter_timer.seconds(),
+            "dt_data":
+            self.data_timer.seconds(),
+            "dt_net":
+            self.net_timer.seconds(),
+            "eta":
+            eta,
+            "loss":
+            self.loss.get_win_median(),
+            "lr":
+            self.lr,
+            "gpu_mem":
+            "{:.2f}G".format(misc.gpu_mem_usage()),
         }
         if not self._cfg.DATA.MULTI_LABEL:
             stats["top1_err"] = self.mb_top1_err.get_win_median()
@@ -594,21 +598,27 @@ class TrainMeter(object):
             cur_epoch (int): the number of current epoch.
         """
         eta_sec = self.iter_timer.seconds() * (
-            self.MAX_EPOCH - (cur_epoch + 1) * self.epoch_iters
-        )
+            self.MAX_EPOCH - (cur_epoch + 1) * self.epoch_iters)
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         stats = {
-            "_type": "train_epoch{}".format(
-                "_ssl" if self._cfg.TASK == "ssl" else ""
-            ),
-            "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
-            "dt": self.iter_timer.seconds(),
-            "dt_data": self.data_timer.seconds(),
-            "dt_net": self.net_timer.seconds(),
-            "eta": eta,
-            "lr": self.lr,
-            "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
-            "RAM": "{:.2f}/{:.2f}G".format(*misc.cpu_mem_usage()),
+            "_type":
+            "train_epoch{}".format("_ssl" if self._cfg.TASK == "ssl" else ""),
+            "epoch":
+            "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
+            "dt":
+            self.iter_timer.seconds(),
+            "dt_data":
+            self.data_timer.seconds(),
+            "dt_net":
+            self.net_timer.seconds(),
+            "eta":
+            eta,
+            "lr":
+            self.lr,
+            "gpu_mem":
+            "{:.2f}G".format(misc.gpu_mem_usage()),
+            "RAM":
+            "{:.2f}/{:.2f}G".format(*misc.cpu_mem_usage()),
         }
         if not self._cfg.DATA.MULTI_LABEL:
             top1_err = self.num_top1_mis / self.num_samples
@@ -720,9 +730,8 @@ class ValMeter(object):
         eta_sec = self.iter_timer.seconds() * (self.max_iter - cur_iter - 1)
         eta = str(datetime.timedelta(seconds=int(eta_sec)))
         stats = {
-            "_type": "val_iter{}".format(
-                "_ssl" if self._cfg.TASK == "ssl" else ""
-            ),
+            "_type":
+            "val_iter{}".format("_ssl" if self._cfg.TASK == "ssl" else ""),
             "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
             "iter": "{}/{}".format(cur_iter + 1, self.max_iter),
             "time_diff": self.iter_timer.seconds(),
@@ -741,13 +750,16 @@ class ValMeter(object):
             cur_epoch (int): the number of current epoch.
         """
         stats = {
-            "_type": "val_epoch{}".format(
-                "_ssl" if self._cfg.TASK == "ssl" else ""
-            ),
-            "epoch": "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
-            "time_diff": self.iter_timer.seconds(),
-            "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
-            "RAM": "{:.2f}/{:.2f}G".format(*misc.cpu_mem_usage()),
+            "_type":
+            "val_epoch{}".format("_ssl" if self._cfg.TASK == "ssl" else ""),
+            "epoch":
+            "{}/{}".format(cur_epoch + 1, self._cfg.SOLVER.MAX_EPOCH),
+            "time_diff":
+            self.iter_timer.seconds(),
+            "gpu_mem":
+            "{:.2f}G".format(misc.gpu_mem_usage()),
+            "RAM":
+            "{:.2f}/{:.2f}G".format(*misc.cpu_mem_usage()),
         }
         if self._cfg.DATA.MULTI_LABEL:
             stats["map"] = get_map(
@@ -786,10 +798,8 @@ def get_map(preds, labels):
     try:
         aps = average_precision_score(labels, preds, average=None)
     except ValueError:
-        print(
-            "Average precision requires a sufficient number of samples \
-            in a batch which are missing in this sample."
-        )
+        print("Average precision requires a sufficient number of samples \
+            in a batch which are missing in this sample.")
 
     mean_ap = np.mean(aps)
     return mean_ap

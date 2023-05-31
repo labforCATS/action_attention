@@ -117,11 +117,8 @@ class DictToTuple(torch.nn.Module):
         self._num_crops = num_crops
 
     def forward(self, x: Dict[str, torch.Tensor]):
-        index = (
-            x["video_index"] * self._num_clips * self._num_crops
-            + x["clip_index"] * self._num_crops
-            + x["aug_index"]
-        )
+        index = (x["video_index"] * self._num_clips * self._num_crops +
+                 x["clip_index"] * self._num_crops + x["aug_index"])
 
         return x["video"], x["label"], index, {}
 
@@ -170,92 +167,71 @@ def Ptvkinetics(cfg, mode):
 
     logger.info("Constructing Ptvkinetics {}...".format(mode))
 
-    clip_duration = (
-        cfg.DATA.NUM_FRAMES * cfg.DATA.SAMPLING_RATE / cfg.DATA.TARGET_FPS
-    )
-    path_to_file = os.path.join(
-        cfg.DATA.PATH_TO_DATA_DIR, "{}.csv".format(mode)
-    )
+    clip_duration = (cfg.DATA.NUM_FRAMES * cfg.DATA.SAMPLING_RATE /
+                     cfg.DATA.TARGET_FPS)
+    path_to_file = os.path.join(cfg.DATA.PATH_TO_DATA_DIR,
+                                "{}.csv".format(mode))
     labeled_video_paths = LabeledVideoPaths.from_path(path_to_file)
     num_videos = len(labeled_video_paths)
     labeled_video_paths.path_prefix = cfg.DATA.PATH_PREFIX
-    logger.info(
-        "Constructing kinetics dataloader (size: {}) from {}".format(
-            num_videos, path_to_file
-        )
-    )
+    logger.info("Constructing kinetics dataloader (size: {}) from {}".format(
+        num_videos, path_to_file))
 
     if mode in ["train", "val"]:
         num_clips = 1
         num_crops = 1
 
-        transform = Compose(
-            [
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [
-                            UniformTemporalSubsample(cfg.DATA.NUM_FRAMES),
-                            Lambda(div255),
-                            NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
-                            RandomShortSideScale(
-                                min_size=cfg.DATA.TRAIN_JITTER_SCALES[0],
-                                max_size=cfg.DATA.TRAIN_JITTER_SCALES[1],
-                            ),
-                            RandomCropVideo(cfg.DATA.TRAIN_CROP_SIZE),
-                        ]
-                        + (
-                            [RandomHorizontalFlipVideo(p=0.5)]
-                            if cfg.DATA.RANDOM_FLIP
-                            else []
-                        )
-                        + [PackPathway(cfg)]
+        transform = Compose([
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose([
+                    UniformTemporalSubsample(cfg.DATA.NUM_FRAMES),
+                    Lambda(div255),
+                    NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
+                    RandomShortSideScale(
+                        min_size=cfg.DATA.TRAIN_JITTER_SCALES[0],
+                        max_size=cfg.DATA.TRAIN_JITTER_SCALES[1],
                     ),
-                ),
-                DictToTuple(num_clips, num_crops),
-            ]
-        )
+                    RandomCropVideo(cfg.DATA.TRAIN_CROP_SIZE),
+                ] + ([RandomHorizontalFlipVideo(
+                    p=0.5)] if cfg.DATA.RANDOM_FLIP else []) +
+                                  [PackPathway(cfg)]),
+            ),
+            DictToTuple(num_clips, num_crops),
+        ])
 
         clip_sampler = make_clip_sampler("random", clip_duration)
         if cfg.NUM_GPUS > 1:
             video_sampler = DistributedSampler
         else:
-            video_sampler = (
-                RandomSampler if mode == "train" else SequentialSampler
-            )
+            video_sampler = (RandomSampler
+                             if mode == "train" else SequentialSampler)
     else:
         num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS
         num_crops = cfg.TEST.NUM_SPATIAL_CROPS
 
-        transform = Compose(
-            [
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [
-                            UniformTemporalSubsample(cfg.DATA.NUM_FRAMES),
-                            Lambda(div255),
-                            NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
-                            ShortSideScale(
-                                size=cfg.DATA.TRAIN_JITTER_SCALES[0]
-                            ),
-                        ]
-                    ),
-                ),
-                UniformCropVideo(size=cfg.DATA.TEST_CROP_SIZE),
-                ApplyTransformToKey(key="video", transform=PackPathway(cfg)),
-                DictToTuple(num_clips, num_crops),
-            ]
-        )
+        transform = Compose([
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose([
+                    UniformTemporalSubsample(cfg.DATA.NUM_FRAMES),
+                    Lambda(div255),
+                    NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
+                    ShortSideScale(size=cfg.DATA.TRAIN_JITTER_SCALES[0]),
+                ]),
+            ),
+            UniformCropVideo(size=cfg.DATA.TEST_CROP_SIZE),
+            ApplyTransformToKey(key="video", transform=PackPathway(cfg)),
+            DictToTuple(num_clips, num_crops),
+        ])
         clip_sampler = make_clip_sampler(
             "constant_clips_per_video",
             clip_duration,
             num_clips,
             num_crops,
         )
-        video_sampler = (
-            DistributedSampler if cfg.NUM_GPUS > 1 else SequentialSampler
-        )
+        video_sampler = (DistributedSampler
+                         if cfg.NUM_GPUS > 1 else SequentialSampler)
 
     return PTVDatasetWrapper(
         num_videos=num_videos,
@@ -285,11 +261,8 @@ def process_charades_label(x, mode, num_classes):
     Returns:
         x (dict): video clip with updated label information.
     """
-    label = (
-        utils.aggregate_labels(x["label"])
-        if mode == "train"
-        else x["video_label"]
-    )
+    label = (utils.aggregate_labels(x["label"])
+             if mode == "train" else x["video_label"])
     x["label"] = torch.as_tensor(utils.as_binary_vector(label, num_classes))
 
     return x
@@ -336,96 +309,78 @@ def Ptvcharades(cfg, mode):
 
     logger.info("Constructing Ptvcharades {}...".format(mode))
 
-    clip_duration = (
-        (cfg.DATA.NUM_FRAMES - 1) * cfg.DATA.SAMPLING_RATE + 1
-    ) / cfg.DATA.TARGET_FPS
+    clip_duration = ((cfg.DATA.NUM_FRAMES - 1) * cfg.DATA.SAMPLING_RATE +
+                     1) / cfg.DATA.TARGET_FPS
 
     if mode in ["train", "val"]:
         num_clips = 1
         num_crops = 1
 
-        transform = Compose(
-            [
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [
-                            Lambda(div255),
-                            NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
-                            RandomShortSideScale(
-                                min_size=cfg.DATA.TRAIN_JITTER_SCALES[0],
-                                max_size=cfg.DATA.TRAIN_JITTER_SCALES[1],
-                            ),
-                            RandomCropVideo(cfg.DATA.TRAIN_CROP_SIZE),
-                            Lambda(rgb2bgr),
-                        ]
-                        + (
-                            [RandomHorizontalFlipVideo(p=0.5)]
-                            if cfg.DATA.RANDOM_FLIP
-                            else []
-                        )
-                        + [PackPathway(cfg)]
+        transform = Compose([
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose([
+                    Lambda(div255),
+                    NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
+                    RandomShortSideScale(
+                        min_size=cfg.DATA.TRAIN_JITTER_SCALES[0],
+                        max_size=cfg.DATA.TRAIN_JITTER_SCALES[1],
                     ),
-                ),
-                Lambda(
-                    functools.partial(
-                        process_charades_label,
-                        mode=mode,
-                        num_classes=cfg.MODEL.NUM_CLASSES,
-                    )
-                ),
-                DictToTuple(num_clips, num_crops),
-            ]
-        )
+                    RandomCropVideo(cfg.DATA.TRAIN_CROP_SIZE),
+                    Lambda(rgb2bgr),
+                ] + ([RandomHorizontalFlipVideo(
+                    p=0.5)] if cfg.DATA.RANDOM_FLIP else []) +
+                                  [PackPathway(cfg)]),
+            ),
+            Lambda(
+                functools.partial(
+                    process_charades_label,
+                    mode=mode,
+                    num_classes=cfg.MODEL.NUM_CLASSES,
+                )),
+            DictToTuple(num_clips, num_crops),
+        ])
         clip_sampler = make_clip_sampler("random", clip_duration)
         if cfg.NUM_GPUS > 1:
             video_sampler = DistributedSampler
         else:
-            video_sampler = (
-                RandomSampler if mode == "train" else SequentialSampler
-            )
+            video_sampler = (RandomSampler
+                             if mode == "train" else SequentialSampler)
     else:
         num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS
         num_crops = cfg.TEST.NUM_SPATIAL_CROPS
 
-        transform = Compose(
-            [
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [
-                            Lambda(div255),
-                            NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
-                            ShortSideScale(size=cfg.DATA.TEST_CROP_SIZE),
-                        ]
-                    ),
-                ),
-                UniformCropVideo(size=cfg.DATA.TEST_CROP_SIZE),
-                Lambda(
-                    functools.partial(
-                        process_charades_label,
-                        mode=mode,
-                        num_classes=cfg.MODEL.NUM_CLASSES,
-                    )
-                ),
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [Lambda(rgb2bgr), PackPathway(cfg)],
-                    ),
-                ),
-                DictToTuple(num_clips, num_crops),
-            ]
-        )
+        transform = Compose([
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose([
+                    Lambda(div255),
+                    NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
+                    ShortSideScale(size=cfg.DATA.TEST_CROP_SIZE),
+                ]),
+            ),
+            UniformCropVideo(size=cfg.DATA.TEST_CROP_SIZE),
+            Lambda(
+                functools.partial(
+                    process_charades_label,
+                    mode=mode,
+                    num_classes=cfg.MODEL.NUM_CLASSES,
+                )),
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose(
+                    [Lambda(rgb2bgr), PackPathway(cfg)], ),
+            ),
+            DictToTuple(num_clips, num_crops),
+        ])
         clip_sampler = make_clip_sampler(
             "constant_clips_per_video",
             clip_duration,
             num_clips,
             num_crops,
         )
-        video_sampler = (
-            DistributedSampler if cfg.NUM_GPUS > 1 else SequentialSampler
-        )
+        video_sampler = (DistributedSampler
+                         if cfg.NUM_GPUS > 1 else SequentialSampler)
 
     data_path = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "{}.csv".format(mode))
     dataset = Charades(
@@ -437,11 +392,8 @@ def Ptvcharades(cfg, mode):
         frames_per_clip=cfg.DATA.NUM_FRAMES,
     )
 
-    logger.info(
-        "Constructing charades dataloader (size: {}) from {}".format(
-            len(dataset._path_to_videos), data_path
-        )
-    )
+    logger.info("Constructing charades dataloader (size: {}) from {}".format(
+        len(dataset._path_to_videos), data_path))
 
     return PTVDatasetWrapper(
         num_videos=len(dataset._path_to_videos),
@@ -481,32 +433,24 @@ def Ptvssv2(cfg, mode):
         num_clips = 1
         num_crops = 1
 
-        transform = Compose(
-            [
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [
-                            Lambda(div255),
-                            NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
-                            RandomShortSideScale(
-                                min_size=cfg.DATA.TRAIN_JITTER_SCALES[0],
-                                max_size=cfg.DATA.TRAIN_JITTER_SCALES[1],
-                            ),
-                            RandomCropVideo(cfg.DATA.TRAIN_CROP_SIZE),
-                            Lambda(rgb2bgr),
-                        ]
-                        + (
-                            [RandomHorizontalFlipVideo(p=0.5)]
-                            if cfg.DATA.RANDOM_FLIP
-                            else []
-                        )
-                        + [PackPathway(cfg)]
+        transform = Compose([
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose([
+                    Lambda(div255),
+                    NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
+                    RandomShortSideScale(
+                        min_size=cfg.DATA.TRAIN_JITTER_SCALES[0],
+                        max_size=cfg.DATA.TRAIN_JITTER_SCALES[1],
                     ),
-                ),
-                DictToTuple(num_clips, num_crops),
-            ]
-        )
+                    RandomCropVideo(cfg.DATA.TRAIN_CROP_SIZE),
+                    Lambda(rgb2bgr),
+                ] + ([RandomHorizontalFlipVideo(
+                    p=0.5)] if cfg.DATA.RANDOM_FLIP else []) +
+                                  [PackPathway(cfg)]),
+            ),
+            DictToTuple(num_clips, num_crops),
+        ])
         clip_sampler = make_clip_sampler(
             "constant_clips_per_video",
             1,  # Put arbitrary duration as ssv2 always needs full video clip.
@@ -516,54 +460,45 @@ def Ptvssv2(cfg, mode):
         if cfg.NUM_GPUS > 1:
             video_sampler = DistributedSampler
         else:
-            video_sampler = (
-                RandomSampler if mode == "train" else SequentialSampler
-            )
+            video_sampler = (RandomSampler
+                             if mode == "train" else SequentialSampler)
     else:
         assert cfg.TEST.NUM_ENSEMBLE_VIEWS == 1
         num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS
         num_crops = cfg.TEST.NUM_SPATIAL_CROPS
 
-        transform = Compose(
-            [
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [
-                            Lambda(div255),
-                            NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
-                            ShortSideScale(size=cfg.DATA.TEST_CROP_SIZE),
-                        ]
-                    ),
-                ),
-                UniformCropVideo(size=cfg.DATA.TEST_CROP_SIZE),
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [Lambda(rgb2bgr), PackPathway(cfg)],
-                    ),
-                ),
-                DictToTuple(num_clips, num_crops),
-            ]
-        )
+        transform = Compose([
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose([
+                    Lambda(div255),
+                    NormalizeVideo(cfg.DATA.MEAN, cfg.DATA.STD),
+                    ShortSideScale(size=cfg.DATA.TEST_CROP_SIZE),
+                ]),
+            ),
+            UniformCropVideo(size=cfg.DATA.TEST_CROP_SIZE),
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose(
+                    [Lambda(rgb2bgr), PackPathway(cfg)], ),
+            ),
+            DictToTuple(num_clips, num_crops),
+        ])
         clip_sampler = make_clip_sampler(
             "constant_clips_per_video",
             1,  # Put arbitrary duration as ssv2 always needs full video clip.
             num_clips,
             num_crops,
         )
-        video_sampler = (
-            DistributedSampler if cfg.NUM_GPUS > 1 else SequentialSampler
-        )
+        video_sampler = (DistributedSampler
+                         if cfg.NUM_GPUS > 1 else SequentialSampler)
 
-    label_name_file = os.path.join(
-        cfg.DATA.PATH_TO_DATA_DIR, "something-something-v2-labels.json"
-    )
+    label_name_file = os.path.join(cfg.DATA.PATH_TO_DATA_DIR,
+                                   "something-something-v2-labels.json")
     video_label_file = os.path.join(
         cfg.DATA.PATH_TO_DATA_DIR,
-        "something-something-v2-{}.json".format(
-            "train" if mode == "train" else "validation"
-        ),
+        "something-something-v2-{}.json".format("train" if mode ==
+                                                "train" else "validation"),
     )
     data_path = os.path.join(
         cfg.DATA.PATH_TO_DATA_DIR,
@@ -581,11 +516,8 @@ def Ptvssv2(cfg, mode):
         rand_sample_frames=mode == "train",
     )
 
-    logger.info(
-        "Constructing ssv2 dataloader (size: {}) from {}".format(
-            len(dataset._path_to_videos), data_path
-        )
-    )
+    logger.info("Constructing ssv2 dataloader (size: {}) from {}".format(
+        len(dataset._path_to_videos), data_path))
 
     return PTVDatasetWrapper(
         num_videos=len(dataset._path_to_videos),

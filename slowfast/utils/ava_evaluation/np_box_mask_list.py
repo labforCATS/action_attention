@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Numpy BoxMaskList classes and functions."""
 
 from __future__ import (
@@ -56,12 +55,10 @@ class BoxMaskList(np_box_list.BoxList):
             raise ValueError("Invalid dimensions for mask data.")
         if mask_data.dtype != np.uint8:
             raise ValueError(
-                "Invalid data type for mask data: uint8 is required."
-            )
+                "Invalid data type for mask data: uint8 is required.")
         if mask_data.shape[0] != box_data.shape[0]:
             raise ValueError(
-                "There should be the same number of boxes and masks."
-            )
+                "There should be the same number of boxes and masks.")
         self.data["masks"] = mask_data
 
     def get_masks(self):

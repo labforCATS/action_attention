@@ -20,7 +20,6 @@
 # Licensed under The MIT License
 # [see https://github.com/activitynet/ActivityNet/blob/master/LICENSE for details]
 # --------------------------------------------------------
-
 """Helper functions for AVA evaluation."""
 
 from __future__ import (
@@ -158,27 +157,28 @@ def evaluate_ava(
     )
 
     logger.info("Evaluating with %d unique GT frames." % len(groundtruth[0]))
-    logger.info(
-        "Evaluating with %d unique detection frames" % len(detections[0])
-    )
+    logger.info("Evaluating with %d unique detection frames" %
+                len(detections[0]))
 
     write_results(detections, "detections_%s.csv" % name)
     write_results(groundtruth, "groundtruth_%s.csv" % name)
 
-    results = run_evaluation(categories, groundtruth, detections, excluded_keys)
+    results = run_evaluation(categories, groundtruth, detections,
+                             excluded_keys)
 
     logger.info("AVA eval done in %f seconds." % (time.time() - eval_start))
     return results["PascalBoxes_Precision/mAP@0.5IOU"]
 
 
-def run_evaluation(
-    categories, groundtruth, detections, excluded_keys, verbose=True
-):
+def run_evaluation(categories,
+                   groundtruth,
+                   detections,
+                   excluded_keys,
+                   verbose=True):
     """AVA evaluation main logic."""
 
     pascal_evaluator = object_detection_evaluation.PascalDetectionEvaluator(
-        categories
-    )
+        categories)
 
     boxes, labels, _ = groundtruth
 
@@ -188,25 +188,20 @@ def run_evaluation(
     for image_key in boxes:
         if image_key in excluded_keys:
             logging.info(
-                (
-                    "Found excluded timestamp in ground truth: %s. "
-                    "It will be ignored."
-                ),
+                ("Found excluded timestamp in ground truth: %s. "
+                 "It will be ignored."),
                 image_key,
             )
             continue
         pascal_evaluator.add_single_ground_truth_image_info(
             image_key,
             {
-                standard_fields.InputDataFields.groundtruth_boxes: np.array(
-                    boxes[image_key], dtype=float
-                ),
-                standard_fields.InputDataFields.groundtruth_classes: np.array(
-                    labels[image_key], dtype=int
-                ),
-                standard_fields.InputDataFields.groundtruth_difficult: np.zeros(
-                    len(boxes[image_key]), dtype=bool
-                ),
+                standard_fields.InputDataFields.groundtruth_boxes:
+                np.array(boxes[image_key], dtype=float),
+                standard_fields.InputDataFields.groundtruth_classes:
+                np.array(labels[image_key], dtype=int),
+                standard_fields.InputDataFields.groundtruth_difficult:
+                np.zeros(len(boxes[image_key]), dtype=bool),
             },
         )
 
@@ -217,25 +212,20 @@ def run_evaluation(
     for image_key in boxes:
         if image_key in excluded_keys:
             logging.info(
-                (
-                    "Found excluded timestamp in detections: %s. "
-                    "It will be ignored."
-                ),
+                ("Found excluded timestamp in detections: %s. "
+                 "It will be ignored."),
                 image_key,
             )
             continue
         pascal_evaluator.add_single_detected_image_info(
             image_key,
             {
-                standard_fields.DetectionResultFields.detection_boxes: np.array(
-                    boxes[image_key], dtype=float
-                ),
-                standard_fields.DetectionResultFields.detection_classes: np.array(
-                    labels[image_key], dtype=int
-                ),
-                standard_fields.DetectionResultFields.detection_scores: np.array(
-                    scores[image_key], dtype=float
-                ),
+                standard_fields.DetectionResultFields.detection_boxes:
+                np.array(boxes[image_key], dtype=float),
+                standard_fields.DetectionResultFields.detection_classes:
+                np.array(labels[image_key], dtype=int),
+                standard_fields.DetectionResultFields.detection_scores:
+                np.array(scores[image_key], dtype=float),
             },
         )
 
@@ -295,10 +285,8 @@ def write_results(detections, filename):
     with pathmgr.open(filename, "w") as f:
         for key in boxes.keys():
             for box, label, score in zip(boxes[key], labels[key], scores[key]):
-                f.write(
-                    "%s,%.03f,%.03f,%.03f,%.03f,%d,%.04f\n"
-                    % (key, box[1], box[0], box[3], box[2], label, score)
-                )
+                f.write("%s,%.03f,%.03f,%.03f,%.03f,%d,%.04f\n" %
+                        (key, box[1], box[0], box[3], box[2], label, score))
 
     logger.info("AVA results wrote to %s" % filename)
     logger.info("\ttook %d seconds." % (time.time() - start))

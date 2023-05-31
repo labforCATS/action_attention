@@ -15,7 +15,9 @@ logger = logging.get_logger(__name__)
 
 
 class AsycnActionPredictor:
+
     class _Predictor(mp.Process):
+
         def __init__(self, cfg, task_queue, result_queue, gpu_id=None):
             """
             Predict Worker for Detectron2.
@@ -32,11 +34,8 @@ class AsycnActionPredictor:
             self.result_queue = result_queue
             self.gpu_id = gpu_id
 
-            self.device = (
-                torch.device("cuda:{}".format(self.gpu_id))
-                if self.cfg.NUM_GPUS
-                else "cpu"
-            )
+            self.device = (torch.device("cuda:{}".format(self.gpu_id))
+                           if self.cfg.NUM_GPUS else "cpu")
 
         def run(self):
             """
@@ -55,7 +54,8 @@ class AsycnActionPredictor:
         num_workers = cfg.NUM_GPUS
 
         self.task_queue = mp.Queue()
-        self.result_queue = mp.Queue() if result_queue is None else result_queue
+        self.result_queue = mp.Queue(
+        ) if result_queue is None else result_queue
 
         self.get_idx = -1
         self.put_idx = -1
@@ -65,10 +65,8 @@ class AsycnActionPredictor:
         cfg.NUM_GPUS = 1
         for gpu_id in range(num_workers):
             self.procs.append(
-                AsycnActionPredictor._Predictor(
-                    cfg, self.task_queue, self.result_queue, gpu_id
-                )
-            )
+                AsycnActionPredictor._Predictor(cfg, self.task_queue,
+                                                self.result_queue, gpu_id))
 
         self.result_data = {}
         for p in self.procs:
@@ -124,7 +122,9 @@ class AsycnActionPredictor:
 
 
 class AsyncVis:
+
     class _VisWorker(mp.Process):
+
         def __init__(self, video_vis, task_queue, result_queue):
             """
             Visualization Worker for AsyncVis.
@@ -170,10 +170,8 @@ class AsyncVis:
         self.put_id = -1
         for _ in range(max(num_workers, 1)):
             self.procs.append(
-                AsyncVis._VisWorker(
-                    video_vis, self.task_queue, self.result_queue
-                )
-            )
+                AsyncVis._VisWorker(video_vis, self.task_queue,
+                                    self.result_queue))
 
         for p in self.procs:
             p.start()
@@ -246,9 +244,8 @@ class AsyncDemo:
                 slowfast/config/defaults.py
             async_vis (AsyncVis object): asynchronous visualizer.
         """
-        self.model = AsycnActionPredictor(
-            cfg=cfg, result_queue=async_vis.task_queue
-        )
+        self.model = AsycnActionPredictor(cfg=cfg,
+                                          result_queue=async_vis.task_queue)
         self.async_vis = async_vis
 
     def put(self, task):
@@ -290,17 +287,16 @@ def draw_predictions(task, video_vis):
         img_height = task.img_height
         if boxes.device != torch.device("cpu"):
             boxes = boxes.cpu()
-        boxes = cv2_transform.revert_scaled_boxes(
-            task.crop_size, boxes, img_height, img_width
-        )
+        boxes = cv2_transform.revert_scaled_boxes(task.crop_size, boxes,
+                                                  img_height, img_width)
 
     keyframe_idx = len(frames) // 2 - task.num_buffer_frames
     draw_range = [
         keyframe_idx - task.clip_vis_size,
         keyframe_idx + task.clip_vis_size,
     ]
-    buffer = frames[: task.num_buffer_frames]
-    frames = frames[task.num_buffer_frames :]
+    buffer = frames[:task.num_buffer_frames]
+    frames = frames[task.num_buffer_frames:]
     if boxes is not None:
         if len(boxes) != 0:
             frames = video_vis.draw_clip_range(
@@ -311,9 +307,10 @@ def draw_predictions(task, video_vis):
                 draw_range=draw_range,
             )
     else:
-        frames = video_vis.draw_clip_range(
-            frames, preds, keyframe_idx=keyframe_idx, draw_range=draw_range
-        )
+        frames = video_vis.draw_clip_range(frames,
+                                           preds,
+                                           keyframe_idx=keyframe_idx,
+                                           draw_range=draw_range)
     del task
 
     return buffer + frames

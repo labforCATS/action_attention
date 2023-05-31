@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Optimizer."""
 
 import torch
@@ -45,9 +44,8 @@ def construct_optimizer(model, cfg):
                 bn_parameters.append(p)
             elif name in skip:
                 zero_parameters.append(p)
-            elif cfg.SOLVER.ZERO_WD_1D_PARAM and (
-                len(p.shape) == 1 or name.endswith(".bias")
-            ):
+            elif cfg.SOLVER.ZERO_WD_1D_PARAM and (len(p.shape) == 1
+                                                  or name.endswith(".bias")):
                 zero_parameters.append(p)
             else:
                 non_bn_parameters.append(p)
@@ -73,24 +71,21 @@ def construct_optimizer(model, cfg):
 
     # Check all parameters will be passed into optimizer.
     assert len(list(model.parameters())) == len(non_bn_parameters) + len(
-        bn_parameters
-    ) + len(zero_parameters) + len(
-        no_grad_parameters
-    ), "parameter size does not match: {} + {} + {} + {} != {}".format(
-        len(non_bn_parameters),
-        len(bn_parameters),
-        len(zero_parameters),
-        len(no_grad_parameters),
-        len(list(model.parameters())),
-    )
-    print(
-        "bn {}, non bn {}, zero {} no grad {}".format(
-            len(bn_parameters),
+        bn_parameters) + len(zero_parameters) + len(
+            no_grad_parameters
+        ), "parameter size does not match: {} + {} + {} + {} != {}".format(
             len(non_bn_parameters),
+            len(bn_parameters),
             len(zero_parameters),
             len(no_grad_parameters),
+            len(list(model.parameters())),
         )
-    )
+    print("bn {}, non bn {}, zero {} no grad {}".format(
+        len(bn_parameters),
+        len(non_bn_parameters),
+        len(zero_parameters),
+        len(no_grad_parameters),
+    ))
 
     if cfg.SOLVER.OPTIMIZING_METHOD == "sgd":
         optimizer = torch.optim.SGD(
@@ -123,13 +118,12 @@ def construct_optimizer(model, cfg):
             weight_decay=cfg.SOLVER.WEIGHT_DECAY,
         )
     else:
-        raise NotImplementedError(
-            "Does not support {} optimizer".format(cfg.SOLVER.OPTIMIZING_METHOD)
-        )
+        raise NotImplementedError("Does not support {} optimizer".format(
+            cfg.SOLVER.OPTIMIZING_METHOD))
     if cfg.SOLVER.LARS_ON:
-        optimizer = LARS(
-            optimizer=optimizer, trust_coefficient=0.001, clip=False
-        )
+        optimizer = LARS(optimizer=optimizer,
+                         trust_coefficient=0.001,
+                         clip=False)
     return optimizer
 
 
@@ -219,13 +213,11 @@ class LARS(object):
             weight_decays = []
             for group in self.optim.param_groups:
                 # absorb weight decay control from optimizer
-                weight_decay = (
-                    group["weight_decay"] if "weight_decay" in group else 0
-                )
+                weight_decay = (group["weight_decay"]
+                                if "weight_decay" in group else 0)
                 weight_decays.append(weight_decay)
-                apply_LARS = (
-                    group["apply_LARS"] if "apply_LARS" in group else True
-                )
+                apply_LARS = (group["apply_LARS"]
+                              if "apply_LARS" in group else True)
                 if not apply_LARS:
                     continue
                 group["weight_decay"] = 0
@@ -240,10 +232,8 @@ class LARS(object):
                     if param_norm != 0 and grad_norm != 0:
                         # calculate adaptive lr + weight decay
                         adaptive_lr = (
-                            self.trust_coefficient
-                            * (param_norm)
-                            / (grad_norm + param_norm * weight_decay + self.eps)
-                        )
+                            self.trust_coefficient * (param_norm) /
+                            (grad_norm + param_norm * weight_decay + self.eps))
 
                         # clip learning rate for LARS
                         if self.clip:

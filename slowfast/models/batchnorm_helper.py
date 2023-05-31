@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """BatchNorm (BN) utility functions and custom batch-size BN implementations"""
 
 from functools import partial
@@ -23,14 +22,12 @@ def get_norm(cfg):
     elif cfg.BN.NORM_TYPE == "sub_batchnorm":
         return partial(SubBatchNorm3d, num_splits=cfg.BN.NUM_SPLITS)
     elif cfg.BN.NORM_TYPE == "sync_batchnorm":
-        return partial(
-            NaiveSyncBatchNorm3d, num_sync_devices=cfg.BN.NUM_SYNC_DEVICES,
-            global_sync=cfg.BN.GLOBAL_SYNC
-        )
+        return partial(NaiveSyncBatchNorm3d,
+                       num_sync_devices=cfg.BN.NUM_SYNC_DEVICES,
+                       global_sync=cfg.BN.GLOBAL_SYNC)
     else:
-        raise NotImplementedError(
-            "Norm type {} is not supported".format(cfg.BN.NORM_TYPE)
-        )
+        raise NotImplementedError("Norm type {} is not supported".format(
+            cfg.BN.NORM_TYPE))
 
 
 class SubBatchNorm3d(nn.Module):
@@ -74,10 +71,8 @@ class SubBatchNorm3d(nn.Module):
             n (int): number of sets of means and stds.
         """
         mean = means.view(n, -1).sum(0) / n
-        std = (
-            stds.view(n, -1).sum(0) / n
-            + ((means.view(n, -1) - mean) ** 2).view(n, -1).sum(0) / n
-        )
+        std = (stds.view(n, -1).sum(0) / n +
+               ((means.view(n, -1) - mean)**2).view(n, -1).sum(0) / n)
         return mean.detach(), std.detach()
 
     def aggregate_stats(self):

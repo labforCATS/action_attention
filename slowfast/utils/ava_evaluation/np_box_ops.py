@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Operations for [N, 4] numpy arrays representing bounding boxes.
 
 Example box operations that are supported:
@@ -81,11 +80,8 @@ def iou(boxes1, boxes2):
     intersect = intersection(boxes1, boxes2)
     area1 = area(boxes1)
     area2 = area(boxes2)
-    union = (
-        np.expand_dims(area1, axis=1)
-        + np.expand_dims(area2, axis=0)
-        - intersect
-    )
+    union = (np.expand_dims(area1, axis=1) + np.expand_dims(area2, axis=0) -
+             intersect)
     return intersect / union
 
 

@@ -175,22 +175,18 @@ class PerImageEvaluation(object):
         """
         if detected_masks is not None and groundtruth_masks is None:
             raise ValueError(
-                "Detected masks is available but groundtruth masks is not."
-            )
+                "Detected masks is available but groundtruth masks is not.")
         if detected_masks is None and groundtruth_masks is not None:
             raise ValueError(
-                "Groundtruth masks is available but detected masks is not."
-            )
+                "Groundtruth masks is available but detected masks is not.")
 
         result_scores = []
         result_tp_fp_labels = []
         for i in range(self.num_groundtruth_classes):
             groundtruth_is_difficult_list_at_ith_class = (
-                groundtruth_is_difficult_list[groundtruth_class_labels == i]
-            )
+                groundtruth_is_difficult_list[groundtruth_class_labels == i])
             groundtruth_is_group_of_list_at_ith_class = (
-                groundtruth_is_group_of_list[groundtruth_class_labels == i]
-            )
+                groundtruth_is_group_of_list[groundtruth_class_labels == i])
             (
                 gt_boxes_at_ith_class,
                 gt_masks_at_ith_class,
@@ -211,8 +207,10 @@ class PerImageEvaluation(object):
                 detected_boxes=detected_boxes_at_ith_class,
                 detected_scores=detected_scores_at_ith_class,
                 groundtruth_boxes=gt_boxes_at_ith_class,
-                groundtruth_is_difficult_list=groundtruth_is_difficult_list_at_ith_class,
-                groundtruth_is_group_of_list=groundtruth_is_group_of_list_at_ith_class,
+                groundtruth_is_difficult_list=
+                groundtruth_is_difficult_list_at_ith_class,
+                groundtruth_is_group_of_list=
+                groundtruth_is_group_of_list_at_ith_class,
                 detected_masks=detected_masks_at_ith_class,
                 groundtruth_masks=gt_masks_at_ith_class,
             )
@@ -251,8 +249,7 @@ class PerImageEvaluation(object):
         detected_boxlist = np_box_list.BoxList(detected_boxes)
         detected_boxlist.add_field("scores", detected_scores)
         gt_non_group_of_boxlist = np_box_list.BoxList(
-            groundtruth_boxes[~groundtruth_is_group_of_list]
-        )
+            groundtruth_boxes[~groundtruth_is_group_of_list])
         iou = np_box_list_ops.iou(detected_boxlist, gt_non_group_of_boxlist)
         scores = detected_boxlist.get_field("scores")
         num_boxes = detected_boxlist.num_boxes()
@@ -330,8 +327,7 @@ class PerImageEvaluation(object):
         # Tp-fp evaluation for non-group of boxes (if any).
         if iou.shape[1] > 0:
             groundtruth_nongroup_of_is_difficult_list = (
-                groundtruth_is_difficult_list[~groundtruth_is_group_of_list]
-            )
+                groundtruth_is_difficult_list[~groundtruth_is_group_of_list])
             max_overlap_gt_ids = np.argmax(iou, axis=1)
             is_gt_box_detected = np.zeros(iou.shape[1], dtype=bool)
             for i in range(num_detected_boxes):
@@ -346,9 +342,8 @@ class PerImageEvaluation(object):
 
         return (
             scores[~is_matched_to_difficult_box & ~is_matched_to_group_of_box],
-            tp_fp_labels[
-                ~is_matched_to_difficult_box & ~is_matched_to_group_of_box
-            ],
+            tp_fp_labels[~is_matched_to_difficult_box
+                         & ~is_matched_to_group_of_box],
         )
 
     def _get_ith_class_arrays(

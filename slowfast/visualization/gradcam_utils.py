@@ -21,9 +21,13 @@ class GradCAM:
     https://arxiv.org/pdf/1610.02391.pdf
     """
 
-    def __init__(
-        self, model, target_layers, data_mean, data_std, method, colormap="viridis"
-    ):
+    def __init__(self,
+                 model,
+                 target_layers,
+                 data_mean,
+                 data_std,
+                 method,
+                 colormap="viridis"):
         """
         Args:
             model (model): the model to be used.
@@ -72,7 +76,10 @@ class GradCAM:
         for layer_name in self.target_layers:
             self._register_single_hook(layer_name=layer_name)
 
-    def _calculate_localization_map(self, inputs, labels=None, method="grad_cam"):
+    def _calculate_localization_map(self,
+                                    inputs,
+                                    labels=None,
+                                    method="grad_cam"):
         """
         Calculate localization map for all inputs with Grad-CAM.
         Args:
@@ -121,7 +128,9 @@ class GradCAM:
                 method=self.method,
             )
             weights = weights.view(B, C, Tg, 1, 1)
-            localization_map = torch.sum(weights * activations, dim=1, keepdim=True)
+            localization_map = torch.sum(weights * activations,
+                                         dim=1,
+                                         keepdim=True)
             localization_map = F.relu(localization_map)
             localization_map = F.interpolate(
                 localization_map,
@@ -130,19 +139,18 @@ class GradCAM:
                 align_corners=False,
             )
             localization_map_min, localization_map_max = (
-                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
-                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
+                torch.min(localization_map.view(B, -1), dim=-1,
+                          keepdim=True)[0],
+                torch.max(localization_map.view(B, -1), dim=-1,
+                          keepdim=True)[0],
             )
-            localization_map_min = torch.reshape(
-                localization_map_min, shape=(B, 1, 1, 1, 1)
-            )
-            localization_map_max = torch.reshape(
-                localization_map_max, shape=(B, 1, 1, 1, 1)
-            )
+            localization_map_min = torch.reshape(localization_map_min,
+                                                 shape=(B, 1, 1, 1, 1))
+            localization_map_max = torch.reshape(localization_map_max,
+                                                 shape=(B, 1, 1, 1, 1))
             # Normalize the localization map.
             localization_map = (localization_map - localization_map_min) / (
-                localization_map_max - localization_map_min + 1e-6
-            )
+                localization_map_max - localization_map_min + 1e-6)
             localization_map = localization_map.data
 
             localization_maps.append(localization_map)
@@ -164,8 +172,7 @@ class GradCAM:
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
-            inputs, labels=labels, method=self.method
-        )
+            inputs, labels=labels, method=self.method)
         # print(len(localization_maps))
         for i, localization_map in enumerate(localization_maps):
             # Convert (B, 1, T, H, W) to (B, T, H, W)
@@ -185,16 +192,8 @@ class GradCAM:
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255
                 # print(frame_map)
-                name = (
-                    output_dir
-                    + "/heatmaps/heatmap_"
-                    + str(input_name)
-                    + "_pathway"
-                    + str(i)
-                    + "frame"
-                    + str(f)
-                    + ".jpg"
-                )
+                name = (output_dir + "/heatmaps/heatmap_" + str(input_name) +
+                        "_pathway" + str(i) + "frame" + str(f) + ".jpg")
                 # print(name)
                 cv2.imwrite(name, frame_map)
             # print(i, count)
@@ -207,23 +206,14 @@ class GradCAM:
             if curr_inp.device != torch.device("cpu"):
                 curr_inp = curr_inp.cpu()
             curr_inp = data_utils.revert_tensor_normalize(
-                curr_inp, self.data_mean, self.data_std
-            )
+                curr_inp, self.data_mean, self.data_std)
 
             inp_to_save = curr_inp.numpy()[0]
             for f in range(len(inp_to_save)):
                 frame_map = inp_to_save[f] * 255
                 # print(frame_map)
-                name = (
-                    output_dir
-                    + "/inputs/input_"
-                    + str(input_name)
-                    + "_pathway"
-                    + str(i)
-                    + "frame"
-                    + str(f)
-                    + ".jpg"
-                )
+                name = (output_dir + "/inputs/input_" + str(input_name) +
+                        "_pathway" + str(i) + "frame" + str(f) + ".jpg")
                 # print(name)
                 cv2.imwrite(name, frame_map)
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Set up Environment."""
 
 from iopath.common.file_io import PathManagerFactory

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """Video models."""
 
 import torch
@@ -20,9 +19,8 @@ def get_trans_func(name):
         "basic_transform": BasicTransform,
         "x3d_transform": X3DTransform,
     }
-    assert (
-        name in trans_funcs.keys()
-    ), "Transformation function '{}' not supported".format(name)
+    assert (name in trans_funcs.keys()
+            ), "Transformation function '{}' not supported".format(name)
     return trans_funcs[name]
 
 
@@ -84,9 +82,9 @@ class BasicTransform(nn.Module):
             padding=[int(self.temp_kernel_size // 2), 1, 1],
             bias=False,
         )
-        self.a_bn = norm_module(
-            num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.a_bn = norm_module(num_features=dim_out,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
         self.a_relu = nn.ReLU(inplace=self._inplace_relu)
         # 1x3x3, BN.
         self.b = nn.Conv3d(
@@ -101,9 +99,9 @@ class BasicTransform(nn.Module):
 
         self.b.final_conv = True
 
-        self.b_bn = norm_module(
-            num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.b_bn = norm_module(num_features=dim_out,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
 
         self.b_bn.transform_final_bn = True
 
@@ -208,9 +206,9 @@ class X3DTransform(nn.Module):
             padding=[0, 0, 0],
             bias=False,
         )
-        self.a_bn = norm_module(
-            num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.a_bn = norm_module(num_features=dim_inner,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
         self.a_relu = nn.ReLU(inplace=self._inplace_relu)
 
         # Tx3x3, BN, ReLU.
@@ -224,9 +222,9 @@ class X3DTransform(nn.Module):
             bias=False,
             dilation=[1, dilation, dilation],
         )
-        self.b_bn = norm_module(
-            num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.b_bn = norm_module(num_features=dim_inner,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
 
         # Apply SE attention or not
         use_se = True if (self._block_idx + 1) % 2 else False
@@ -247,9 +245,9 @@ class X3DTransform(nn.Module):
             padding=[0, 0, 0],
             bias=False,
         )
-        self.c_bn = norm_module(
-            num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.c_bn = norm_module(num_features=dim_out,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
         self.c_bn.transform_final_bn = True
 
     def forward(self, x):
@@ -339,9 +337,9 @@ class BottleneckTransform(nn.Module):
             padding=[int(self.temp_kernel_size // 2), 0, 0],
             bias=False,
         )
-        self.a_bn = norm_module(
-            num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.a_bn = norm_module(num_features=dim_inner,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
         self.a_relu = nn.ReLU(inplace=self._inplace_relu)
 
         # 1x3x3, BN, ReLU.
@@ -355,9 +353,9 @@ class BottleneckTransform(nn.Module):
             bias=False,
             dilation=[1, dilation, dilation],
         )
-        self.b_bn = norm_module(
-            num_features=dim_inner, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.b_bn = norm_module(num_features=dim_inner,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
         self.b_relu = nn.ReLU(inplace=self._inplace_relu)
 
         # 1x1x1, BN.
@@ -371,9 +369,9 @@ class BottleneckTransform(nn.Module):
         )
         self.c.final_conv = True
 
-        self.c_bn = norm_module(
-            num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-        )
+        self.c_bn = norm_module(num_features=dim_out,
+                                eps=self._eps,
+                                momentum=self._bn_mmt)
         self.c_bn.transform_final_bn = True
 
     def forward(self, x):
@@ -493,9 +491,9 @@ class ResBlock(nn.Module):
                 bias=False,
                 dilation=1,
             )
-            self.branch1_bn = norm_module(
-                num_features=dim_out, eps=self._eps, momentum=self._bn_mmt
-            )
+            self.branch1_bn = norm_module(num_features=dim_out,
+                                          eps=self._eps,
+                                          momentum=self._bn_mmt)
         self.branch2 = trans_func(
             dim_in,
             dim_out,
@@ -601,37 +599,28 @@ class ResStage(nn.Module):
                 linearly increases from input to output blocks.
         """
         super(ResStage, self).__init__()
-        assert all(
-            (
-                num_block_temp_kernel[i] <= num_blocks[i]
-                for i in range(len(temp_kernel_sizes))
-            )
-        )
+        assert all((num_block_temp_kernel[i] <= num_blocks[i]
+                    for i in range(len(temp_kernel_sizes))))
         self.num_blocks = num_blocks
         self.nonlocal_group = nonlocal_group
         self._drop_connect_rate = drop_connect_rate
         self.temp_kernel_sizes = [
-            (temp_kernel_sizes[i] * num_blocks[i])[: num_block_temp_kernel[i]]
-            + [1] * (num_blocks[i] - num_block_temp_kernel[i])
+            (temp_kernel_sizes[i] * num_blocks[i])[:num_block_temp_kernel[i]] +
+            [1] * (num_blocks[i] - num_block_temp_kernel[i])
             for i in range(len(temp_kernel_sizes))
         ]
-        assert (
-            len(
-                {
-                    len(dim_in),
-                    len(dim_out),
-                    len(temp_kernel_sizes),
-                    len(stride),
-                    len(num_blocks),
-                    len(dim_inner),
-                    len(num_groups),
-                    len(num_block_temp_kernel),
-                    len(nonlocal_inds),
-                    len(nonlocal_group),
-                }
-            )
-            == 1
-        )
+        assert (len({
+            len(dim_in),
+            len(dim_out),
+            len(temp_kernel_sizes),
+            len(stride),
+            len(num_blocks),
+            len(dim_inner),
+            len(num_groups),
+            len(num_block_temp_kernel),
+            len(nonlocal_inds),
+            len(nonlocal_group),
+        }) == 1)
         self.num_pathways = len(self.num_blocks)
         self._construct(
             dim_in,
@@ -685,7 +674,8 @@ class ResStage(nn.Module):
                     block_idx=i,
                     drop_connect_rate=self._drop_connect_rate,
                 )
-                self.add_module("pathway{}_res{}".format(pathway, i), res_block)
+                self.add_module("pathway{}_res{}".format(pathway, i),
+                                res_block)
                 if i in nonlocal_inds[pathway]:
                     nln = Nonlocal(
                         dim_out[pathway],
@@ -694,9 +684,8 @@ class ResStage(nn.Module):
                         instantiation=instantiation,
                         norm_module=norm_module,
                     )
-                    self.add_module(
-                        "pathway{}_nonlocal{}".format(pathway, i), nln
-                    )
+                    self.add_module("pathway{}_nonlocal{}".format(pathway, i),
+                                    nln)
 
     def forward(self, inputs):
         output = []
@@ -706,9 +695,8 @@ class ResStage(nn.Module):
                 m = getattr(self, "pathway{}_res{}".format(pathway, i))
                 x = m(x)
                 if hasattr(self, "pathway{}_nonlocal{}".format(pathway, i)):
-                    nln = getattr(
-                        self, "pathway{}_nonlocal{}".format(pathway, i)
-                    )
+                    nln = getattr(self,
+                                  "pathway{}_nonlocal{}".format(pathway, i))
                     b, c, t, h, w = x.shape
                     if self.nonlocal_group[pathway] > 1:
                         # Fold temporal dimension into batch dimension.

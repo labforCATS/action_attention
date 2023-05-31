@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-
 """CSC model."""
 
 import math
@@ -53,24 +52,20 @@ class ContrastiveModel(nn.Module):
         self.l2_norm = Normalize()
         self.knn_num_imgs = 0
         self.knn_on = cfg.CONTRASTIVE.KNN_ON
-        self.train_labels = np.zeros((0,), dtype=np.int32)
+        self.train_labels = np.zeros((0, ), dtype=np.int32)
         self.num_pos = 2
-        self.num_crops = (
-            self.cfg.DATA.TRAIN_CROP_NUM_TEMPORAL
-            * self.cfg.DATA.TRAIN_CROP_NUM_SPATIAL
-        )
+        self.num_crops = (self.cfg.DATA.TRAIN_CROP_NUM_TEMPORAL *
+                          self.cfg.DATA.TRAIN_CROP_NUM_SPATIAL)
         self.nce_loss_fun = losses.get_loss_func("contrastive_loss")(
-            reduction="mean"
-        )
+            reduction="mean")
         assert self.cfg.MODEL.LOSS_FUNC == "contrastive_loss"
         self.softmax = nn.Softmax(dim=1).cuda()
 
         if self.type == "mem":
             self.mem_type = cfg.CONTRASTIVE.MEM_TYPE
             if self.mem_type == "1d":
-                self.memory = Memory1D(
-                    self.length, self.duration, self.dim, cfg
-                )
+                self.memory = Memory1D(self.length, self.duration, self.dim,
+                                       cfg)
             else:
                 self.memory = Memory(self.length, self.duration, self.dim, cfg)
             self.examplar_type = "video"
@@ -90,25 +85,18 @@ class ContrastiveModel(nn.Module):
                 torch.rand(self.k, self.dim).mul_(2 * stdv).add_(-stdv),
             )
             self.register_buffer("iter", torch.zeros([1], dtype=torch.long))
-            self._batch_shuffle_on = (
-                False
-                if (
-                    "sync" in cfg.BN.NORM_TYPE
-                    and cfg.BN.NUM_SYNC_DEVICES == cfg.NUM_GPUS
-                )
-                or self.type == "byol"
-                else True
-            )
+            self._batch_shuffle_on = (False if
+                                      ("sync" in cfg.BN.NORM_TYPE and
+                                       cfg.BN.NUM_SYNC_DEVICES == cfg.NUM_GPUS)
+                                      or self.type == "byol" else True)
         elif self.type == "swav":
             self.swav_use_public_code = True
             if self.swav_use_public_code:
                 self.swav_prototypes = nn.Linear(
-                    self.dim, 1000, bias=False
-                )  # for orig implementation
+                    self.dim, 1000, bias=False)  # for orig implementation
             else:
                 self.swav_prototypes = nn.Parameter(
-                    torch.randn((self.dim, 1000), dtype=torch.float)
-                )
+                    torch.randn((self.dim, 1000), dtype=torch.float))
             self.swav_eps_sinkhorn = 0.05
             self.swav_use_the_queue = False
             # optionally starts a queue
@@ -117,8 +105,8 @@ class ContrastiveModel(nn.Module):
                     "queue_swav",
                     torch.zeros(
                         2,  # = args.crops_for_assign
-                        self.cfg.CONTRASTIVE.SWAV_QEUE_LEN
-                        // du.get_world_size(),
+                        self.cfg.CONTRASTIVE.SWAV_QEUE_LEN //
+                        du.get_world_size(),
                         self.dim,
                     ),
                 )
@@ -145,16 +133,14 @@ class ContrastiveModel(nn.Module):
     def init_knn_labels(self, train_loader):
         logger.info("initializing knn labels")
         self.num_imgs = len(train_loader.dataset._labels)
-        self.train_labels = np.zeros((self.num_imgs,), dtype=np.int32)
+        self.train_labels = np.zeros((self.num_imgs, ), dtype=np.int32)
         for i in range(self.num_imgs):
             self.train_labels[i] = train_loader.dataset._labels[i]
         self.train_labels = torch.LongTensor(self.train_labels).cuda()
         if self.length != self.num_imgs:
             logger.error(
-                "Kinetics dataloader size: {} differs from memorybank length {}".format(
-                    self.num_imgs, self.length
-                )
-            )
+                "Kinetics dataloader size: {} differs from memorybank length {}"
+                .format(self.num_imgs, self.length))
             self.knn_mem.resize(self.num_imgs, 1, self.dim)
 
     @torch.no_grad()
@@ -253,26 +239,20 @@ class ContrastiveModel(nn.Module):
     @torch.no_grad()
     def momentum_anneal_cosine(self, epoch_exact):
         self.mmt = (
-            1
-            - (1 - self.cfg.CONTRASTIVE.MOMENTUM)
-            * (
-                math.cos(math.pi * epoch_exact / self.cfg.SOLVER.MAX_EPOCH)
-                + 1.0
-            )
-            * 0.5
-        )
+            1 - (1 - self.cfg.CONTRASTIVE.MOMENTUM) *
+            (math.cos(math.pi * epoch_exact / self.cfg.SOLVER.MAX_EPOCH) + 1.0)
+            * 0.5)
 
     @torch.no_grad()
     def _dequeue_and_enqueue(self, keys, extra_keys=None):
         ptr = int(self.ptr.item())
-        if (
-            not self.cfg.CONTRASTIVE.MOCO_MULTI_VIEW_QUEUE
-        ):  # TODO: add multiview negatives
+        if (not self.cfg.CONTRASTIVE.MOCO_MULTI_VIEW_QUEUE
+            ):  # TODO: add multiview negatives
             keys_queue_update = [keys[0]]
         else:
             assert (
-                len(keys) > 0
-            ), "need to have multiple views for adding them to queue"
+                len(keys)
+                > 0), "need to have multiple views for adding them to queue"
             keys_queue_update = []
             keys_queue_update += keys
             if extra_keys:
@@ -285,7 +265,7 @@ class ContrastiveModel(nn.Module):
 
             assert self.k % num_items == 0
             assert ptr + num_items <= self.k
-            self.queue_x[ptr : ptr + num_items, :] = key
+            self.queue_x[ptr:ptr + num_items, :] = key
             # move pointer
             ptr += num_items
             # reset pointer
@@ -301,16 +281,16 @@ class ContrastiveModel(nn.Module):
                 if i == 0:
                     clips_batched[j] = view
                 else:
-                    clips_batched[j] = torch.cat(
-                        [clips_batched[j], view], dim=0
-                    )
+                    clips_batched[j] = torch.cat([clips_batched[j], view],
+                                                 dim=0)
                 del view
         return clips_batched
 
     @torch.no_grad()
-    def compute_key_feat(
-        self, clips_k, compute_predictor_keys=False, batched_inference=True
-    ):
+    def compute_key_feat(self,
+                         clips_k,
+                         compute_predictor_keys=False,
+                         batched_inference=True):
         assert self.training
         # momentum update key encoder
         self._update_history()
@@ -320,13 +300,10 @@ class ContrastiveModel(nn.Module):
         if n_clips * bsz * clips_k[0][0].numel() > 4 * 64 * 3 * 8 * 224 * 224:
             batched_inference = False  # hack to avoid oom on large inputs
         assert n_clips > 0
-        if batched_inference and all(
-            [
+        if batched_inference and all([
                 clips_k[i][j].shape[1:] == clips_k[0][j].shape[1:]
-                for i in range(len(clips_k))
-                for j in range(len(clips_k[i]))
-            ]
-        ):
+                for i in range(len(clips_k)) for j in range(len(clips_k[i]))
+        ]):
             clips_k = [self.batch_clips(clips_k)]
             batched = True
         else:
@@ -349,13 +326,13 @@ class ContrastiveModel(nn.Module):
                             tk = self.l2_norm(tk)
                             if self._batch_shuffle_on:
                                 tk = self._batch_unshuffle(
-                                    tk, idx_restore
-                                ).detach()
+                                    tk, idx_restore).detach()
                             tks.append(tk)
                         pred_keys.append(tks)
                 x_hist = self.l2_norm(hist_feat)
                 if self._batch_shuffle_on:
-                    x_hist = self._batch_unshuffle(x_hist, idx_restore).detach()
+                    x_hist = self._batch_unshuffle(x_hist,
+                                                   idx_restore).detach()
             keys.append(x_hist)
         if batched:
             assert len(keys) == 1, "batched input uses single clip"
@@ -364,17 +341,20 @@ class ContrastiveModel(nn.Module):
                 batched_pred_key = pred_keys[0]
             keys, pred_keys = [], []
             for k in range(0, n_clips):
-                keys.append(batched_key[k * bsz : (k + 1) * bsz])
+                keys.append(batched_key[k * bsz:(k + 1) * bsz])
                 if compute_predictor_keys:
-                    pred_keys.append(batched_pred_key[k * bsz : (k + 1) * bsz])
+                    pred_keys.append(batched_pred_key[k * bsz:(k + 1) * bsz])
         if compute_predictor_keys:
             return keys, pred_keys
         else:
             return keys
 
-    def forward(
-        self, clips, index=None, time=None, epoch_exact=None, keys=None
-    ):
+    def forward(self,
+                clips,
+                index=None,
+                time=None,
+                epoch_exact=None,
+                keys=None):
         if epoch_exact is not None and self.momentum_annealing:
             self.momentum_anneal_cosine(epoch_exact)
 
@@ -401,11 +381,8 @@ class ContrastiveModel(nn.Module):
 
             if self.mem_type == "2d":
                 if self.interp:
-                    time_ind = (
-                        torch.empty(batch_size, self.k + 1)
-                        .uniform_(0, self.duration - 1)
-                        .cuda()
-                    )
+                    time_ind = (torch.empty(batch_size, self.k + 1).uniform_(
+                        0, self.duration - 1).cuda())
                 else:
                     time_ind = torch.randint(
                         0,
@@ -416,9 +393,8 @@ class ContrastiveModel(nn.Module):
                         ),
                     ).cuda()
             else:
-                time_ind = torch.zeros(
-                    size=(batch_size, self.k + 1), dtype=int
-                ).cuda()
+                time_ind = torch.zeros(size=(batch_size, self.k + 1),
+                                       dtype=int).cuda()
 
             if self.examplar_type == "clip":
                 # Diff clip from same video are negative.
@@ -428,8 +404,7 @@ class ContrastiveModel(nn.Module):
                 pass
             else:
                 raise NotImplementedError(
-                    "unsupported examplar_type {}".format(self.examplar_type)
-                )
+                    "unsupported examplar_type {}".format(self.examplar_type))
             k = self.memory.get(clip_ind, time_ind, self.interp)
             # q: N x C, k: N x K x C
             prod = torch.einsum("nc,nkc->nk", q, k)
@@ -437,27 +412,25 @@ class ContrastiveModel(nn.Module):
 
             loss = self.nce_loss_fun(prod)
 
-            self.memory.update(
-                q, momentum=self.mmt, ind=index, time=time, interp=self.interp
-            )
+            self.memory.update(q,
+                               momentum=self.mmt,
+                               ind=index,
+                               time=time,
+                               interp=self.interp)
             self.knn_mem_update(q, index)
             return prod, 0.0, True
         elif self.type == "moco":
             if isinstance(clips[0], list):
                 n_clips = len(clips)
                 ind_clips = np.arange(
-                    n_clips
-                )  # clips come ordered temporally from decoder
+                    n_clips)  # clips come ordered temporally from decoder
 
                 clip_q = clips[ind_clips[0]]
                 clips_k = [clips[i] for i in ind_clips[1:]]
                 # rearange time
                 time_q = time[:, ind_clips[0], :]
-                time_k = (
-                    time[:, ind_clips[1:], :]
-                    if keys is None
-                    else time[:, ind_clips[0] + 1 :, :]
-                )
+                time_k = (time[:, ind_clips[1:], :]
+                          if keys is None else time[:, ind_clips[0] + 1:, :])
             else:
                 clip_q = clips
 
@@ -477,17 +450,15 @@ class ContrastiveModel(nn.Module):
                 return self.eval_knn(q_knn)
 
             if keys is None:
-                keys = self.compute_key_feat(
-                    clips_k, compute_predictor_keys=False
-                )
+                keys = self.compute_key_feat(clips_k,
+                                             compute_predictor_keys=False)
                 auto_enqueue_keys = True
             else:
                 auto_enqueue_keys = False
 
             # score computation
-            queue_neg = torch.einsum(
-                "nc,kc->nk", [q, self.queue_x.clone().detach()]
-            )
+            queue_neg = torch.einsum("nc,kc->nk",
+                                     [q, self.queue_x.clone().detach()])
 
             for k, key in enumerate(keys):
                 out_pos = torch.einsum("nc,nc->n", [q, key]).unsqueeze(-1)
@@ -518,8 +489,7 @@ class ContrastiveModel(nn.Module):
             if isinstance(clips[0], list):
                 n_clips = len(clips)
                 ind_clips = np.arange(
-                    n_clips
-                )  # clips come ordered temporally from decoder
+                    n_clips)  # clips come ordered temporally from decoder
                 if batch_clips and n_clips > 1:
                     clips_batched = self.batch_clips(clips)
                     clips_key = [clips_batched]
@@ -548,14 +518,12 @@ class ContrastiveModel(nn.Module):
                 return self.eval_knn(q_knn)
 
             ind_clips = np.arange(
-                n_clips
-            )  # clips come ordered temporally from decoder
+                n_clips)  # clips come ordered temporally from decoder
 
             # rest down is for training
             if keys is None:
-                keys = self.compute_key_feat(
-                    clips_key, compute_predictor_keys=False
-                )
+                keys = self.compute_key_feat(clips_key,
+                                             compute_predictor_keys=False)
 
             if self.cfg.CONTRASTIVE.SEQUENTIAL:
                 loss_reg = self.sim_loss(predictors[0], keys[0])
@@ -565,9 +533,10 @@ class ContrastiveModel(nn.Module):
             else:
                 if batch_clips:
                     bs = predictors[0].shape[0] // 2
-                    loss_reg = self.sim_loss(
-                        predictors[0][:bs, :], keys[0][bs:, :]
-                    ) + self.sim_loss(predictors[0][bs:, :], keys[0][:bs, :])
+                    loss_reg = self.sim_loss(predictors[0][:bs, :],
+                                             keys[0][bs:, :]) + self.sim_loss(
+                                                 predictors[0][bs:, :],
+                                                 keys[0][:bs, :])
                     q_knn = q_knn[:bs, :]
                     del clips_batched[0]
                 else:
@@ -586,9 +555,10 @@ class ContrastiveModel(nn.Module):
             # loss_pos = self.sim_loss(q1_proj, q2_proj)
             dummy_logits = torch.cat(
                 (
-                    9999.0
-                    * torch.ones((len(index), 1), dtype=torch.float).cuda(),
-                    torch.zeros((len(index), self.k), dtype=torch.float).cuda(),
+                    9999.0 * torch.ones(
+                        (len(index), 1), dtype=torch.float).cuda(),
+                    torch.zeros(
+                        (len(index), self.k), dtype=torch.float).cuda(),
                 ),
                 dim=1,
             )
@@ -609,8 +579,7 @@ class ContrastiveModel(nn.Module):
                     return self.eval_knn(proj_1)
             n_clips = len(clips)
             ind_clips = np.arange(
-                n_clips
-            )  # clips come ordered temporally from decoder
+                n_clips)  # clips come ordered temporally from decoder
             clip_q = clips[0]
 
             if self.swav_use_public_code:
@@ -635,48 +604,38 @@ class ContrastiveModel(nn.Module):
 
                 loss_swav = 0
                 swav_extra_crops = n_clips - 2
-                self.swav_crops_for_assign = np.arange(
-                    n_clips - swav_extra_crops
-                )
+                self.swav_crops_for_assign = np.arange(n_clips -
+                                                       swav_extra_crops)
                 for i, crop_id in enumerate(self.swav_crops_for_assign):
                     with torch.no_grad():
-                        out = output[bs * crop_id : bs * (crop_id + 1)]
-                        if (
-                            self.cfg.CONTRASTIVE.SWAV_QEUE_LEN > 0
-                            and epoch_exact >= 15.0
-                        ):
+                        out = output[bs * crop_id:bs * (crop_id + 1)]
+                        if (self.cfg.CONTRASTIVE.SWAV_QEUE_LEN > 0
+                                and epoch_exact >= 15.0):
                             if self.swav_use_the_queue or not torch.all(
-                                self.queue_swav[i, -1, :] == 0
-                            ):
+                                    self.queue_swav[i, -1, :] == 0):
                                 self.swav_use_the_queue = True
-                                out = torch.cat(
-                                    (
-                                        torch.mm(
-                                            self.queue_swav[i],
-                                            m.swav_prototypes.weight.t(),
-                                        ),
-                                        out,
-                                    )
-                                )
+                                out = torch.cat((
+                                    torch.mm(
+                                        self.queue_swav[i],
+                                        m.swav_prototypes.weight.t(),
+                                    ),
+                                    out,
+                                ))
                             self.queue_swav[i, bs:] = self.queue_swav[
-                                i, :-bs
-                            ].clone()
-                            self.queue_swav[i, :bs] = embedding[
-                                crop_id * bs : (crop_id + 1) * bs
-                            ]
+                                i, :-bs].clone()
+                            self.queue_swav[i, :bs] = embedding[crop_id *
+                                                                bs:(crop_id +
+                                                                    1) * bs]
                         q = out / self.swav_eps_sinkhorn
                         q = torch.exp(q).t()
-                        q = (
-                            self.distributed_sinkhorn(q, 3)[-bs:]
-                            if self.cfg.NUM_SHARDS > 1
-                            else self.sinkhorn(q.t(), 3)[-bs:]
-                        )
+                        q = (self.distributed_sinkhorn(q, 3)[-bs:]
+                             if self.cfg.NUM_SHARDS > 1 else self.sinkhorn(
+                                 q.t(), 3)[-bs:])
                     subloss = 0
                     for v in np.delete(np.arange(n_clips), crop_id):
-                        p = self.softmax(output[bs * v : bs * (v + 1)] / self.T)
+                        p = self.softmax(output[bs * v:bs * (v + 1)] / self.T)
                         subloss -= torch.mean(
-                            torch.sum(q * torch.log(p), dim=1)
-                        )
+                            torch.sum(q * torch.log(p), dim=1))
                     loss_swav += subloss / (n_clips - 1)
                 loss_swav /= len(self.swav_crops_for_assign)
             else:
@@ -688,27 +647,20 @@ class ContrastiveModel(nn.Module):
                 bs = proj_1.shape[0]
                 if self.cfg.CONTRASTIVE.SWAV_QEUE_LEN > 0:
                     if epoch_exact >= 15.0 and not torch.all(
-                        self.queue_swav[0, -1, :] == 0
-                    ):
-                        swav_prototypes = F.normalize(
-                            self.swav_prototypes, dim=0, p=2
-                        ).detach()
-                        out_1 = torch.cat(
-                            (
-                                torch.mm(
-                                    self.queue_swav[0].detach(), swav_prototypes
-                                ),
-                                out_1,
-                            )
-                        )
-                        out_2 = torch.cat(
-                            (
-                                torch.mm(
-                                    self.queue_swav[1].detach(), swav_prototypes
-                                ),
-                                out_2,
-                            )
-                        )
+                            self.queue_swav[0, -1, :] == 0):
+                        swav_prototypes = F.normalize(self.swav_prototypes,
+                                                      dim=0,
+                                                      p=2).detach()
+                        out_1 = torch.cat((
+                            torch.mm(self.queue_swav[0].detach(),
+                                     swav_prototypes),
+                            out_1,
+                        ))
+                        out_2 = torch.cat((
+                            torch.mm(self.queue_swav[1].detach(),
+                                     swav_prototypes),
+                            out_2,
+                        ))
                     # fill the queue
                     self.queue_swav[0, bs:] = self.queue_swav[0, :-bs].clone()
                     self.queue_swav[0, :bs] = proj_1.detach()
@@ -724,9 +676,10 @@ class ContrastiveModel(nn.Module):
             self.knn_mem_update(q_knn, index)
             dummy_logits = torch.cat(
                 (
-                    9999.0
-                    * torch.ones((len(index), 1), dtype=torch.float).cuda(),
-                    torch.zeros((len(index), self.k), dtype=torch.float).cuda(),
+                    9999.0 * torch.ones(
+                        (len(index), 1), dtype=torch.float).cuda(),
+                    torch.zeros(
+                        (len(index), self.k), dtype=torch.float).cuda(),
                 ),
                 dim=1,
             )
@@ -759,9 +712,8 @@ class ContrastiveModel(nn.Module):
                 for loss_id in range(len(self.pos_mask)):
                     pos = torch.sum(similarity * self.pos_mask[loss_id], 1)
                     neg = torch.sum(similarity * self.neg_mask, 1)
-                    idx = (
-                        1 - torch.sum(self.pos_mask[loss_id], 1) > 0
-                    ).detach()
+                    idx = (1 - torch.sum(self.pos_mask[loss_id], 1)
+                           > 0).detach()
                     term_prob = pos / (pos + neg)
                     term_prob[idx] = 1.0
                     term_loss = torch.log(term_prob)
@@ -776,17 +728,15 @@ class ContrastiveModel(nn.Module):
                 out = torch.cat([q, q2], dim=0)
                 # [2*B, 2*B]
                 sim_matrix = torch.exp(
-                    torch.mm(out, out.t().contiguous()) / self.T
-                )
+                    torch.mm(out,
+                             out.t().contiguous()) / self.T)
                 # SANITY:
                 mask = (
-                    torch.ones_like(sim_matrix)
-                    - torch.eye(out.shape[0], device=sim_matrix.device)
-                ).bool()
+                    torch.ones_like(sim_matrix) -
+                    torch.eye(out.shape[0], device=sim_matrix.device)).bool()
                 # [2*B, 2*B-1]
                 sim_matrix = sim_matrix.masked_select(mask).view(
-                    out.shape[0], -1
-                )
+                    out.shape[0], -1)
                 # compute loss
                 pos_sim = torch.exp(torch.sum(q * q2, dim=-1) / self.T)
                 # [2*B]
@@ -795,9 +745,10 @@ class ContrastiveModel(nn.Module):
             self.knn_mem_update(q_knn, index)
             dummy_logits = torch.cat(
                 (
-                    9999.0
-                    * torch.ones((len(index), 1), dtype=torch.float).cuda(),
-                    torch.zeros((len(index), self.k), dtype=torch.float).cuda(),
+                    9999.0 * torch.ones(
+                        (len(index), 1), dtype=torch.float).cuda(),
+                    torch.zeros(
+                        (len(index), self.k), dtype=torch.float).cuda(),
                 ),
                 dim=1,
             )
@@ -824,9 +775,10 @@ class ContrastiveModel(nn.Module):
             pos_temp, neg_temp = [], []
             for i in range(world_size):
                 if i == rank:
-                    pos = np.eye(local_crops, k=d * local_orig_images) + np.eye(
-                        local_crops, k=-local_crops + d * local_orig_images
-                    )
+                    pos = np.eye(local_crops,
+                                 k=d * local_orig_images) + np.eye(
+                                     local_crops,
+                                     k=-local_crops + d * local_orig_images)
                     neg = np.ones((local_crops, local_crops))
                 else:
                     pos = np.zeros((local_crops, local_crops))
@@ -896,9 +848,8 @@ class ContrastiveModel(nn.Module):
 
             u = torch.zeros(Q.shape[0]).cuda(non_blocking=True)
             r = torch.ones(Q.shape[0]).cuda(non_blocking=True) / Q.shape[0]
-            c = torch.ones(Q.shape[1]).cuda(non_blocking=True) / (
-                du.get_world_size() * Q.shape[1]
-            )
+            c = torch.ones(Q.shape[1]).cuda(
+                non_blocking=True) / (du.get_world_size() * Q.shape[1])
 
             curr_sum = torch.sum(Q, dim=1)
             du.all_reduce([curr_sum], average=False)
@@ -923,20 +874,21 @@ def l2_loss(x, y):
 
 
 class Normalize(nn.Module):
+
     def __init__(self, power=2, dim=1):
         super(Normalize, self).__init__()
         self.dim = dim
         self.power = power
 
     def forward(self, x):
-        norm = (
-            x.pow(self.power).sum(self.dim, keepdim=True).pow(1.0 / self.power)
-        )
+        norm = (x.pow(self.power).sum(self.dim,
+                                      keepdim=True).pow(1.0 / self.power))
         out = x.div(norm)
         return out
 
 
 class Memory(nn.Module):
+
     def __init__(self, length, duration, dim, cfg):
         super(Memory, self).__init__()
         self.length = length
@@ -958,12 +910,9 @@ class Memory(nn.Module):
         self.dim = dim
         stdv = 1.0 / math.sqrt(dim / 3)
         del self.memory
-        self.memory = (
-            torch.rand(length, duration, dim, device=self.device)
-            .mul_(2 * stdv)
-            .add_(-stdv)
-            .cuda()
-        )
+        self.memory = (torch.rand(length, duration, dim,
+                                  device=self.device).mul_(
+                                      2 * stdv).add_(-stdv).cuda())
 
     def get(self, ind, time, interp=False):
         batch_size = ind.size(0)
@@ -983,9 +932,8 @@ class Memory(nn.Module):
                 selected_mem = mem_t0 * (1 - w_t1) + mem_t1 * w_t1
             else:
                 # logger.info("1dmem get ind shape {} time shape {}".format(ind.shape, time.shape))
-                selected_mem = self.memory[
-                    ind.view(-1), time.long().view(-1), :
-                ]
+                selected_mem = self.memory[ind.view(-1),
+                                           time.long().view(-1), :]
 
         out = selected_mem.view(batch_size, -1, self.dim)
         return out
@@ -1009,12 +957,10 @@ class Memory(nn.Module):
                 # mem = mem.squeeze()
                 duo_update = False
                 if duo_update:
-                    update_t0 = (
-                        mem * w_t0 + mem_t0 * w_t1
-                    ) * momentum + mem_t0 * (1 - momentum)
-                    update_t1 = (
-                        mem * w_t1 + mem_t1 * w_t0
-                    ) * momentum + mem_t1 * (1 - momentum)
+                    update_t0 = (mem * w_t0 + mem_t0 *
+                                 w_t1) * momentum + mem_t0 * (1 - momentum)
+                    update_t1 = (mem * w_t1 + mem_t1 *
+                                 w_t0) * momentum + mem_t1 * (1 - momentum)
                 else:
                     update_t0 = mem * w_t0 * momentum + mem_t0 * (1 - momentum)
                     update_t1 = mem * w_t1 * momentum + mem_t1 * (1 - momentum)
@@ -1032,9 +978,8 @@ class Memory(nn.Module):
                 # logger.info("1dmem set ind shape {} time shape {}".format(ind.shape, time.shape))
 
                 # my version
-                self.memory[
-                    ind.view(-1), time.long().view(-1), :
-                ] = mem_update.squeeze()
+                self.memory[ind.view(-1),
+                            time.long().view(-1), :] = mem_update.squeeze()
                 return
 
     def forward(self, inputs):
@@ -1042,6 +987,7 @@ class Memory(nn.Module):
 
 
 class Memory1D(nn.Module):
+
     def __init__(self, length, duration, dim, cfg):
         super(Memory1D, self).__init__()
         assert duration == 1
@@ -1050,8 +996,8 @@ class Memory1D(nn.Module):
         self.dim = dim
         stdv = 1.0 / math.sqrt(dim / 3)
         self.register_buffer(
-            "memory", torch.rand(length, dim).mul_(2 * stdv).add_(-stdv)
-        )
+            "memory",
+            torch.rand(length, dim).mul_(2 * stdv).add_(-stdv))
         self.l2_norm = Normalize(dim=1)
         self.num_gpus = cfg.NUM_GPUS
 
@@ -1059,13 +1005,11 @@ class Memory1D(nn.Module):
     def get(self, ind, time, interp=False):
         batch_size = ind.size(0)
         if len(ind.shape) == 1:
-            return torch.index_select(self.memory, 0, ind.view(-1)).view(
-                batch_size, self.dim
-            )
+            return torch.index_select(self.memory, 0,
+                                      ind.view(-1)).view(batch_size, self.dim)
         else:
             return torch.index_select(self.memory, 0, ind.view(-1)).view(
-                batch_size, -1, self.dim
-            )
+                batch_size, -1, self.dim)
 
     @torch.no_grad()
     def update(self, mem, momentum, ind, time, interp=False):
@@ -1084,11 +1028,8 @@ class Memory1D(nn.Module):
 
 def cancel_swav_gradients(model, cfg, epoch_exact):
     # cancel some gradients in first epoch of SwAV
-    if (
-        cfg.MODEL.MODEL_NAME == "ContrastiveModel"
-        and cfg.CONTRASTIVE.TYPE == "swav"
-        and epoch_exact <= 1.0
-    ):
+    if (cfg.MODEL.MODEL_NAME == "ContrastiveModel"
+            and cfg.CONTRASTIVE.TYPE == "swav" and epoch_exact <= 1.0):
         for name, p in model.named_parameters():
             if "swav_prototypes" in name:
                 p.grad = None

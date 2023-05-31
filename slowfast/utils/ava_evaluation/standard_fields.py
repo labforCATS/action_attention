@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """Contains classes specifying naming conventions used for object detection.
 
 
@@ -22,7 +21,6 @@ Specifies:
   BoxListFields: standard field used by BoxList
   TfExampleFields: standard fields for tf-example data format (go/tf-example).
 """
-
 
 from __future__ import (
     absolute_import,
