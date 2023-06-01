@@ -226,20 +226,27 @@ class GradCAM:
                 curr_inp, self.data_mean, self.data_std)
 
             inp_to_save = curr_inp.numpy()[0]
+
+            # folder = os.path.join(output_dir, "/inputs")
+            # if not os.path.exists(folder):
+            #     os.makedirs(folder)
+            # vis_method_folder = os.path.join(folder, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
+            # if not os.path.exists(vis_method_folder):
+            #     os.makedirs(vis_method_folder)
+
             for f in range(len(inp_to_save)):
                 frame_map = inp_to_save[f] * 255
                 # print(frame_map)
-                folder = os.path.join(output_dir, "/inputs").replace("//","/")
-                # name = (output_dir + "/inputs/input_" + str(input_name) +
-                #         "_pathway" + str(i) + "frame" + str(f) + ".jpg")
-                name = os.path.join(folder, "/", "input_", str(input_name),
-                                    "_pathway", str(i), "frame", str(f),
-                                    ".jpg")
+                #.replace("//","/")
+                name = (output_dir + "/inputs/input_" + str(input_name) +
+                        "_pathway" + str(i) + "frame" + str(f) + ".jpg")
+                
                 
                 # print(name)
-                if not os.path.exists(folder):
-                    os.makedirs(folder)
-
+                
+                # name = os.path.join(folder, "/input_"+str(input_name)+
+                #                     "_pathway"+str(i)+"frame"+str(f)+
+                #                     ".jpg")
                 cv2.imwrite(name, frame_map)
 
             heatmap = torch.from_numpy(heatmap)
