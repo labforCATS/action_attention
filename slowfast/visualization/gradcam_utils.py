@@ -199,14 +199,17 @@ class GradCAM:
             for f in range(len(map_to_save)):
                 frame_map = map_to_save[f] * 255
                 # print(frame_map)
-                name = (output_dir + "/heatmaps/" +
-                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD +
-                        "/heatmap_" + str(input_name) + "_pathway" + str(i) +
-                        "frame" + str(f) + ".jpg")
+                frame_name = "heatmap_" + str(input_name) + "_pathway" + str(i) + "frame" + str(f) + ".jpg"
+                name = os.path.join(output_dir, "heatmaps", cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD, frame_name)
+
+                # name = (output_dir + "/heatmaps/" +
+                #         cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD +
+                #         "/heatmap_" + str(input_name) + "_pathway" + str(i) +
+                #         "frame" + str(f) + ".jpg")
                 # print(name)
-                heatmap_path = os.path.join(output_dir + "/heatmaps").replace("//", "/")
+                heatmap_path = os.path.join(output_dir,"heatmaps")
                 visualization_path = os.path.join(
-                    heatmap_path + '/',
+                    heatmap_path,
                     cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
                 if not os.path.exists(heatmap_path):
                     os.makedirs(heatmap_path)
@@ -227,26 +230,32 @@ class GradCAM:
 
             inp_to_save = curr_inp.numpy()[0]
 
-            # folder = os.path.join(output_dir, "/inputs")
-            # if not os.path.exists(folder):
-            #     os.makedirs(folder)
-            # vis_method_folder = os.path.join(folder, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
-            # if not os.path.exists(vis_method_folder):
-            #     os.makedirs(vis_method_folder)
+            folder = os.path.join(output_dir, "inputs")
+            # folder = output_dir + "/inputs"
+            # folder = os.path.join(output_dir, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            vis_method_folder = os.path.join(folder, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
+            if not os.path.exists(vis_method_folder):
+                os.makedirs(vis_method_folder)
 
             for f in range(len(inp_to_save)):
                 frame_map = inp_to_save[f] * 255
                 # print(frame_map)
                 #.replace("//","/")
-                name = (output_dir + "/inputs/input_" + str(input_name) +
-                        "_pathway" + str(i) + "frame" + str(f) + ".jpg")
+                # name = (output_dir + "/inputs/input_" + str(input_name) +
+                #         "_pathway" + str(i) + "frame" + str(f) + ".jpg")
                 
                 
                 # print(name)
                 
-                # name = os.path.join(folder, "/input_"+str(input_name)+
+                # print(vis_method_folder)
+                # name = os.path.join(vis_method_folder,"/input_"+str(input_name)+
                 #                     "_pathway"+str(i)+"frame"+str(f)+
                 #                     ".jpg")
+                frame_name = "input_"+str(input_name)+ "_pathway"+str(i)+"frame"+str(f)+".jpg"
+                name = os.path.join(vis_method_folder, frame_name)
+                # name = vis_method_folder+"/input_"+str(input_name)+ "_pathway"+str(i)+"frame"+str(f)+".jpg"
                 cv2.imwrite(name, frame_map)
 
             heatmap = torch.from_numpy(heatmap)
