@@ -134,20 +134,26 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             # it seems like the count variable isn't used for anything besides debugging?
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
                 # TODO: where is this output_dir even being used?
-                inputs, preds = gradcam(output_dir=os.path.join(
-                    cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD),
+                inputs, preds = gradcam(output_dir=cfg.OUTPUT_DIR,
                                         inputs=inputs,
                                         input_name='',
                                         labels=labels)
+                # inputs, preds = gradcam(output_dir=os.path.join(
+                #     cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD),
+                #                         inputs=inputs,
+                #                         input_name='',
+                #                         labels=labels)
 
             else:
                 print(
                     os.path.join(cfg.OUTPUT_DIR,
                                  cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD))
-                inputs, preds = gradcam(output_dir=os.path.join(
+                inputs, preds = gradcam(os.path.join(
                     cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD),
-                                        inputs=inputs,
-                                        input_name='')
+                                        inputs,
+                                        "",
+                                        cfg,
+                                        labels=labels)
 
         if cfg.NUM_GPUS:
             inputs = du.all_gather_unaligned(inputs)
