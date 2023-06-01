@@ -148,10 +148,12 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                 print(
                     os.path.join(cfg.OUTPUT_DIR,
                                  cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD))
-                inputs, preds = gradcam(output_dir=os.path.join(
+                inputs, preds = gradcam(os.path.join(
                     cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD),
-                                        inputs=inputs,
-                                        input_name='')
+                                        inputs,
+                                        "",
+                                        cfg,
+                                        labels=labels)
 
         if cfg.NUM_GPUS:
             inputs = du.all_gather_unaligned(inputs)
