@@ -6,6 +6,7 @@ from .build import DATASET_REGISTRY, build_dataset  # noqa
 from .charades import Charades  # noqa
 from .imagenet import Imagenet  # noqa
 from .kinetics import Kinetics  # noqa
+from .kinetics_by_frame import KineticsByFrame  # noqa
 from .ssv2 import Ssv2  # noqa
 from .ucf import Ucf
 

@@ -3,6 +3,8 @@
 
 from fvcore.common.registry import Registry
 
+import pdb
+
 DATASET_REGISTRY = Registry("DATASET")
 DATASET_REGISTRY.__doc__ = """
 Registry for dataset.
@@ -28,4 +30,5 @@ def build_dataset(dataset_name, cfg, split):
     # in configs may be in lowercase but the name of dataset class should always
     # start with an uppercase letter.
     name = dataset_name.capitalize()
+    if name == 'Kineticsbyframe': name = 'KineticsByFrame'
     return DATASET_REGISTRY.get(name)(cfg, split)
