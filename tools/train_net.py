@@ -121,13 +121,13 @@ def train_epoch(
                 for slow_frame in range(num_slow_frame):
                     slow_tensor_image = slow_tensor[batch, :, slow_frame, :,:].numpy()*255
                     slow_tensor_image = np.moveaxis(slow_tensor_image, 0, -1)
-                    slow_name = "input_slow_vid"+ str(index.item())+ "frame" +str(slow_frame) + ".jpg"
+                    slow_name = "input_slow_vid"+ str(index.item())+ "_frame" +str(slow_frame) + ".jpg"
                     slow_name = os.path.join(slow_folder, slow_name)
                     cv2.imwrite(slow_name, slow_tensor_image)
                 for fast_frame in range(num_fast_frame):
                     fast_tensor_image = fast_tensor[batch, :, fast_frame, :,:].numpy()*255
                     fast_tensor_image = np.moveaxis(fast_tensor_image, 0, -1)
-                    fast_name = "input_fast_vid"+ str(index.item())+ "frame" +str(fast_frame) + ".jpg"
+                    fast_name = "input_fast_vid"+ str(index.item())+ "_frame" +str(fast_frame) + ".jpg"
                     fast_name = os.path.join(fast_folder, fast_name)
                     cv2.imwrite(fast_name, fast_tensor_image)
         
