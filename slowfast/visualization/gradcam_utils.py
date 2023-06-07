@@ -212,8 +212,9 @@ class GradCAM:
                 visualization_path = os.path.join(visualization_path, str(video_idx.item()))
                 if not os.path.exists(visualization_path):
                     os.makedirs(visualization_path)
-
-                frame_name = str(video_idx.item()) + "_" + f"{frame_idx:06d}" + ".jpg"
+                
+                one_based_frame_idx = frame_idx + 1
+                frame_name = str(video_idx.item()) + "_" + f"{one_based_frame_idx:06d}" + ".jpg"
                 name = os.path.join(visualization_path, frame_name)
 
                 if cfg.MODEL.ARCH == "slowfast":
@@ -256,7 +257,8 @@ class GradCAM:
             for frame_idx in range(len(inp_to_save)):
                 frame_map = inp_to_save[frame_idx] * 255
 
-                frame_name = f"{str(video_idx)}_{frame_idx:06d}.jpg"
+                one_based_frame_idx = frame_idx + 1
+                frame_name = f"{str(video_idx)}_{one_based_frame_idx:06d}.jpg"
                 
                 name = os.path.join(vis_method_folder, frame_name)
                 cv2.imwrite(name, frame_map)

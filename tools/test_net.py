@@ -212,7 +212,8 @@ def save_inputs(inputs, video_idx, cfg, pathway):
                 slow_tensor = slow_tensor.to("cpu")
             slow_tensor_image = slow_tensor[batch, :, slow_frame, :,:].numpy()*255
             slow_tensor_image = np.moveaxis(slow_tensor_image, 0, -1)
-            slow_name = "input_slow_imgs"+ str(video_idx.item())+ "_frame" +str(slow_frame) + ".jpg"
+            one_based_slow_frame = slow_frame + 1
+            slow_name = "input_slow_imgs"+ str(video_idx.item())+ "_frame" +str(one_based_slow_frame) + ".jpg"
             slow_name = os.path.join(slow_folder, slow_name)
             cv2.imwrite(slow_name, slow_tensor_image)
         for fast_frame in range(num_fast_frame):
@@ -220,7 +221,8 @@ def save_inputs(inputs, video_idx, cfg, pathway):
                 fast_tensor = fast_tensor.to("cpu")
             fast_tensor_image = fast_tensor[batch, :, fast_frame, :,:].numpy()*255
             fast_tensor_image = np.moveaxis(fast_tensor_image, 0, -1)
-            fast_name = "input_fast_imgs"+ str(video_idx.item())+ "_frame" +str(fast_frame) + ".jpg"
+            one_based_fast_frame = fast_frame + 1
+            fast_name = "input_fast_imgs"+ str(video_idx.item())+ "_frame" +str(one_based_fast_frame) + ".jpg"
             fast_name = os.path.join(fast_folder, fast_name)
             cv2.imwrite(fast_name, fast_tensor_image)
 
