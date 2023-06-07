@@ -30,6 +30,74 @@ from slowfast.utils.multigrid import MultigridSchedule
 logger = logging.get_logger(__name__)
 
 
+def save_inputs(inputs, video_idx, cfg, pathway):
+    """
+    saves the inputs to the model as a jpg
+
+    args:
+        inputs - list of length 2, consisting of tensors that contain the slow
+            and fast pathways
+        video_idx - integer indicating the current video
+        cfg (CfgNode): configs. Details can be found in
+            slowfast/config/defaults.py
+        pathway - string, with a value of either "test" or "train"
+    """
+    train_folder_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, pathway)
+    slow_folder = os.path.join(train_folder_path, "slow_imgs", str(video_idx))
+    fast_folder = os.path.join(train_folder_path, "fast_imgs", str(video_idx))
+
+    if not os.path.exists(cfg.VIS_MODEL_INPUT_DIR):
+        os.makedirs(cfg.VIS_MODEL_INPUT_DIR)
+    if not os.path.exists(train_folder_path):
+        os.makedirs(train_folder_path)
+    if not os.path.exists(slow_folder):
+        os.makedirs(slow_folder)
+    if not os.path.exists(fast_folder):
+        os.makedirs(fast_folder)          
+    for batch in range(cfg.TEST.BATCH_SIZE):
+        slow_tensor = inputs[0]
+        fast_tensor = inputs[1]
+        
+        num_slow_frame = slow_tensor.size(dim=2)
+        num_fast_frame = fast_tensor.size(dim=2)
+        
+        for slow_frame in range(num_slow_frame):
+            if slow_tensor.device != torch.device("cpu"):
+                slow_tensor = slow_tensor.to("cpu")
+            slow_tensor_image = slow_tensor[batch, :, slow_frame, :,:].numpy()*255
+            slow_tensor_image = np.moveaxis(slow_tensor_image, 0, -1)
+            slow_name = "input_slow_imgs"+ str(video_idx.item())+ "_frame" +str(slow_frame) + ".jpg"
+            slow_name = os.path.join(slow_folder, slow_name)
+            cv2.imwrite(slow_name, slow_tensor_image)
+        for fast_frame in range(num_fast_frame):
+            if fast_tensor.device != torch.device("cpu"):
+                fast_tensor = fast_tensor.to("cpu")
+            fast_tensor_image = fast_tensor[batch, :, fast_frame, :,:].numpy()*255
+            fast_tensor_image = np.moveaxis(fast_tensor_image, 0, -1)
+            fast_name = "input_fast_imgs"+ str(video_idx.item())+ "_frame" +str(fast_frame) + ".jpg"
+            fast_name = os.path.join(fast_folder, fast_name)
+            cv2.imwrite(fast_name, fast_tensor_image)
+        
+
+    
+    # TODO: in progress --- save the input frames as a single video
+    # for mode in os.listdir(cfg.VIS_MODEL_INPUT_DIR):
+    #     mode_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, mode)
+
+    #     # slow_imgs, fast_imgs in test/train
+    #     for input_pathway in os.listdir(mode_path):
+    #         input_pathway_path = os.path.join(mode_path, input_pathway)
+
+    #         # frame in slow_imgs/fast_imgs folders
+    #         curr_video = 0
+            
+    #         for frame in os.listdir(input_pathway_path):
+    #             frame_info = frame.split("_")
+    #             pathway = input_pathway.split("_")[0]
+    #             video_number = frame_info[2][3:]
+
+
+
 def train_epoch(
     train_loader,
     model,
@@ -92,49 +160,9 @@ def train_epoch(
 
     for cur_iter, (inputs, labels, index, time,
                    meta) in enumerate(train_loader):
-        
-        print(index)
-        pdb.set_trace()
-
         if cfg.TRAIN.SAVE_INPUT_VIDEO:
-            train_folder_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, "train")
-            slow_folder = os.path.join(train_folder_path, "slow")
-            fast_folder = os.path.join(train_folder_path, "fast")
+            save_inputs(inputs, index, cfg, "train")
 
-            if not os.path.exists(cfg.VIS_MODEL_INPUT_DIR):
-                os.makedirs(cfg.VIS_MODEL_INPUT_DIR)
-            if not os.path.exists(train_folder_path):
-                os.makedirs(train_folder_path)
-            if not os.path.exists(slow_folder):
-                os.makedirs(slow_folder)
-            if not os.path.exists(fast_folder):
-                os.makedirs(fast_folder)
-
-            for batch in range(cfg.TRAIN.BATCH_SIZE):
-                slow_tensor = inputs[0]
-                fast_tensor = inputs[1]
-                
-                num_slow_frame = slow_tensor.size(dim=2)
-                num_fast_frame = fast_tensor.size(dim=2)
-                
-                
-                for slow_frame in range(num_slow_frame):
-                    slow_tensor_image = slow_tensor[batch, :, slow_frame, :,:].numpy()*255
-                    slow_tensor_image = np.moveaxis(slow_tensor_image, 0, -1)
-                    slow_name = "input_slow_vid"+ str(index.item())+ "_frame" +str(slow_frame) + ".jpg"
-                    slow_name = os.path.join(slow_folder, slow_name)
-                    cv2.imwrite(slow_name, slow_tensor_image)
-                for fast_frame in range(num_fast_frame):
-                    fast_tensor_image = fast_tensor[batch, :, fast_frame, :,:].numpy()*255
-                    fast_tensor_image = np.moveaxis(fast_tensor_image, 0, -1)
-                    fast_name = "input_fast_vid"+ str(index.item())+ "_frame" +str(fast_frame) + ".jpg"
-                    fast_name = os.path.join(fast_folder, fast_name)
-                    cv2.imwrite(fast_name, fast_tensor_image)
-        
-
-        
-
-    
         if cfg.NUM_GPUS:
             if isinstance(inputs, (list, )):
                 for i in range(len(inputs)):

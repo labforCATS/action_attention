@@ -6,7 +6,6 @@ import numpy as np
 import os
 import pickle
 import torch
-import torchvision
 import pdb
 import cv2
 
@@ -15,7 +14,6 @@ import slowfast.utils.distributed as du
 import slowfast.utils.logging as logging
 import slowfast.utils.misc as misc
 import slowfast.visualization.tensorboard_vis as tb
-import torchvision.transforms as transforms
 from slowfast.datasets import loader
 from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
@@ -52,63 +50,9 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
     for cur_iter, (inputs, labels, video_idx, time,
                    meta) in enumerate(test_loader):
-        #TODO: grab inputs!
-        # print("test_net")
-        # print(type(inputs))
-        # print(len(inputs))
-        # print(type(inputs[0]))
-        # print(inputs[0].size())
-        # print(inputs[1].size())
-        # print(type(inputs[1]))
-        # print(video_idx)
-        # print(labels.size())
-        # print(video_idx.shape)
-        # print(video_idx)
-        # print(video_idx.item())
-        # pdb.set_trace()
         
-
-
-        # naming convention: input_[vid name]_[slow/fast]
         if cfg.TEST.SAVE_INPUT_VIDEO:
-            test_folder_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, "test")
-            slow_folder = os.path.join(test_folder_path, "slow")
-            fast_folder = os.path.join(test_folder_path, "fast")
-                
-            if not os.path.exists(cfg.VIS_MODEL_INPUT_DIR):
-                os.makedirs(cfg.VIS_MODEL_INPUT_DIR)
-            if not os.path.exists(test_folder_path):
-                os.makedirs(test_folder_path)
-            if not os.path.exists(slow_folder):
-                os.makedirs(slow_folder)
-            if not os.path.exists(fast_folder):
-                os.makedirs(fast_folder)
-
-            for batch in range(cfg.TEST.BATCH_SIZE):
-                slow_tensor = inputs[0]
-                fast_tensor = inputs[1]
-                
-                num_slow_frame = slow_tensor.size(dim=2)
-                num_fast_frame = fast_tensor.size(dim=2)
-                
-                
-                for slow_frame in range(num_slow_frame):
-                    slow_tensor_image = slow_tensor[batch, :, slow_frame, :,:].numpy()*255
-                    slow_tensor_image = np.moveaxis(slow_tensor_image, 0, -1)
-                    slow_name = "input_slow_vid"+ str(video_idx.item())+ "_frame" +str(slow_frame) + ".jpg"
-                    slow_name = os.path.join(slow_folder, slow_name)
-                    cv2.imwrite(slow_name, slow_tensor_image)
-                for fast_frame in range(num_fast_frame):
-                    fast_tensor_image = fast_tensor[batch, :, fast_frame, :,:].numpy()*255
-                    fast_tensor_image = np.moveaxis(fast_tensor_image, 0, -1)
-                    fast_name = "input_fast_vid"+ str(video_idx.item())+ "_frame" +str(fast_frame) + ".jpg"
-                    fast_name = os.path.join(fast_folder, fast_name)
-                    cv2.imwrite(fast_name, fast_tensor_image)
-
-            # isolate each image in the batch
-            # find out whether bgr or rgb
-            # save as frame in video writer
-            # pdb.set_trace()
+            save_inputs(inputs, video_idx, cfg, "test")
 
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
@@ -131,7 +75,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         if cfg.DETECTION.ENABLE:
             # Compute the predictions.
 
-            # TODO: grab inputs
             preds = model(inputs, meta["boxes"])
             ori_boxes = meta["ori_boxes"]
             metadata = meta["metadata"]
@@ -153,6 +96,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             test_meter.update_stats(preds, ori_boxes, metadata)
             test_meter.log_iter_stats(None, cur_iter)
         elif cfg.TASK == "ssl" and cfg.MODEL.MODEL_NAME == "ContrastiveModel":
+
             if not cfg.CONTRASTIVE.KNN_ON:
                 test_meter.finalize_metrics()
                 return test_meter
@@ -229,6 +173,57 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
     test_meter.finalize_metrics()
     return test_meter
+
+
+def save_inputs(inputs, video_idx, cfg, pathway):
+    """
+    Saves the frames of the inputs to the model as a .jpg
+
+    Args:
+        inputs(list) - length 2, consisting of tensors that contain the slow
+            and fast pathways
+        video_idx(int) - indicates the current video's index
+        cfg (CfgNode): configs. Details can be found in
+            slowfast/config/defaults.py
+        pathway(string) - a value of either "test" or "train"
+    """
+    test_folder_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, pathway)
+    slow_folder = os.path.join(test_folder_path, "slow_imgs", str(video_idx))
+    fast_folder = os.path.join(test_folder_path, "fast_imgs", str(video_idx))
+
+    if not os.path.exists(cfg.VIS_MODEL_INPUT_DIR):
+        os.makedirs(cfg.VIS_MODEL_INPUT_DIR)
+    if not os.path.exists(test_folder_path):
+        os.makedirs(test_folder_path)
+    if not os.path.exists(slow_folder):
+        os.makedirs(slow_folder)
+    if not os.path.exists(fast_folder):
+        os.makedirs(fast_folder)
+
+    for batch in range(cfg.TEST.BATCH_SIZE):
+        slow_tensor = inputs[0]
+        fast_tensor = inputs[1]
+        
+        num_slow_frame = slow_tensor.size(dim=2)
+        num_fast_frame = fast_tensor.size(dim=2)
+        
+        for slow_frame in range(num_slow_frame):
+            if slow_tensor.device != torch.device("cpu"):
+                slow_tensor = slow_tensor.to("cpu")
+            slow_tensor_image = slow_tensor[batch, :, slow_frame, :,:].numpy()*255
+            slow_tensor_image = np.moveaxis(slow_tensor_image, 0, -1)
+            slow_name = "input_slow_imgs"+ str(video_idx.item())+ "_frame" +str(slow_frame) + ".jpg"
+            slow_name = os.path.join(slow_folder, slow_name)
+            cv2.imwrite(slow_name, slow_tensor_image)
+        for fast_frame in range(num_fast_frame):
+            if fast_tensor.device != torch.device("cpu"):
+                fast_tensor = fast_tensor.to("cpu")
+            fast_tensor_image = fast_tensor[batch, :, fast_frame, :,:].numpy()*255
+            fast_tensor_image = np.moveaxis(fast_tensor_image, 0, -1)
+            fast_name = "input_fast_imgs"+ str(video_idx.item())+ "_frame" +str(fast_frame) + ".jpg"
+            fast_name = os.path.join(fast_folder, fast_name)
+            cv2.imwrite(fast_name, fast_tensor_image)
+
 
 
 def test(cfg):

@@ -105,8 +105,7 @@ def run_visualization(vis_loader, model, cfg, writer=None):
     global_idx = -1
 
     count = 1
-    for inputs, labels, _, _, meta in tqdm.tqdm(vis_loader):
-
+    for inputs, labels, video_idx, time, meta in tqdm.tqdm(vis_loader):
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
             if isinstance(inputs, (list, )):
@@ -130,19 +129,14 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             activations, preds = model_vis.get_activations(inputs)
 
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
-            # TODO: verify with andy if the parameters output_dir, input_name, and count are as intended
+            # TODO: verify with andy if the parameter count are as intended
             # it seems like the count variable isn't used for anything besides debugging?
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
-                # TODO: where is this output_dir even being used?
                 inputs, preds = gradcam(output_dir=cfg.OUTPUT_DIR,
                                         inputs=inputs,
-                                        input_name='',
+                                        video_idx=video_idx,
+                                        cfg=cfg,
                                         labels=labels)
-                # inputs, preds = gradcam(output_dir=os.path.join(
-                #     cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD),
-                #                         inputs=inputs,
-                #                         input_name='',
-                #                         labels=labels)
 
             else:
                 print(
@@ -150,9 +144,9 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                                  cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD))
                 inputs, preds = gradcam(os.path.join(
                     cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD),
-                                        inputs,
-                                        "",
-                                        cfg,
+                                        inputs=inputs,
+                                        video_idx=video_idx,
+                                        cfg=cfg,
                                         labels=labels)
 
         if cfg.NUM_GPUS:
@@ -237,8 +231,8 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                 slowfast/config/defaults.py
         """
         wrong_prediction_visualizer = WrongPredictionVis(cfg=cfg)
-        for batch_idx, (inputs, labels, _,
-                        _) in tqdm.tqdm(enumerate(vis_loader)):
+        for batch_idx, (inputs, labels, video_idx,
+                        time) in tqdm.tqdm(enumerate(vis_loader)):
             if cfg.NUM_GPUS:
                 # Transfer the data to the current GPU device.
                 if isinstance(inputs, (list, )):

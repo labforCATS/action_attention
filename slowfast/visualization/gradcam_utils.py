@@ -13,6 +13,7 @@ import numpy
 import sys
 import cv2
 import os
+import pdb
 
 
 class GradCAM:
@@ -159,7 +160,7 @@ class GradCAM:
     def __call__(self,
                  output_dir,
                  inputs,
-                 input_name,
+                 video_idx,
                  cfg,
                  labels=None,
                  alpha=0.5):
@@ -168,6 +169,7 @@ class GradCAM:
         using Grad-CAM.
         Args:
             inputs (list of tensor(s)): the input clips.
+            video_idx (tensor of size 1): index for the current input clip
             labels (Optional[tensor]): labels of the current input clips.
             cfg (CfgNode): configs. Details can be found in
                 slowfast/config/defaults.py
@@ -176,11 +178,12 @@ class GradCAM:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
+        
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
             inputs, labels=labels, method=self.method)
-        # print(len(localization_maps))
+
         for i, localization_map in enumerate(localization_maps):
             # Convert (B, 1, T, H, W) to (B, T, H, W)
             localization_map = localization_map.squeeze(dim=1)
@@ -191,22 +194,13 @@ class GradCAM:
                 for j in localization_map.numpy()[0][t]:
                     if j.any() != 0:
                         count += 1
-            # print(i)
+
             map_to_save = localization_map.numpy()[0]
-            print(type(map_to_save))
-            print(len(map_to_save))
 
-            for f in range(len(map_to_save)):
-                frame_map = map_to_save[f] * 255
-                # print(frame_map)
-                frame_name = "heatmap_" + str(input_name) + "_pathway" + str(i) + "frame" + str(f) + ".jpg"
-                name = os.path.join(output_dir, "heatmaps", cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD, frame_name)
+            # obtain and save the heat map for the input clip
+            for frame_idx in range(len(map_to_save)):
+                frame_map = map_to_save[frame_idx] * 255
 
-                # name = (output_dir + "/heatmaps/" +
-                #         cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD +
-                #         "/heatmap_" + str(input_name) + "_pathway" + str(i) +
-                #         "frame" + str(f) + ".jpg")
-                # print(name)
                 heatmap_path = os.path.join(output_dir,"heatmaps")
                 visualization_path = os.path.join(
                     heatmap_path,
@@ -215,9 +209,30 @@ class GradCAM:
                     os.makedirs(heatmap_path)
                 if not os.path.exists(visualization_path):
                     os.makedirs(visualization_path)
+                visualization_path = os.path.join(visualization_path, str(video_idx.item()))
+                if not os.path.exists(visualization_path):
+                    os.makedirs(visualization_path)
+
+                frame_name = str(video_idx.item()) + "_" + f"{frame_idx:06d}" + ".jpg"
+                name = os.path.join(visualization_path, frame_name)
+
+                if cfg.MODEL.ARCH == "slowfast":
+                    fast_folder = os.path.join(visualization_path, "fast")
+                    slow_folder = os.path.join(visualization_path, "slow")
+                    if not os.path.exists(fast_folder):
+                        os.makedirs(fast_folder)
+                    if not os.path.exists(slow_folder):
+                        os.makedirs(slow_folder)
+                    if i == 0:
+                        name = os.path.join(slow_folder, frame_name)
+                    else:
+                        name = os.path.join(fast_folder, frame_name)
+                else:
+                    # since other visualization architectures don't necessarily
+                    # only have two input pathways, you have to add logic for it
+                    raise NotImplementedError("make subfolders for each pathway and put frames in correct subfolder for the specific visualization method")
                 cv2.imwrite(name, frame_map)
-            # print(i, count)
-            # numpy.savetxt("heatmap" + str(i) + ".txt", localization_map.numpy()[0][0])
+            
             heatmap = self.colormap(localization_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
 
@@ -231,31 +246,19 @@ class GradCAM:
             inp_to_save = curr_inp.numpy()[0]
 
             folder = os.path.join(output_dir, "inputs")
-            # folder = output_dir + "/inputs"
-            # folder = os.path.join(output_dir, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
             if not os.path.exists(folder):
                 os.makedirs(folder)
             vis_method_folder = os.path.join(folder, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
             if not os.path.exists(vis_method_folder):
                 os.makedirs(vis_method_folder)
 
-            for f in range(len(inp_to_save)):
-                frame_map = inp_to_save[f] * 255
-                # print(frame_map)
-                #.replace("//","/")
-                # name = (output_dir + "/inputs/input_" + str(input_name) +
-                #         "_pathway" + str(i) + "frame" + str(f) + ".jpg")
+            # save the input frames in order
+            for frame_idx in range(len(inp_to_save)):
+                frame_map = inp_to_save[frame_idx] * 255
+
+                frame_name = f"{str(video_idx)}_{frame_idx:06d}.jpg"
                 
-                
-                # print(name)
-                
-                # print(vis_method_folder)
-                # name = os.path.join(vis_method_folder,"/input_"+str(input_name)+
-                #                     "_pathway"+str(i)+"frame"+str(f)+
-                #                     ".jpg")
-                frame_name = "input_"+str(input_name)+ "_pathway"+str(i)+"frame"+str(f)+".jpg"
                 name = os.path.join(vis_method_folder, frame_name)
-                # name = vis_method_folder+"/input_"+str(input_name)+ "_pathway"+str(i)+"frame"+str(f)+".jpg"
                 cv2.imwrite(name, frame_map)
 
             heatmap = torch.from_numpy(heatmap)
