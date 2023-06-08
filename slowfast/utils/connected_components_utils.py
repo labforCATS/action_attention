@@ -394,3 +394,53 @@ def heatmap_stats(volume, thresh=0.2):
         # plot spatial AUC
 
         # plot temporal AUC
+
+
+
+def generate_stats(component_volume):
+    """
+    calculates the mean, median, and mode for the spatial area and
+    temporal depths of each component
+    
+    Args:
+        component_volume(tuple): should have dimensions (T, H, W) and
+        is assumed to be a single continuous component
+            T: temporal depth, H: height, W: width
+    Returns:
+        6-element tuple in the specific order of spatial mean, spatial median,
+        spatial mode, temporal mean, temporal median, temporal mode
+    """
+
+    vol_area_dict = get_3d_measurements(component_volume)
+    spatial_key = "spat_area"
+    temporal_key = "temp_depth"
+    
+    spatial_area_info = vol_area_dict[spatial_key]
+    temporal_depth_info = vol_area_dict[temporal_key]
+
+    spatial_mean = np.mean(spatial_area_info)
+    spatial_median = np.median(spatial_area_info)
+    spatial_mode = np.mode(spatial_area_info)
+
+    temporal_mean = np.mean(temporal_depth_info)
+    temporal_median = np.median(temporal_depth_info)
+    temporal_mode = np.mode(temporal_depth_info)
+
+    return spatial_mean, spatial_median, spatial_mode, temporal_mean, temporal_median, temporal_mode
+
+
+
+    # get in to a dataframe
+
+    # histogram on top row, area under curve on bottom row
+    # fig, ax = plt.subplots(2, 2, figsize=(7,5), sharex=True,
+    #     gridspec_kw={"height_ratios": (.3, .7)})
+    
+
+    # # spatial/temporal vs frequency
+    # # the boxplot
+    # ax[0].boxplot(data, vert=False)
+    
+    # removing borders
+
+    # return mean median mode
