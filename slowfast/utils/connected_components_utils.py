@@ -490,29 +490,40 @@ def get_3d_measurements(component_volume):
     return {"temp_depths": temp_depths, "spat_areas": spat_areas}
 
 
-if __name__ == "__main__":
-    surface_count = 8
-    t_scale = 1.0
-    s_scale = 0.3
-    heatmaps_root_dir = "/research/cwloka/projects/nikki_sandbox/action_attention/output/grad_cam/heatmaps/grad_cam/"
-    output_root_dir = (
-        "/research/cwloka/projects/hannah_sandbox/outputs/heatmaps/grad_cam/"
+def generate_stats(component_volume):
+    """
+    calculates the mean, median, and mode for the spatial area and
+    temporal depths of each component
+
+    Args:
+        component_volume(tuple): should have dimensions (T, H, W) and
+        is assumed to be a single continuous component
+            T: temporal depth, H: height, W: width
+    Returns:
+        6-element tuple in the specific order of spatial mean, spatial median,
+        spatial mode, temporal mean, temporal median, temporal mode
+    """
+
+    vol_area_dict = get_3d_measurements(component_volume)
+    spatial_key = "spat_area"
+    temporal_key = "temp_depth"
+
+    spatial_area_info = vol_area_dict[spatial_key]
+    temporal_depth_info = vol_area_dict[temporal_key]
+
+    spatial_mean = np.mean(spatial_area_info)
+    spatial_median = np.median(spatial_area_info)
+    spatial_mode = np.mode(spatial_area_info)
+
+    temporal_mean = np.mean(temporal_depth_info)
+    temporal_median = np.median(temporal_depth_info)
+    temporal_mode = np.mode(temporal_depth_info)
+
+    return (
+        spatial_mean,
+        spatial_median,
+        spatial_mode,
+        temporal_mean,
+        temporal_median,
+        temporal_mode,
     )
-
-    # print("testing heatmap plotting")
-    # plot_all_heatmaps(
-    #     heatmaps_root_dir,
-    #     output_root_dir,
-    #     model_arch="slowfast",
-    #     surface_count=surface_count,
-    #     thresh=0.2,
-    #     t_scale=t_scale,
-    #     s_scale=s_scale,
-    # )
-
-    print("test get_3d_measurements()")
-    volume = load_heatmaps(os.path.join(heatmaps_root_dir, f"0/slow"))
-    components = get_components(volume, thresh=0.2)
-
-    res = get_3d_measurements(components[0])
-    # print(res)
