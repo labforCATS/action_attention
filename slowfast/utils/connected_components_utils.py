@@ -4,6 +4,7 @@ from PIL import Image
 import plotly.graph_objects as go
 from scipy.ndimage import zoom
 import matplotlib.pyplot as plt
+import cv2
 
 from datetime import datetime
 import os
@@ -224,29 +225,12 @@ def plot_components(volume, output_dir, thresh=0.0, t_scale=1.0, s_scale=1.0):
         multiple interactive html files, saved to the given output directory.
 
     """
-    # binarize the heatmaps using a threshold
+    component_volumes = get_components(volume, thresh)
     max_intensity = volume.max()
-    volume_bin = np.where(volume >= thresh * max_intensity, 1, 0)
-
-    # extract 3d connected components
-    connectivity = 26  # 26, 18, and 6 (3D) are allowed
-    result = cc3d.connected_components(volume_bin, connectivity=connectivity)
-    stats = cc3d.statistics(result)
-
-    # get the indices of the volumes, sorted
-    # we don't want index 0, which is the component for the 'background'
-    # (i.e. under the threshold)
-    sorted_idx = np.argsort(stats["voxel_counts"][1:])
 
     # visualize components in order of largest to smallest volume
-    for i, component_idx in enumerate(sorted_idx[::-1]):
-        component_idx += 1
-        # increment the component index, since we're ignoring the background
-
+    for i, cc in enumerate(component_volumes):
         fpath = os.path.join(output_dir, f"component_{i:03d}.html")
-
-        # extract voxels from this specific component
-        cc = np.where(result == component_idx, volume, 0)
 
         logger.info(f"generating 3d plot for component {i}")
         plot_heatmap(
@@ -394,3 +378,141 @@ def heatmap_stats(volume, thresh=0.2):
         # plot spatial AUC
 
         # plot temporal AUC
+
+
+def get_components(volume, thresh=0.0):
+    """Extract the 3d heatmap connected components for a video.
+
+    Args:
+        volume (3D np.array): a 3d heatmap volume
+        thresh (float): float between 0.0 and 1.0 indicating the lower threshold
+            for heatmap data to be displayed
+
+    Output:
+        returns a list of component volumes (each are 3d np arrays), sorted
+        by largest to smallest volume
+    """
+    # binarize the heatmaps using a threshold
+    max_intensity = volume.max()
+    volume_bin = np.where(volume >= thresh * max_intensity, 1, 0)
+
+    # extract 3d connected components
+    connectivity = 26  # 26, 18, and 6 (3D) are allowed
+    result = cc3d.connected_components(volume_bin, connectivity=connectivity)
+    stats = cc3d.statistics(result)
+
+    # get the indices of the volumes, sorted
+    # we don't want index 0, which is the component for the 'background'
+    # (i.e. under the threshold)
+    sorted_idx = np.argsort(stats["voxel_counts"][1:])
+
+    component_volumes = []
+
+    # visualize components in order of largest to smallest volume
+    for component_idx in sorted_idx[::-1]:
+        # increment the component index, since we're ignoring the background
+        component_idx += 1
+
+        # extract voxels from this specific component
+        cc = np.where(result == component_idx, volume, 0)
+        component_volumes.append(cc)
+
+    return component_volumes
+
+
+def get_3d_measurements(component_volume):
+    """Given a single connected component volume, compute the areas over each
+    frame, and the temporal depth over each pixel.
+
+    Args:
+        component_volume should have dimensions (T, H, W) and is assumed to be a single continuous component
+
+    Output:
+        returns a dictionary with two keys, "spatial_area" and
+        "temporal_depth", each having a list in the key containing the
+        unsorted area and depth values. (Note that these lists are not
+        necessarily the same size, but do have the same sum.)
+    """
+    # binarize the component
+    component_volume = np.where(component_volume != 0, 1, 0)
+
+    temp_depths = []
+    spat_areas = []
+
+    # iter over each pixel in the spatial frame
+    for r in range(component_volume.shape[1]):
+        for c in range(component_volume.shape[2]):
+            # compute temporal depth. if the pixel has non-continous segments of
+            # the heatmap, count each segment separately
+
+            # pad the pixel's temporal array with zeros (in case the heatmap
+            # values reach the edge, i.e. first/last frame of the video)
+            time_px = np.pad(
+                component_volume[:, r, c],
+                pad_width=1,
+                mode="constant",
+                constant_values=0,
+            )
+
+            # get the indices of temporally continuous segments
+            segment_start_idxs = np.where(np.diff(time_px) == 1)[0]
+            segment_end_idxs = np.where(np.diff(time_px) == -1)[0]
+
+            assert segment_start_idxs.shape == segment_end_idxs.shape
+            segment_durations = segment_end_idxs - segment_start_idxs
+
+            temp_depths += list(segment_durations)
+
+    # iter over each frame in the video
+    for t in range(component_volume.shape[0]):
+        # compute area
+        frame = component_volume[t]
+
+        # get the connected components in the frame (even though it is one
+        # continous 3d volume, a 2d slice may have multiple disconnected
+        # components, or no components)
+        (
+            n_components,
+            labels,
+            stats,
+            _,
+        ) = cv2.connectedComponentsWithStats(
+            frame.astype(np.uint8), connectivity=8
+        )
+
+        # iter over components (ignore component 0, which is the background)
+        for c in range(1, n_components):
+            area = stats[c, cv2.CC_STAT_AREA]
+            spat_areas.append(area)
+
+    assert sum(temp_depths) == sum(spat_areas)
+
+    return {"temp_depths": temp_depths, "spat_areas": spat_areas}
+
+
+if __name__ == "__main__":
+    surface_count = 8
+    t_scale = 1.0
+    s_scale = 0.3
+    heatmaps_root_dir = "/research/cwloka/projects/nikki_sandbox/action_attention/output/grad_cam/heatmaps/grad_cam/"
+    output_root_dir = (
+        "/research/cwloka/projects/hannah_sandbox/outputs/heatmaps/grad_cam/"
+    )
+
+    # print("testing heatmap plotting")
+    # plot_all_heatmaps(
+    #     heatmaps_root_dir,
+    #     output_root_dir,
+    #     model_arch="slowfast",
+    #     surface_count=surface_count,
+    #     thresh=0.2,
+    #     t_scale=t_scale,
+    #     s_scale=s_scale,
+    # )
+
+    print("test get_3d_measurements()")
+    volume = load_heatmaps(os.path.join(heatmaps_root_dir, f"0/slow"))
+    components = get_components(volume, thresh=0.2)
+
+    res = get_3d_measurements(components[0])
+    # print(res)
