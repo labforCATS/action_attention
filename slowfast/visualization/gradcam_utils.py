@@ -183,6 +183,7 @@ class GradCAM:
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
             inputs, labels=labels, method=self.method)
+        dataset = cfg.DATA.PATH_TO_DATA_DIR.split("/")[-1]
 
         for i, localization_map in enumerate(localization_maps):
             # Convert (B, 1, T, H, W) to (B, T, H, W)
@@ -201,20 +202,29 @@ class GradCAM:
             for frame_idx in range(len(map_to_save)):
                 frame_map = map_to_save[frame_idx] * 255
 
+                
                 heatmap_path = os.path.join(output_dir,"heatmaps")
                 visualization_path = os.path.join(
                     heatmap_path,
-                    cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
+                    cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+                    dataset, str(video_idx.item()))
                 if not os.path.exists(heatmap_path):
                     os.makedirs(heatmap_path)
                 if not os.path.exists(visualization_path):
                     os.makedirs(visualization_path)
-                visualization_path = os.path.join(visualization_path, str(video_idx.item()))
-                if not os.path.exists(visualization_path):
-                    os.makedirs(visualization_path)
+                
+
+                
+                # visualization_path = os.path.join(visualization_path, dataset)
+                # if not os.path.exists(visualization_path):
+                #     os.makedirs(visualization_path)
+
+                # visualization_path = os.path.join(visualization_path, str(video_idx.item()))
+                # if not os.path.exists(visualization_path):
+                #     os.makedirs(visualization_path)
                 
                 one_based_frame_idx = frame_idx + 1
-                frame_name = str(video_idx.item()) + "_" + f"{one_based_frame_idx:06d}" + ".jpg"
+                frame_name = f"{video_idx.item():03d}_{one_based_frame_idx:06d}.jpg"
                 name = os.path.join(visualization_path, frame_name)
 
                 if cfg.MODEL.ARCH == "slowfast":
@@ -249,7 +259,9 @@ class GradCAM:
             folder = os.path.join(output_dir, "inputs")
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            vis_method_folder = os.path.join(folder, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD)
+            vis_method_folder = os.path.join(folder,
+                                             cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+                                             str(dataset))
             if not os.path.exists(vis_method_folder):
                 os.makedirs(vis_method_folder)
 
@@ -258,9 +270,13 @@ class GradCAM:
                 frame_map = inp_to_save[frame_idx] * 255
 
                 one_based_frame_idx = frame_idx + 1
-                frame_name = f"{str(video_idx)}_{one_based_frame_idx:06d}.jpg"
+                frame_name = f"{video_idx.item():03d}_{one_based_frame_idx:06d}.jpg"
                 
-                name = os.path.join(vis_method_folder, frame_name)
+                vid_idx_folder = os.path.join(vis_method_folder, str(video_idx.item()))
+                if not os.path.exists(vid_idx_folder):
+                    os.makedirs(vid_idx_folder)
+
+                name = os.path.join(vid_idx_folder, frame_name)
                 cv2.imwrite(name, frame_map)
 
             heatmap = torch.from_numpy(heatmap)
