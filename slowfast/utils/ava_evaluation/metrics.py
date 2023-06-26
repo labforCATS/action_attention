@@ -35,16 +35,18 @@ def compute_precision_recall(scores, labels, num_gt):
         This value is None if no ground truth labels are present.
 
     """
-    if (not isinstance(labels, np.ndarray) or labels.dtype != np.bool
-            or len(labels.shape) != 1):
+    if (
+        not isinstance(labels, np.ndarray)
+        or labels.dtype != np.bool
+        or len(labels.shape) != 1
+    ):
         raise ValueError("labels must be single dimension bool numpy array")
 
     if not isinstance(scores, np.ndarray) or len(scores.shape) != 1:
         raise ValueError("scores must be single dimension numpy array")
 
     if num_gt < np.sum(labels):
-        raise ValueError(
-            "Number of true positives must be smaller than num_gt.")
+        raise ValueError("Number of true positives must be smaller than num_gt.")
 
     if len(scores) != len(labels):
         raise ValueError("scores and labels must be of the same size.")
@@ -59,8 +61,9 @@ def compute_precision_recall(scores, labels, num_gt):
     false_positive_labels = 1 - true_positive_labels
     cum_true_positives = np.cumsum(true_positive_labels)
     cum_false_positives = np.cumsum(false_positive_labels)
-    precision = cum_true_positives.astype(float) / (cum_true_positives +
-                                                    cum_false_positives)
+    precision = cum_true_positives.astype(float) / (
+        cum_true_positives + cum_false_positives
+    )
     recall = cum_true_positives.astype(float) / num_gt
     return precision, recall
 
@@ -88,8 +91,7 @@ def compute_average_precision(precision, recall):
             raise ValueError("If precision is None, recall must also be None")
         return np.NAN
 
-    if not isinstance(precision, np.ndarray) or not isinstance(
-            recall, np.ndarray):
+    if not isinstance(precision, np.ndarray) or not isinstance(recall, np.ndarray):
         raise ValueError("precision and recall must be numpy array")
     if precision.dtype != np.float or recall.dtype != np.float:
         raise ValueError("input must be float numpy array.")
@@ -113,12 +115,12 @@ def compute_average_precision(precision, recall):
 
     indices = np.where(recall[1:] != recall[:-1])[0] + 1
     average_precision = np.sum(
-        (recall[indices] - recall[indices - 1]) * precision[indices])
+        (recall[indices] - recall[indices - 1]) * precision[indices]
+    )
     return average_precision
 
 
-def compute_cor_loc(num_gt_imgs_per_class,
-                    num_images_correctly_detected_per_class):
+def compute_cor_loc(num_gt_imgs_per_class, num_images_correctly_detected_per_class):
     """Compute CorLoc according to the definition in the following paper.
 
     https://www.robots.ox.ac.uk/~vgg/rg/papers/deselaers-eccv10.pdf

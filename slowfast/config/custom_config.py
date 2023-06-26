@@ -13,5 +13,6 @@ def add_custom_config(_C):
 
     # (added 6/5): directory to save inputs right before they get passed in
     # to the model
-    _C.VIS_MODEL_INPUT_DIR = "/research/cwloka/projects/nikki_sandbox/action_attention/vis_model_input"
-
+    _C.VIS_MODEL_INPUT_DIR = (
+        "/research/cwloka/projects/nikki_sandbox/action_attention/vis_model_input"
+    )

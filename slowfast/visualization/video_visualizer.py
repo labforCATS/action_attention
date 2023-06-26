@@ -36,14 +36,11 @@ def _create_text_labels(classes, scores, class_names, ground_truth=False):
         labels = ["[{}] {}".format("GT", label) for label in labels]
     elif scores is not None:
         assert len(classes) == len(scores)
-        labels = [
-            "[{:.2f}] {}".format(s, label) for s, label in zip(scores, labels)
-        ]
+        labels = ["[{:.2f}] {}".format(s, label) for s, label in zip(scores, labels)]
     return labels
 
 
 class ImgVisualizer(Visualizer):
-
     def __init__(self, img_rgb, meta, **kwargs):
         """
         See https://github.com/facebookresearch/detectron2/blob/master/detectron2/utils/visualizer.py
@@ -145,17 +142,19 @@ class ImgVisualizer(Visualizer):
         # If the texts does not fit in the assigned location,
         # we split the text and draw it in another place.
         if top_corner:
-            num_text_split = self._align_y_top(box_coordinate, len(text_ls),
-                                               text_box_width)
+            num_text_split = self._align_y_top(
+                box_coordinate, len(text_ls), text_box_width
+            )
             y_corner = 1
         else:
             num_text_split = len(text_ls) - self._align_y_bottom(
-                box_coordinate, len(text_ls), text_box_width)
+                box_coordinate, len(text_ls), text_box_width
+            )
             y_corner = 3
 
-        text_color_sorted = sorted(zip(text_ls, box_facecolors),
-                                   key=lambda x: x[0],
-                                   reverse=True)
+        text_color_sorted = sorted(
+            zip(text_ls, box_facecolors), key=lambda x: x[0], reverse=True
+        )
         if len(text_color_sorted) != 0:
             text_ls, box_facecolors = zip(*text_color_sorted)
         else:
@@ -321,10 +320,8 @@ class ImgVisualizer(Visualizer):
         dist_to_top = box_coordinate[1]
         # num_text_top = dist_to_top // textbox_width
 
-        #To fix deprecation warning
-        num_text_top = torch.div(dist_to_top,
-                                 textbox_width,
-                                 rounding_mode='floor')
+        # To fix deprecation warning
+        num_text_top = torch.div(dist_to_top, textbox_width, rounding_mode="floor")
 
         if isinstance(num_text_top, torch.Tensor):
             num_text_top = int(num_text_top.item())
@@ -351,7 +348,6 @@ class ImgVisualizer(Visualizer):
 
 
 class VideoVisualizer:
-
     def __init__(
         self,
         num_classes,
@@ -383,8 +379,7 @@ class VideoVisualizer:
                 This is used for choosing predictions for visualization.
 
         """
-        assert mode in ["top-k",
-                        "thres"], "Mode {} is not supported.".format(mode)
+        assert mode in ["top-k", "thres"], "Mode {} is not supported.".format(mode)
         self.mode = mode
         self.num_classes = num_classes
         print("THIS IS CLASS NAMES PATH: ", class_names_path)
@@ -467,16 +462,17 @@ class VideoVisualizer:
                     top_scores[i],
                     self.class_names,
                     ground_truth=ground_truth,
-                ))
+                )
+            )
         frame_visualizer = ImgVisualizer(frame, meta=None)
-        font_size = min(max(np.sqrt(frame.shape[0] * frame.shape[1]) // 35, 5),
-                        9)
+        font_size = min(max(np.sqrt(frame.shape[0] * frame.shape[1]) // 35, 5), 9)
         top_corner = not ground_truth
         if bboxes is not None:
             assert len(preds) == len(
                 bboxes
             ), "Encounter {} predictions and {} bounding boxes".format(
-                len(preds), len(bboxes))
+                len(preds), len(bboxes)
+            )
             for i, box in enumerate(bboxes):
                 text = text_labels[i]
                 pred_class = top_classes[i]
@@ -544,22 +540,26 @@ class VideoVisualizer:
             draw_range = [0, len(frames) - 1]
         if draw_range is not None:
             draw_range[0] = max(0, draw_range[0])
-            left_frames = frames[:draw_range[0]]
-            right_frames = frames[draw_range[1] + 1:]
+            left_frames = frames[: draw_range[0]]
+            right_frames = frames[draw_range[1] + 1 :]
 
-        draw_frames = frames[draw_range[0]:draw_range[1] + 1]
+        draw_frames = frames[draw_range[0] : draw_range[1] + 1]
         if keyframe_idx is None:
             keyframe_idx = len(frames) // 2
 
-        img_ls = (list(left_frames) + self.draw_clip(
-            draw_frames,
-            preds,
-            bboxes=bboxes,
-            text_alpha=text_alpha,
-            ground_truth=ground_truth,
-            keyframe_idx=keyframe_idx - draw_range[0],
-            repeat_frame=repeat_frame,
-        ) + list(right_frames))
+        img_ls = (
+            list(left_frames)
+            + self.draw_clip(
+                draw_frames,
+                preds,
+                bboxes=bboxes,
+                text_alpha=text_alpha,
+                ground_truth=ground_truth,
+                keyframe_idx=keyframe_idx - draw_range[0],
+                repeat_frame=repeat_frame,
+            )
+            + list(right_frames)
+        )
 
         return img_ls
 
@@ -592,7 +592,9 @@ class VideoVisualizer:
         repeated_seq = range(0, len(frames))
         repeated_seq = list(
             itertools.chain.from_iterable(
-                itertools.repeat(x, repeat_frame) for x in repeated_seq))
+                itertools.repeat(x, repeat_frame) for x in repeated_seq
+            )
+        )
 
         frames, adjusted = self._adjust_frames_type(frames)
         if keyframe_idx is None:
@@ -603,10 +605,12 @@ class VideoVisualizer:
             half_left = mid
             half_right = len(repeated_seq) - mid
 
-        alpha_ls = np.concatenate([
-            np.linspace(0, 1, num=half_left),
-            np.linspace(1, 0, num=half_right),
-        ])
+        alpha_ls = np.concatenate(
+            [
+                np.linspace(0, 1, num=half_left),
+                np.linspace(1, 0, num=half_right),
+            ]
+        )
         text_alpha = text_alpha
         frames = frames[repeated_seq]
         img_ls = []
@@ -635,8 +639,9 @@ class VideoVisualizer:
             frames (list of frames): list of frames in range [0, 1].
             adjusted (bool): whether the original frames need adjusted.
         """
-        assert (frames is not None
-                and len(frames) != 0), "Frames does not contain any values"
+        assert (
+            frames is not None and len(frames) != 0
+        ), "Frames does not contain any values"
         frames = np.array(frames)
         assert np.array(frames).ndim == 4, "Frames must have 4 dimensions"
         adjusted = False
@@ -663,7 +668,6 @@ class VideoVisualizer:
         else:
             common_class_ids = list(range(self.num_classes))
 
-        thres_array = np.full(shape=(self.num_classes, ),
-                              fill_value=self.lower_thres)
+        thres_array = np.full(shape=(self.num_classes,), fill_value=self.lower_thres)
         thres_array[common_class_ids] = self.thres
         self.thres = torch.from_numpy(thres_array)

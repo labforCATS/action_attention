@@ -39,10 +39,9 @@ def get_confusion_matrix(preds, labels, num_classes, normalize="true"):
     # Get the predicted class indices for examples.
     preds = torch.flatten(torch.argmax(preds, dim=-1))
     labels = torch.flatten(labels)
-    cmtx = confusion_matrix(labels,
-                            preds,
-                            labels=list(range(num_classes)),
-                            normalize=normalize)
+    cmtx = confusion_matrix(
+        labels, preds, labels=list(range(num_classes)), normalize=normalize
+    )
     return cmtx
 
 
@@ -247,8 +246,7 @@ class GetWeightAndActivation:
             if hasattr(cur_layer, "weight"):
                 weights[layer] = cur_layer.weight.clone().detach()
             else:
-                logger.error(
-                    "Layer {} does not have weight attribute.".format(layer))
+                logger.error("Layer {} does not have weight attribute.".format(layer))
         return weights
 
 
@@ -342,7 +340,6 @@ def get_layer(model, layer_name):
 
 
 class TaskInfo:
-
     def __init__(self):
         self.frames = None
         self.id = -1

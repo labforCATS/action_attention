@@ -147,16 +147,10 @@ def plot_heatmap(
                 method="update",
                 args=[
                     {"visible": [False] * len(fig.data)},
-                    {
-                        "title": "Slider switched to threshold: {:.1f}".format(
-                            i / 10
-                        )
-                    },
+                    {"title": "Slider switched to threshold: {:.1f}".format(i / 10)},
                 ],  # layout attribute
             )
-            step["args"][0]["visible"][
-                i
-            ] = True  # Toggle i'th trace to "visible"
+            step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
             steps.append(step)
 
         sliders = [
@@ -307,21 +301,15 @@ def plot_all_heatmaps(
     for video_idx in vid_ids:
         if model_arch == "slowfast":
             for stream in ["slow", "fast"]:
-                heatmaps_dir = os.path.join(
-                    heatmaps_root_dir, str(video_idx), stream
-                )
+                heatmaps_dir = os.path.join(heatmaps_root_dir, str(video_idx), stream)
                 logger.info("generating heatmap volumes to " + heatmaps_dir)
-                output_dir = os.path.join(
-                    output_root_dir, str(video_idx), stream
-                )
+                output_dir = os.path.join(output_root_dir, str(video_idx), stream)
 
                 img_stack = load_heatmaps(heatmaps_dir, t_scale, s_scale)
 
                 plot_heatmap(
                     img_stack,
-                    os.path.join(
-                        output_dir, "heatmap_volume_with_slider.html"
-                    ),
+                    os.path.join(output_dir, "heatmap_volume_with_slider.html"),
                     surface_count,
                     t_scale,
                     s_scale,
@@ -362,9 +350,7 @@ def heatmap_stats(volume, thresh=0.2):
     connectivity = 26  # 26, 18, and 6 (3D) are allowed
     result = cc3d.connected_components(volume, connectivity=connectivity)
     stats = cc3d.statistics(result)
-    n_components = (
-        len(stats["voxel_counts"]) - 1
-    )  # ignoring "background" element
+    n_components = len(stats["voxel_counts"]) - 1  # ignoring "background" element
 
     # TODO:
     raise NotImplementedError
@@ -476,9 +462,7 @@ def get_3d_measurements(component_volume):
             labels,
             stats,
             _,
-        ) = cv2.connectedComponentsWithStats(
-            frame.astype(np.uint8), connectivity=8
-        )
+        ) = cv2.connectedComponentsWithStats(frame.astype(np.uint8), connectivity=8)
 
         # iter over components (ignore component 0, which is the background)
         for c in range(1, n_components):

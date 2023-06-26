@@ -38,8 +38,9 @@ class AVAVisualizerWithPrecomputedBox:
         if pathmgr.isdir(self.source):
             self.fps = cfg.DEMO.FPS
             self.video_name = self.source.split("/")[-1]
-            self.source = os.path.join(self.source,
-                                       "{}_%06d.jpg".format(self.video_name))
+            self.source = os.path.join(
+                self.source, "{}_%06d.jpg".format(self.video_name)
+            )
         else:
             self.video_name = self.source.split("/")[-1]
             self.video_name = self.video_name.split(".")[0]
@@ -112,8 +113,7 @@ class AVAVisualizerWithPrecomputedBox:
                 frame = scale(self.cfg.DATA.TEST_CROP_SIZE, frame)
                 clip.append(frame)
             else:
-                logger.error(
-                    "Unable to read frame. Duplicating previous frame.")
+                logger.error("Unable to read frame. Duplicating previous frame.")
                 clip.append(clip[-1])
 
         clip = process_cv2_inputs(clip, self.cfg)
@@ -134,8 +134,7 @@ class AVAVisualizerWithPrecomputedBox:
         # Print config.
         logger.info("Run demo with config:")
         logger.info(self.cfg)
-        assert (self.cfg.NUM_GPUS
-                <= 1), "Cannot run demo visualization on multiple GPUs."
+        assert self.cfg.NUM_GPUS <= 1, "Cannot run demo visualization on multiple GPUs."
 
         # Build the video model and print model statistics.
         model = build_model(self.cfg)
@@ -146,8 +145,7 @@ class AVAVisualizerWithPrecomputedBox:
         cu.load_test_checkpoint(self.cfg, model)
         logger.info("Finish loading model weights")
         logger.info("Start making predictions for precomputed boxes.")
-        for keyframe_idx, boxes_and_labels in tqdm.tqdm(
-                self.pred_boxes.items()):
+        for keyframe_idx, boxes_and_labels in tqdm.tqdm(self.pred_boxes.items()):
             inputs = self.get_input_clip(keyframe_idx)
             boxes = boxes_and_labels[0]
             boxes = torch.from_numpy(np.array(boxes)).float()
@@ -169,7 +167,7 @@ class AVAVisualizerWithPrecomputedBox:
             )
             if self.cfg.NUM_GPUS:
                 # Transfer the data to the current GPU device.
-                if isinstance(inputs, (list, )):
+                if isinstance(inputs, (list,)):
                     for i in range(len(inputs)):
                         inputs[i] = inputs[i].cuda(non_blocking=True)
                 else:
@@ -192,8 +190,11 @@ class AVAVisualizerWithPrecomputedBox:
         Write the visualized result to a video output file.
         """
         all_boxes = merge_pred_gt_boxes(self.pred_boxes, self.gt_boxes)
-        common_classes = (self.cfg.DEMO.COMMON_CLASS_NAMES
-                          if len(self.cfg.DEMO.LABEL_FILE_PATH) != 0 else None)
+        common_classes = (
+            self.cfg.DEMO.COMMON_CLASS_NAMES
+            if len(self.cfg.DEMO.LABEL_FILE_PATH) != 0
+            else None
+        )
         video_vis = VideoVisualizer(
             num_classes=self.cfg.MODEL.NUM_CLASSES,
             class_names_path=self.cfg.DEMO.LABEL_FILE_PATH,
@@ -214,8 +215,7 @@ class AVAVisualizerWithPrecomputedBox:
         ]
         draw_range_repeat = [
             draw_range[0],
-            (draw_range[1] - draw_range[0]) * self.no_frames_repeat +
-            draw_range[0],
+            (draw_range[1] - draw_range[0]) * self.no_frames_repeat + draw_range[0],
         ]
         prev_buffer = []
         prev_end_idx = 0
@@ -254,8 +254,9 @@ class AVAVisualizerWithPrecomputedBox:
                 prev_buffer = prev_buffer[dist:]
                 num_new_frames = self.seq_length + dist
             # Obtain new frames for the current clip from the input video file.
-            new_frames = self._get_frame_range(max(start_idx, prev_end_idx),
-                                               num_new_frames)
+            new_frames = self._get_frame_range(
+                max(start_idx, prev_end_idx), num_new_frames
+            )
             new_frames = [
                 cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in new_frames
             ]
@@ -272,8 +273,7 @@ class AVAVisualizerWithPrecomputedBox:
                     repeat = 1
                     current_draw_range = draw_range_repeat
                 # Make sure draw range does not fall out of end of clip.
-                current_draw_range[1] = min(current_draw_range[1],
-                                            len(clip) - 1)
+                current_draw_range[1] = min(current_draw_range[1], len(clip) - 1)
                 ground_truth = boxes[0]
                 bboxes = boxes[1]
                 label = boxes[2]

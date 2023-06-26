@@ -22,13 +22,16 @@ class GradCAM:
     and overlap the maps over the input videos as heatmaps.
     https://arxiv.org/pdf/1610.02391.pdf
     """
-    def __init__(self,
-                 model,
-                 target_layers,
-                 data_mean,
-                 data_std,
-                 method,
-                 colormap="viridis"):
+
+    def __init__(
+        self,
+        model,
+        target_layers,
+        data_mean,
+        data_std,
+        method,
+        colormap="viridis",
+    ):
         """
         Args:
             model (model): the model to be used.
@@ -59,6 +62,7 @@ class GradCAM:
         Args:
             layer_name (str): name of the layer.
         """
+
         def get_gradients(module, grad_input, grad_output):
             self.gradients[layer_name] = grad_output[0].detach()
 
@@ -76,10 +80,7 @@ class GradCAM:
         for layer_name in self.target_layers:
             self._register_single_hook(layer_name=layer_name)
 
-    def _calculate_localization_map(self,
-                                    inputs,
-                                    labels=None,
-                                    method="grad_cam"):
+    def _calculate_localization_map(self, inputs, labels=None, method="grad_cam"):
         """
         Calculate localization map for all inputs with Grad-CAM.
         Args:
@@ -128,9 +129,7 @@ class GradCAM:
                 method=self.method,
             )
             weights = weights.view(B, C, Tg, 1, 1)
-            localization_map = torch.sum(weights * activations,
-                                         dim=1,
-                                         keepdim=True)
+            localization_map = torch.sum(weights * activations, dim=1, keepdim=True)
             localization_map = F.relu(localization_map)
             localization_map = F.interpolate(
                 localization_map,
@@ -139,34 +138,31 @@ class GradCAM:
                 align_corners=False,
             )
             localization_map_min, localization_map_max = (
-                torch.min(localization_map.view(B, -1), dim=-1,
-                          keepdim=True)[0],
-                torch.max(localization_map.view(B, -1), dim=-1,
-                          keepdim=True)[0],
+                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
+                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
             )
-            localization_map_min = torch.reshape(localization_map_min,
-                                                 shape=(B, 1, 1, 1, 1))
-            localization_map_max = torch.reshape(localization_map_max,
-                                                 shape=(B, 1, 1, 1, 1))
+            localization_map_min = torch.reshape(
+                localization_map_min, shape=(B, 1, 1, 1, 1)
+            )
+            localization_map_max = torch.reshape(
+                localization_map_max, shape=(B, 1, 1, 1, 1)
+            )
             # Normalize the localization map.
             localization_map = (localization_map - localization_map_min) / (
-                localization_map_max - localization_map_min + 1e-6)
+                localization_map_max - localization_map_min + 1e-6
+            )
             localization_map = localization_map.data
 
             localization_maps.append(localization_map)
 
         return localization_maps, preds
 
-    def __call__(self,
-                 output_dir,
-                 inputs,
-                 video_idx,
-                 cfg,
-                 labels=None,
-                 alpha=0.5):
+    def __call__(self, output_dir, inputs, video_idx, cfg, labels=None, alpha=0.5):
         """
         Visualize the localization maps on their corresponding inputs as heatmap,
         using Grad-CAM.
+        # TODO: fix docstring
+
         Args:
             inputs (list of tensor(s)): the input clips.
             video_idx (tensor of size 1): index for the current input clip
@@ -178,11 +174,12 @@ class GradCAM:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
-        
+
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
-            inputs, labels=labels, method=self.method)
+            inputs, labels=labels, method=self.method
+        )
         dataset = cfg.DATA.PATH_TO_DATA_DIR.split("/")[-1]
 
         for i, localization_map in enumerate(localization_maps):
@@ -199,30 +196,22 @@ class GradCAM:
             map_to_save = localization_map.numpy()[0]
 
             # obtain and save the heat map for the input clip
+            # TODO: pull out into separate function
             for frame_idx in range(len(map_to_save)):
                 frame_map = map_to_save[frame_idx] * 255
 
-                
-                heatmap_path = os.path.join(output_dir,"heatmaps")
+                heatmap_path = os.path.join(output_dir, "heatmaps")
                 visualization_path = os.path.join(
                     heatmap_path,
                     cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
-                    dataset, str(video_idx.item()))
+                    dataset,
+                    str(video_idx.item()),
+                )
                 if not os.path.exists(heatmap_path):
                     os.makedirs(heatmap_path)
                 if not os.path.exists(visualization_path):
                     os.makedirs(visualization_path)
-                
 
-                
-                # visualization_path = os.path.join(visualization_path, dataset)
-                # if not os.path.exists(visualization_path):
-                #     os.makedirs(visualization_path)
-
-                # visualization_path = os.path.join(visualization_path, str(video_idx.item()))
-                # if not os.path.exists(visualization_path):
-                #     os.makedirs(visualization_path)
-                
                 one_based_frame_idx = frame_idx + 1
                 frame_name = f"{video_idx.item():03d}_{one_based_frame_idx:06d}.jpg"
                 name = os.path.join(visualization_path, frame_name)
@@ -241,9 +230,11 @@ class GradCAM:
                 else:
                     # since other visualization architectures don't necessarily
                     # only have two input pathways, you have to add logic for it
-                    raise NotImplementedError("make subfolders for each pathway and put frames in correct subfolder for the specific visualization method")
+                    raise NotImplementedError(
+                        "make subfolders for each pathway and put frames in correct subfolder for the specific visualization method"
+                    )
                 cv2.imwrite(name, frame_map)
-            
+
             heatmap = self.colormap(localization_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
 
@@ -252,16 +243,17 @@ class GradCAM:
             if curr_inp.device != torch.device("cpu"):
                 curr_inp = curr_inp.cpu()
             curr_inp = data_utils.revert_tensor_normalize(
-                curr_inp, self.data_mean, self.data_std)
+                curr_inp, self.data_mean, self.data_std
+            )
 
             inp_to_save = curr_inp.numpy()[0]
 
             folder = os.path.join(output_dir, "inputs")
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            vis_method_folder = os.path.join(folder,
-                                             cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
-                                             str(dataset))
+            vis_method_folder = os.path.join(
+                folder, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD, str(dataset)
+            )
             if not os.path.exists(vis_method_folder):
                 os.makedirs(vis_method_folder)
 
@@ -271,7 +263,7 @@ class GradCAM:
 
                 one_based_frame_idx = frame_idx + 1
                 frame_name = f"{video_idx.item():03d}_{one_based_frame_idx:06d}.jpg"
-                
+
                 vid_idx_folder = os.path.join(vis_method_folder, str(video_idx.item()))
                 if not os.path.exists(vid_idx_folder):
                     os.makedirs(vid_idx_folder)

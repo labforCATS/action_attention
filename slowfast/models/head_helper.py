@@ -7,7 +7,8 @@ import torch.nn as nn
 from detectron2.layers import ROIAlign
 
 from slowfast.models.batchnorm_helper import (
-    NaiveSyncBatchNorm1d as NaiveSyncBatchNorm1d, )
+    NaiveSyncBatchNorm1d as NaiveSyncBatchNorm1d,
+)
 from slowfast.models.nonlocal_helper import Nonlocal
 
 
@@ -69,14 +70,14 @@ class ResNetRoIHead(nn.Module):
             performance if ROIAlign is used together with conv layers.
         """
         super(ResNetRoIHead, self).__init__()
-        assert (len({len(pool_size), len(dim_in)
-                     }) == 1), "pathway dimensions are not consistent."
+        assert (
+            len({len(pool_size), len(dim_in)}) == 1
+        ), "pathway dimensions are not consistent."
         self.num_pathways = len(pool_size)
         self.detach_final_fc = detach_final_fc
 
         for pathway in range(self.num_pathways):
-            temporal_pool = nn.AvgPool3d([pool_size[pathway][0], 1, 1],
-                                         stride=1)
+            temporal_pool = nn.AvgPool3d([pool_size[pathway][0], 1, 1], stride=1)
             self.add_module("s{}_tpool".format(pathway), temporal_pool)
 
             roi_align = ROIAlign(
@@ -102,13 +103,14 @@ class ResNetRoIHead(nn.Module):
         elif act_func == "sigmoid":
             self.act = nn.Sigmoid()
         else:
-            raise NotImplementedError("{} is not supported as an activation"
-                                      "function.".format(act_func))
+            raise NotImplementedError(
+                "{} is not supported as an activation" "function.".format(act_func)
+            )
 
     def forward(self, inputs, bboxes):
-        assert (len(inputs) == self.num_pathways
-                ), "Input tensor does not contain {} pathway".format(
-                    self.num_pathways)
+        assert (
+            len(inputs) == self.num_pathways
+        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
         pool_out = []
         for pathway in range(self.num_pathways):
             t_pool = getattr(self, "s{}_tpool".format(pathway))
@@ -138,7 +140,6 @@ class ResNetRoIHead(nn.Module):
 
 
 class MLPHead(nn.Module):
-
     def __init__(
         self,
         dim_in,
@@ -162,9 +163,12 @@ class MLPHead(nn.Module):
             if bn_on:
                 if global_sync or bn_sync_num > 1:
                     mlp_layers.append(
-                        NaiveSyncBatchNorm1d(num_sync_devices=bn_sync_num,
-                                             global_sync=global_sync,
-                                             num_features=mlp_dim))
+                        NaiveSyncBatchNorm1d(
+                            num_sync_devices=bn_sync_num,
+                            global_sync=global_sync,
+                            num_features=mlp_dim,
+                        )
+                    )
                 else:
                     mlp_layers.append(nn.BatchNorm1d(num_features=mlp_dim))
             mlp_layers.append(nn.ReLU(inplace=True))
@@ -228,8 +232,9 @@ class ResNetBasicHead(nn.Module):
             cfg (struct): The config for the current experiment.
         """
         super(ResNetBasicHead, self).__init__()
-        assert (len({len(pool_size), len(dim_in)
-                     }) == 1), "pathway dimensions are not consistent."
+        assert (
+            len({len(pool_size), len(dim_in)}) == 1
+        ), "pathway dimensions are not consistent."
         self.num_pathways = len(pool_size)
         self.detach_final_fc = detach_final_fc
         self.cfg = cfg
@@ -258,9 +263,9 @@ class ResNetBasicHead(nn.Module):
                 cfg.CONTRASTIVE.NUM_MLP_LAYERS,
                 bn_on=cfg.CONTRASTIVE.BN_MLP,
                 bn_sync_num=cfg.BN.NUM_SYNC_DEVICES
-                if cfg.CONTRASTIVE.BN_SYNC_MLP else 1,
-                global_sync=(cfg.CONTRASTIVE.BN_SYNC_MLP
-                             and cfg.BN.GLOBAL_SYNC),
+                if cfg.CONTRASTIVE.BN_SYNC_MLP
+                else 1,
+                global_sync=(cfg.CONTRASTIVE.BN_SYNC_MLP and cfg.BN.GLOBAL_SYNC),
             )
 
         # Softmax for evaluation and testing.
@@ -271,8 +276,9 @@ class ResNetBasicHead(nn.Module):
         elif act_func == "none":
             self.act = None
         else:
-            raise NotImplementedError("{} is not supported as an activation"
-                                      "function.".format(act_func))
+            raise NotImplementedError(
+                "{} is not supported as an activation" "function.".format(act_func)
+            )
 
         if cfg.CONTRASTIVE.PREDICTOR_DEPTHS:
             d_in = num_classes
@@ -285,16 +291,16 @@ class ResNetBasicHead(nn.Module):
                     bn_on=cfg.CONTRASTIVE.BN_MLP,
                     flatten=False,
                     bn_sync_num=cfg.BN.NUM_SYNC_DEVICES
-                    if cfg.CONTRASTIVE.BN_SYNC_MLP else 1,
-                    global_sync=(cfg.CONTRASTIVE.BN_SYNC_MLP
-                                 and cfg.BN.GLOBAL_SYNC),
+                    if cfg.CONTRASTIVE.BN_SYNC_MLP
+                    else 1,
+                    global_sync=(cfg.CONTRASTIVE.BN_SYNC_MLP and cfg.BN.GLOBAL_SYNC),
                 )
                 self.predictors.append(local_mlp)
 
     def forward(self, inputs):
-        assert (len(inputs) == self.num_pathways
-                ), "Input tensor does not contain {} pathway".format(
-                    self.num_pathways)
+        assert (
+            len(inputs) == self.num_pathways
+        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
         pool_out = []
         for pathway in range(self.num_pathways):
             m = getattr(self, "pathway{}_avgpool".format(pathway))
@@ -310,8 +316,10 @@ class ResNetBasicHead(nn.Module):
         if self.l2norm_feats:
             x = nn.functional.normalize(x, dim=1, p=2)
 
-        if (x.shape[1:4] == torch.Size([1, 1, 1])
-                and self.cfg.MODEL.MODEL_NAME == "ContrastiveModel"):
+        if (
+            x.shape[1:4] == torch.Size([1, 1, 1])
+            and self.cfg.MODEL.MODEL_NAME == "ContrastiveModel"
+        ):
             x = x.view(x.shape[0], -1)
 
         x_proj = self.projection(x)
@@ -406,9 +414,9 @@ class X3DHead(nn.Module):
             padding=(0, 0, 0),
             bias=False,
         )
-        self.conv_5_bn = norm_module(num_features=dim_inner,
-                                     eps=self.eps,
-                                     momentum=self.bn_mmt)
+        self.conv_5_bn = norm_module(
+            num_features=dim_inner, eps=self.eps, momentum=self.bn_mmt
+        )
         self.conv_5_relu = nn.ReLU(self.inplace_relu)
 
         if self.pool_size is None:
@@ -425,9 +433,9 @@ class X3DHead(nn.Module):
             bias=False,
         )
         if self.bn_lin5_on:
-            self.lin_5_bn = norm_module(num_features=dim_out,
-                                        eps=self.eps,
-                                        momentum=self.bn_mmt)
+            self.lin_5_bn = norm_module(
+                num_features=dim_out, eps=self.eps, momentum=self.bn_mmt
+            )
         self.lin_5_relu = nn.ReLU(self.inplace_relu)
 
         if self.dropout_rate > 0.0:
@@ -442,8 +450,9 @@ class X3DHead(nn.Module):
         elif self.act_func == "sigmoid":
             self.act = nn.Sigmoid()
         else:
-            raise NotImplementedError("{} is not supported as an activation"
-                                      "function.".format(self.act_func))
+            raise NotImplementedError(
+                "{} is not supported as an activation" "function.".format(self.act_func)
+            )
 
     def forward(self, inputs):
         # In its current design the X3D head is only useable for a single
@@ -513,9 +522,9 @@ class TransformerBasicHead(nn.Module):
                 cfg.CONTRASTIVE.NUM_MLP_LAYERS,
                 bn_on=cfg.CONTRASTIVE.BN_MLP,
                 bn_sync_num=cfg.BN.NUM_SYNC_DEVICES
-                if cfg.CONTRASTIVE.BN_SYNC_MLP else 1,
-                global_sync=(cfg.CONTRASTIVE.BN_SYNC_MLP
-                             and cfg.BN.GLOBAL_SYNC),
+                if cfg.CONTRASTIVE.BN_SYNC_MLP
+                else 1,
+                global_sync=(cfg.CONTRASTIVE.BN_SYNC_MLP and cfg.BN.GLOBAL_SYNC),
             )
         self.detach_final_fc = cfg.MODEL.DETACH_FINAL_FC
 
@@ -527,8 +536,9 @@ class TransformerBasicHead(nn.Module):
         elif act_func == "none":
             self.act = None
         else:
-            raise NotImplementedError("{} is not supported as an activation"
-                                      "function.".format(act_func))
+            raise NotImplementedError(
+                "{} is not supported as an activation" "function.".format(act_func)
+            )
 
     def forward(self, x):
         if hasattr(self, "dropout"):

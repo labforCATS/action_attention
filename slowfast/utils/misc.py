@@ -130,7 +130,7 @@ def _get_model_analysis_input(cfg, use_train_input):
             bbox = bbox.cuda()
         inputs = (model_inputs, bbox)
     else:
-        inputs = (model_inputs, )
+        inputs = (model_inputs,)
     return inputs
 
 
@@ -183,10 +183,14 @@ def log_model_info(model, cfg, use_train_input=True):
     logger.info("Model:\n{}".format(model))
     logger.info("Params: {:,}".format(params_count(model)))
     logger.info("Mem: {:,} MB".format(gpu_mem_usage()))
-    logger.info("Flops: {:,} G".format(
-        get_model_stats(model, cfg, "flop", use_train_input)))
-    logger.info("Activations: {:,} M".format(
-        get_model_stats(model, cfg, "activation", use_train_input)))
+    logger.info(
+        "Flops: {:,} G".format(get_model_stats(model, cfg, "flop", use_train_input))
+    )
+    logger.info(
+        "Activations: {:,} M".format(
+            get_model_stats(model, cfg, "activation", use_train_input)
+        )
+    )
     logger.info("nvidia-smi")
     os.system("nvidia-smi")
 
@@ -206,8 +210,7 @@ def is_eval_epoch(cfg, cur_epoch, multigrid_schedule):
         prev_epoch = 0
         for s in multigrid_schedule:
             if cur_epoch < s[-1]:
-                period = max(
-                    (s[-1] - prev_epoch) // cfg.MULTIGRID.EVAL_FREQ + 1, 1)
+                period = max((s[-1] - prev_epoch) // cfg.MULTIGRID.EVAL_FREQ + 1, 1)
                 return (s[-1] - 1 - cur_epoch) % period == 0
             prev_epoch = s[-1]
 
@@ -336,9 +339,9 @@ def get_class_names(path, parent_path=None, subset_path=None):
     for val in class2idx.values():
         if int(val) > max_key:
             max_key = int(val)
-    #max_key = int(max(class2idx.values()))
+    # max_key = int(max(class2idx.values()))
 
-    #class_names = [None] * (max_key + 1) # Error here saying can only concatenate str to str
+    # class_names = [None] * (max_key + 1) # Error here saying can only concatenate str to str
     class_names = []
     for i in range(max_key + 1):
         class_names += [None]
@@ -351,14 +354,11 @@ def get_class_names(path, parent_path=None, subset_path=None):
             with pathmgr.open(parent_path, "r") as f:
                 d_parent = json.load(f)
         except EnvironmentError as err:
-            print("Fail to load file from {} with error {}".format(
-                parent_path, err))
+            print("Fail to load file from {} with error {}".format(parent_path, err))
             return
         class_parent = {}
         for parent, children in d_parent.items():
-            indices = [
-                class2idx[c] for c in children if class2idx.get(c) is not None
-            ]
+            indices = [class2idx[c] for c in children if class2idx.get(c) is not None]
             class_parent[parent] = indices
 
     subset_ids = None
@@ -367,12 +367,12 @@ def get_class_names(path, parent_path=None, subset_path=None):
             with pathmgr.open(subset_path, "r") as f:
                 subset = f.read().split("\n")
                 subset_ids = [
-                    class2idx[name] for name in subset
+                    class2idx[name]
+                    for name in subset
                     if class2idx.get(name) is not None
                 ]
         except EnvironmentError as err:
-            print("Fail to load file from {} with error {}".format(
-                subset_path, err))
+            print("Fail to load file from {} with error {}".format(subset_path, err))
             return
 
     return class_names, class_parent, subset_ids

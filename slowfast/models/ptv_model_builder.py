@@ -21,7 +21,8 @@ from pytorchvideo.models.r2plus1d import (
 from pytorchvideo.models.resnet import create_bottleneck_block, create_resnet
 from pytorchvideo.models.slowfast import create_slowfast
 from pytorchvideo.models.vision_transformers import (
-    create_multiscale_vision_transformers, )
+    create_multiscale_vision_transformers,
+)
 from pytorchvideo.models.x3d import (
     Swish,
     create_x3d,
@@ -46,8 +47,9 @@ def get_head_act(act_func):
     elif act_func == "sigmoid":
         return nn.Sigmoid()
     else:
-        raise NotImplementedError("{} is not supported as a head activation "
-                                  "function.".format(act_func))
+        raise NotImplementedError(
+            "{} is not supported as a head activation " "function.".format(act_func)
+        )
 
 
 @MODEL_REGISTRY.register()
@@ -67,8 +69,7 @@ class PTVResNet(nn.Module):
         """
         super(PTVResNet, self).__init__()
 
-        assert (cfg.RESNET.STRIDE_1X1
-                is False), "STRIDE_1x1 must be True for PTVResNet"
+        assert cfg.RESNET.STRIDE_1X1 is False, "STRIDE_1x1 must be True for PTVResNet"
         assert (
             cfg.RESNET.TRANS_FUNC == "bottleneck_transform"
         ), f"Unsupported TRANS_FUNC type {cfg.RESNET.TRANS_FUNC} for PTVResNet"
@@ -123,7 +124,7 @@ class PTVResNet(nn.Module):
         # Head from config
         if cfg.DETECTION.ENABLE:
             self.detection_head = create_res_roi_pooling_head(
-                in_features=cfg.RESNET.WIDTH_PER_GROUP * 2**(4 + 1),
+                in_features=cfg.RESNET.WIDTH_PER_GROUP * 2 ** (4 + 1),
                 out_features=cfg.MODEL.NUM_CLASSES,
                 pool=nn.AvgPool3d,
                 output_size=(1, 1, 1),
@@ -217,7 +218,6 @@ class PTVResNet(nn.Module):
 
 @MODEL_REGISTRY.register()
 class PTVSlowFast(nn.Module):
-
     def __init__(self, cfg):
         """
         The `__init__` method of any subclass should also contain these
@@ -229,8 +229,7 @@ class PTVSlowFast(nn.Module):
         """
         super(PTVSlowFast, self).__init__()
 
-        assert (cfg.RESNET.STRIDE_1X1
-                is False), "STRIDE_1x1 must be True for PTVSlowFast"
+        assert cfg.RESNET.STRIDE_1X1 is False, "STRIDE_1x1 must be True for PTVSlowFast"
         assert (
             cfg.RESNET.TRANS_FUNC == "bottleneck_transform"
         ), f"Unsupported TRANS_FUNC type {cfg.RESNET.TRANS_FUNC} for PTVSlowFast"
@@ -263,14 +262,15 @@ class PTVSlowFast(nn.Module):
         for pathway in range(2):
             for stage in range(4):
                 stage_conv_a_kernel_sizes[pathway].append(
-                    ((temp_kernel[stage + 1][pathway][0], 1, 1), ) *
-                    num_block_temp_kernel[stage][pathway] + ((1, 1, 1), ) *
-                    (stage_depth[stage] -
-                     num_block_temp_kernel[stage][pathway]))
+                    ((temp_kernel[stage + 1][pathway][0], 1, 1),)
+                    * num_block_temp_kernel[stage][pathway]
+                    + ((1, 1, 1),)
+                    * (stage_depth[stage] - num_block_temp_kernel[stage][pathway])
+                )
 
         # Head from config
         # Number of stages = 4
-        stage_dim_in = cfg.RESNET.WIDTH_PER_GROUP * 2**(4 + 1)
+        stage_dim_in = cfg.RESNET.WIDTH_PER_GROUP * 2 ** (4 + 1)
         head_in_features = stage_dim_in + stage_dim_in // cfg.SLOWFAST.BETA_INV
 
         if cfg.DETECTION.ENABLE:
@@ -290,8 +290,7 @@ class PTVSlowFast(nn.Module):
             )
             head_pool_kernel_sizes = (
                 (
-                    cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA //
-                    pool_size[0][0],
+                    cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA // pool_size[0][0],
                     1,
                     1,
                 ),
@@ -300,8 +299,7 @@ class PTVSlowFast(nn.Module):
         else:
             head_pool_kernel_sizes = (
                 (
-                    cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA //
-                    pool_size[0][0],
+                    cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA // pool_size[0][0],
                     cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][1],
                     cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][2],
                 ),
@@ -315,8 +313,7 @@ class PTVSlowFast(nn.Module):
         self.model = create_slowfast(
             # SlowFast configs.
             slowfast_channel_reduction_ratio=cfg.SLOWFAST.BETA_INV,
-            slowfast_conv_channel_fusion_ratio=cfg.SLOWFAST.
-            FUSION_CONV_CHANNEL_RATIO,
+            slowfast_conv_channel_fusion_ratio=cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO,
             slowfast_fusion_conv_kernel_size=(
                 cfg.SLOWFAST.FUSION_KERNEL_SZ,
                 1,
@@ -412,7 +409,6 @@ class PTVSlowFast(nn.Module):
 
 @MODEL_REGISTRY.register()
 class PTVX3D(nn.Module):
-
     def __init__(self, cfg):
         """
         The `__init__` method of any subclass should also contain these
@@ -424,13 +420,13 @@ class PTVX3D(nn.Module):
         """
         super(PTVX3D, self).__init__()
 
-        assert (cfg.RESNET.STRIDE_1X1
-                is False), "STRIDE_1x1 must be True for PTVX3D"
+        assert cfg.RESNET.STRIDE_1X1 is False, "STRIDE_1x1 must be True for PTVX3D"
         assert (
             cfg.RESNET.TRANS_FUNC == "x3d_transform"
         ), f"Unsupported TRANS_FUNC type {cfg.RESNET.TRANS_FUNC} for PTVX3D"
-        assert (cfg.DETECTION.ENABLE
-                is False), "Detection model is not supported for PTVX3D yet."
+        assert (
+            cfg.DETECTION.ENABLE is False
+        ), "Detection model is not supported for PTVX3D yet."
 
         self._construct_network(cfg)
 
@@ -519,8 +515,9 @@ class PTVCSN(nn.Module):
         """
         super(PTVCSN, self).__init__()
 
-        assert (cfg.DETECTION.ENABLE
-                is False), "Detection model is not supported for PTVCSN yet."
+        assert (
+            cfg.DETECTION.ENABLE is False
+        ), "Detection model is not supported for PTVCSN yet."
 
         self._construct_network(cfg)
 
@@ -604,8 +601,8 @@ class PTVR2plus1D(nn.Module):
         super(PTVR2plus1D, self).__init__()
 
         assert (
-            cfg.DETECTION.ENABLE
-            is False), "Detection model is not supported for PTVR2plus1D yet."
+            cfg.DETECTION.ENABLE is False
+        ), "Detection model is not supported for PTVR2plus1D yet."
 
         self._construct_network(cfg)
 
@@ -704,8 +701,9 @@ class PTVMViT(nn.Module):
         """
         super(PTVMViT, self).__init__()
 
-        assert (cfg.DETECTION.ENABLE
-                is False), "Detection model is not supported for PTVMViT yet."
+        assert (
+            cfg.DETECTION.ENABLE is False
+        ), "Detection model is not supported for PTVMViT yet."
 
         self._construct_network(cfg)
 

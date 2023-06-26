@@ -5,7 +5,8 @@
 import torch
 from fvcore.common.registry import Registry
 from torch.distributed.algorithms.ddp_comm_hooks import (
-    default as comm_hooks_default, )
+    default as comm_hooks_default,
+)
 
 import slowfast.utils.logging as logging
 
@@ -29,8 +30,9 @@ def build_model(cfg, gpu_id=None):
         gpu_id (Optional[int]): specify the gpu index to build model.
     """
     if torch.cuda.is_available():
-        assert (cfg.NUM_GPUS <= torch.cuda.device_count()
-                ), "Cannot use more GPU devices than available"
+        assert (
+            cfg.NUM_GPUS <= torch.cuda.device_count()
+        ), "Cannot use more GPU devices than available"
     else:
         assert (
             cfg.NUM_GPUS == 0
@@ -44,14 +46,13 @@ def build_model(cfg, gpu_id=None):
         try:
             import apex
         except ImportError:
-            raise ImportError(
-                "APEX is required for this model, pelase install")
+            raise ImportError("APEX is required for this model, pelase install")
 
         logger.info("Converting BN layers to Apex SyncBN")
         process_group = apex.parallel.create_syncbn_process_group(
-            group_size=cfg.BN.NUM_SYNC_DEVICES)
-        model = apex.parallel.convert_syncbn_model(model,
-                                                   process_group=process_group)
+            group_size=cfg.BN.NUM_SYNC_DEVICES
+        )
+        model = apex.parallel.convert_syncbn_model(model, process_group=process_group)
 
     if cfg.NUM_GPUS:
         if gpu_id is None:
@@ -68,10 +69,12 @@ def build_model(cfg, gpu_id=None):
             module=model,
             device_ids=[cur_device],
             output_device=cur_device,
-            find_unused_parameters=True if cfg.MODEL.DETACH_FINAL_FC
-            or cfg.MODEL.MODEL_NAME == "ContrastiveModel" else False,
+            find_unused_parameters=True
+            if cfg.MODEL.DETACH_FINAL_FC or cfg.MODEL.MODEL_NAME == "ContrastiveModel"
+            else False,
         )
         if cfg.MODEL.FP16_ALLREDUCE:
             model.register_comm_hook(
-                state=None, hook=comm_hooks_default.fp16_compress_hook)
+                state=None, hook=comm_hooks_default.fp16_compress_hook
+            )
     return model

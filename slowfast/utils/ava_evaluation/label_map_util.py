@@ -71,9 +71,7 @@ def get_max_label_map_index(label_map):
     return max([item.id for item in label_map.item])
 
 
-def convert_label_map_to_categories(label_map,
-                                    max_num_classes,
-                                    use_display_name=True):
+def convert_label_map_to_categories(label_map, max_num_classes, use_display_name=True):
     """Loads label map proto and returns categories list compatible with eval.
 
     This function loads a label map and returns a list of dicts, each of which
@@ -101,18 +99,17 @@ def convert_label_map_to_categories(label_map,
     if not label_map:
         label_id_offset = 1
         for class_id in range(max_num_classes):
-            categories.append({
-                "id":
-                class_id + label_id_offset,
-                "name":
-                "category_{}".format(class_id + label_id_offset),
-            })
+            categories.append(
+                {
+                    "id": class_id + label_id_offset,
+                    "name": "category_{}".format(class_id + label_id_offset),
+                }
+            )
         return categories
     for item in label_map.item:
         if not 0 < item.id <= max_num_classes:
             logging.info(
-                "Ignore item %d since it falls outside of requested "
-                "label range.",
+                "Ignore item %d since it falls outside of requested " "label range.",
                 item.id,
             )
             continue

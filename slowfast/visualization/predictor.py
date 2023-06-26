@@ -30,8 +30,7 @@ class Predictor:
             gpu_id (Optional[int]): GPU id.
         """
         if cfg.NUM_GPUS:
-            self.gpu_id = (torch.cuda.current_device()
-                           if gpu_id is None else gpu_id)
+            self.gpu_id = torch.cuda.current_device() if gpu_id is None else gpu_id
 
         # Build the video model and print model statistics.
         self.model = build_model(cfg, gpu_id=gpu_id)
@@ -68,13 +67,10 @@ class Predictor:
                 task.img_width,
             )
         if self.cfg.DEMO.INPUT_FORMAT == "BGR":
-            frames = [
-                cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in frames
-            ]
+            frames = [cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in frames]
 
         frames = [
-            cv2_transform.scale(self.cfg.DATA.TEST_CROP_SIZE, frame)
-            for frame in frames
+            cv2_transform.scale(self.cfg.DATA.TEST_CROP_SIZE, frame) for frame in frames
         ]
         inputs = process_cv2_inputs(frames, self.cfg)
         if bboxes is not None:
@@ -88,14 +84,15 @@ class Predictor:
             bboxes = torch.cat([index_pad, bboxes], axis=1)
         if self.cfg.NUM_GPUS > 0:
             # Transfer the data to the current GPU device.
-            if isinstance(inputs, (list, )):
+            if isinstance(inputs, (list,)):
                 for i in range(len(inputs)):
-                    inputs[i] = inputs[i].cuda(device=torch.device(
-                        self.gpu_id),
-                                               non_blocking=True)
+                    inputs[i] = inputs[i].cuda(
+                        device=torch.device(self.gpu_id), non_blocking=True
+                    )
             else:
-                inputs = inputs.cuda(device=torch.device(self.gpu_id),
-                                     non_blocking=True)
+                inputs = inputs.cuda(
+                    device=torch.device(self.gpu_id), non_blocking=True
+                )
         if self.cfg.DETECTION.ENABLE and not bboxes.shape[0]:
             preds = torch.tensor([])
         else:
@@ -168,15 +165,13 @@ class Detectron2Predictor:
         """
 
         self.cfg = get_cfg()
-        self.cfg.merge_from_file(
-            model_zoo.get_config_file(cfg.DEMO.DETECTRON2_CFG))
+        self.cfg.merge_from_file(model_zoo.get_config_file(cfg.DEMO.DETECTRON2_CFG))
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = cfg.DEMO.DETECTRON2_THRESH
         self.cfg.MODEL.WEIGHTS = cfg.DEMO.DETECTRON2_WEIGHTS
         self.cfg.INPUT.FORMAT = cfg.DEMO.INPUT_FORMAT
         if cfg.NUM_GPUS and gpu_id is None:
             gpu_id = torch.cuda.current_device()
-        self.cfg.MODEL.DEVICE = ("cuda:{}".format(gpu_id)
-                                 if cfg.NUM_GPUS > 0 else "cpu")
+        self.cfg.MODEL.DEVICE = "cuda:{}".format(gpu_id) if cfg.NUM_GPUS > 0 else "cpu"
 
         logger.info("Initialized Detectron2 Object Detection Model.")
 

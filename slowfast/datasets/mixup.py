@@ -31,9 +31,9 @@ def convert_to_one_hot(targets, num_classes, on_value=1.0, off_value=0.0):
     """
 
     targets = targets.long().view(-1, 1)
-    return torch.full((targets.size()[0], num_classes),
-                      off_value,
-                      device=targets.device).scatter_(1, targets, on_value)
+    return torch.full(
+        (targets.size()[0], num_classes), off_value, device=targets.device
+    ).scatter_(1, targets, on_value)
 
 
 def mixup_target(target, num_classes, lam=1.0, smoothing=0.0):
@@ -150,9 +150,11 @@ class MixUp:
         if np.random.rand() < self.mix_prob:
             if self.mixup_alpha > 0.0 and self.cutmix_alpha > 0.0:
                 use_cutmix = np.random.rand() < self.switch_prob
-                lam_mix = (np.random.beta(self.cutmix_alpha, self.cutmix_alpha)
-                           if use_cutmix else np.random.beta(
-                               self.mixup_alpha, self.mixup_alpha))
+                lam_mix = (
+                    np.random.beta(self.cutmix_alpha, self.cutmix_alpha)
+                    if use_cutmix
+                    else np.random.beta(self.mixup_alpha, self.mixup_alpha)
+                )
             elif self.mixup_alpha > 0.0:
                 lam_mix = np.random.beta(self.mixup_alpha, self.mixup_alpha)
             elif self.cutmix_alpha > 0.0:
@@ -180,6 +182,5 @@ class MixUp:
     def __call__(self, x, target):
         assert len(x) > 1, "Batch size should be greater than 1 for mixup."
         lam = self._mix_batch(x)
-        target = mixup_target(target, self.num_classes, lam,
-                              self.label_smoothing)
+        target = mixup_target(target, self.num_classes, lam, self.label_smoothing)
         return x, target

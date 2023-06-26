@@ -43,8 +43,9 @@ class Imagenet(torch.utils.data.Dataset):
             self._load_imdb()
 
     def _load_imdb(self):
-        split_path = os.path.join(self.cfg.DATA.PATH_TO_PRELOAD_IMDB,
-                                  f"{self.mode}.json")
+        split_path = os.path.join(
+            self.cfg.DATA.PATH_TO_PRELOAD_IMDB, f"{self.mode}.json"
+        )
         with pathmgr.open(split_path, "r") as f:
             data = f.read()
         self._imdb = json.loads(data)
@@ -56,8 +57,7 @@ class Imagenet(torch.utils.data.Dataset):
         logger.info("{} data path: {}".format(self.mode, split_path))
         # Images are stored per class in subdirs (format: n<number>)
         split_files = pathmgr.ls(split_path)
-        self._class_ids = sorted(f for f in split_files
-                                 if re.match(r"^n[0-9]+$", f))
+        self._class_ids = sorted(f for f in split_files if re.match(r"^n[0-9]+$", f))
         # Map ImageNet class ids to contiguous ids
         self._class_id_cont_id = {v: i for i, v in enumerate(self._class_ids)}
         # Construct the image db
@@ -107,13 +107,11 @@ class Imagenet(torch.utils.data.Dataset):
             )
         else:
             # For testing use scale and center crop
-            im, _ = transform.uniform_crop(im,
-                                           test_size,
-                                           spatial_idx=1,
-                                           scale_size=train_size)
+            im, _ = transform.uniform_crop(
+                im, test_size, spatial_idx=1, scale_size=train_size
+            )
         # For training and testing use color normalization
-        im = transform.color_normalization(im, self.cfg.DATA.MEAN,
-                                           self.cfg.DATA.STD)
+        im = transform.color_normalization(im, self.cfg.DATA.MEAN, self.cfg.DATA.STD)
         # Convert HWC/RGB/float to CHW/BGR/float format
         # im = np.ascontiguousarray(im[:, :, ::-1].transpose([2, 0, 1]))
         return im
@@ -150,8 +148,7 @@ class Imagenet(torch.utils.data.Dataset):
             )
             t.append(transforms_tv.CenterCrop(test_size))
             t.append(transforms_tv.ToTensor())
-            t.append(
-                transforms_tv.Normalize(self.cfg.DATA.MEAN, self.cfg.DATA.STD))
+            t.append(transforms_tv.Normalize(self.cfg.DATA.MEAN, self.cfg.DATA.STD))
             aug_transform = transforms_tv.Compose(t)
         im = aug_transform(im)
         return im

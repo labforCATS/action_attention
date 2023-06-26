@@ -44,20 +44,24 @@ class TensorboardWriter(object):
         self.hist_figsize = cfg.TENSORBOARD.HISTOGRAM.FIGSIZE
 
         if cfg.TENSORBOARD.LOG_DIR == "":
-            log_dir = os.path.join(cfg.OUTPUT_DIR,
-                                   "runs-{}".format(cfg.TRAIN.DATASET))
+            log_dir = os.path.join(cfg.OUTPUT_DIR, "runs-{}".format(cfg.TRAIN.DATASET))
         else:
             log_dir = os.path.join(cfg.OUTPUT_DIR, cfg.TENSORBOARD.LOG_DIR)
 
         self.writer = SummaryWriter(log_dir=log_dir)
         logger.info(
             "To see logged results in Tensorboard, please launch using the command \
-            `tensorboard  --port=<port-number> --logdir {}`".format(log_dir))
+            `tensorboard  --port=<port-number> --logdir {}`".format(
+                log_dir
+            )
+        )
 
         if cfg.TENSORBOARD.CLASS_NAMES_PATH != "":
             if cfg.DETECTION.ENABLE:
-                logger.info("Plotting confusion matrix is currently \
-                    not supported for detection.")
+                logger.info(
+                    "Plotting confusion matrix is currently \
+                    not supported for detection."
+                )
             (
                 self.class_names,
                 self.parent_map,
@@ -70,8 +74,10 @@ class TensorboardWriter(object):
 
             if cfg.TENSORBOARD.HISTOGRAM.ENABLE:
                 if cfg.DETECTION.ENABLE:
-                    logger.info("Plotting histogram is not currently \
-                    supported for detection tasks.")
+                    logger.info(
+                        "Plotting histogram is not currently \
+                    supported for detection tasks."
+                    )
                 if cfg.TENSORBOARD.HISTOGRAM.SUBSET_PATH != "":
                     _, _, self.hist_subset_classes = get_class_names(
                         cfg.TENSORBOARD.CLASS_NAMES_PATH,
@@ -102,7 +108,8 @@ class TensorboardWriter(object):
             cmtx = None
             if self.cfg.TENSORBOARD.CONFUSION_MATRIX.ENABLE:
                 cmtx = vis_utils.get_confusion_matrix(
-                    preds, labels, self.cfg.MODEL.NUM_CLASSES)
+                    preds, labels, self.cfg.MODEL.NUM_CLASSES
+                )
                 # Add full confusion matrix.
                 add_confusion_matrix(
                     self.writer,
@@ -130,8 +137,9 @@ class TensorboardWriter(object):
                     # Get list of tags (parent categories names) and their children.
                     for parent_class, children_ls in self.parent_map.items():
                         tag = (
-                            "Confusion Matrices Grouped by Parent Classes/" +
-                            parent_class)
+                            "Confusion Matrices Grouped by Parent Classes/"
+                            + parent_class
+                        )
                         add_confusion_matrix(
                             self.writer,
                             cmtx,
@@ -145,7 +153,8 @@ class TensorboardWriter(object):
             if self.cfg.TENSORBOARD.HISTOGRAM.ENABLE:
                 if cmtx is None:
                     cmtx = vis_utils.get_confusion_matrix(
-                        preds, labels, self.cfg.MODEL.NUM_CLASSES)
+                        preds, labels, self.cfg.MODEL.NUM_CLASSES
+                    )
                 plot_hist(
                     self.writer,
                     cmtx,
@@ -157,11 +166,7 @@ class TensorboardWriter(object):
                     figsize=self.hist_figsize,
                 )
 
-    def add_video(self,
-                  vid_tensor,
-                  tag="Video Input",
-                  global_step=None,
-                  fps=4):
+    def add_video(self, vid_tensor, tag="Video Input", global_step=None, fps=4):
         """
         Add input to tensorboard SummaryWriter as a video.
         Args:
@@ -171,10 +176,7 @@ class TensorboardWriter(object):
             global_step(Optional[int]): current step.
             fps (int): frames per second.
         """
-        self.writer.add_video(tag,
-                              vid_tensor,
-                              global_step=global_step,
-                              fps=fps)
+        self.writer.add_video(tag, vid_tensor, global_step=global_step, fps=fps)
 
     def plot_weights_and_activations(
         self,
@@ -207,7 +209,7 @@ class TensorboardWriter(object):
                 batch_idx = list(range(array.shape[0]))
             if indexing_dict is not None:
                 fancy_indexing = indexing_dict[name]
-                fancy_indexing = (batch_idx, ) + fancy_indexing
+                fancy_indexing = (batch_idx,) + fancy_indexing
                 array = array[fancy_indexing]
             else:
                 array = array[batch_idx]
@@ -317,8 +319,7 @@ def plot_hist(
                 figsize=figsize,
             )
             writer.add_figure(
-                tag="Top {} predictions by classes/{}".format(
-                    k, class_names[i]),
+                tag="Top {} predictions by classes/{}".format(k, class_names[i]),
                 figure=hist,
                 global_step=global_step,
             )
@@ -371,10 +372,9 @@ def add_ndim_array(
             reshaped_array = array
             if heat_map:
                 heatmap = add_heatmap(reshaped_array)
-                writer.add_image(name,
-                                 heatmap,
-                                 global_step=global_step,
-                                 dataformats="CHW")
+                writer.add_image(
+                    name, heatmap, global_step=global_step, dataformats="CHW"
+                )
             else:
                 writer.add_image(
                     name,
@@ -387,18 +387,14 @@ def add_ndim_array(
             reshaped_array = array.view(-1, *last2_dims)
             if heat_map:
                 reshaped_array = [
-                    add_heatmap(array_2d).unsqueeze(0)
-                    for array_2d in reshaped_array
+                    add_heatmap(array_2d).unsqueeze(0) for array_2d in reshaped_array
                 ]
                 reshaped_array = torch.cat(reshaped_array, dim=0)
             else:
                 reshaped_array = reshaped_array.unsqueeze(1)
             if nrow is None:
                 nrow = int(math.sqrt(reshaped_array.size()[0]))
-            img_grid = make_grid(reshaped_array,
-                                 nrow,
-                                 padding=1,
-                                 normalize=normalize)
+            img_grid = make_grid(reshaped_array, nrow, padding=1, normalize=normalize)
             writer.add_image(name, img_grid, global_step=global_step)
 
 

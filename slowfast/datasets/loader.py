@@ -67,14 +67,16 @@ def detection_collate(batch):
             # Append idx info to the bboxes before concatenating them.
             bboxes = [
                 np.concatenate(
-                    [np.full((data[i].shape[0], 1), float(i)), data[i]],
-                    axis=1) for i in range(len(data))
+                    [np.full((data[i].shape[0], 1), float(i)), data[i]], axis=1
+                )
+                for i in range(len(data))
             ]
             bboxes = np.concatenate(bboxes, axis=0)
             collated_extra_data[key] = torch.tensor(bboxes).float()
         elif key == "metadata":
-            collated_extra_data[key] = torch.tensor(
-                list(itertools.chain(*data))).view(-1, 2)
+            collated_extra_data[key] = torch.tensor(list(itertools.chain(*data))).view(
+                -1, 2
+            )
         else:
             collated_extra_data[key] = default_collate(data)
 
@@ -108,9 +110,6 @@ def construct_loader(cfg, split, is_precise_bn=False):
         drop_last = False
 
     # Construct the dataset
-    # print("YOOOOOOOOOOOOOOOOO________")
-    # print(dataset_name)
-    # print(split)
     dataset = build_dataset(dataset_name, cfg, split)
 
     if isinstance(dataset, torch.utils.data.IterableDataset):
@@ -124,14 +123,12 @@ def construct_loader(cfg, split, is_precise_bn=False):
             worker_init_fn=utils.loader_worker_init_fn(dataset),
         )
     else:
-        if (cfg.MULTIGRID.SHORT_CYCLE and split in ["train"]
-                and not is_precise_bn):
+        if cfg.MULTIGRID.SHORT_CYCLE and split in ["train"] and not is_precise_bn:
             # Create a sampler for multi-process training
             sampler = utils.create_sampler(dataset, shuffle, cfg)
-            batch_sampler = ShortCycleBatchSampler(sampler,
-                                                   batch_size=batch_size,
-                                                   drop_last=drop_last,
-                                                   cfg=cfg)
+            batch_sampler = ShortCycleBatchSampler(
+                sampler, batch_size=batch_size, drop_last=drop_last, cfg=cfg
+            )
             # Create a loader
             loader = torch.utils.data.DataLoader(
                 dataset,
@@ -147,8 +144,9 @@ def construct_loader(cfg, split, is_precise_bn=False):
             if cfg.DETECTION.ENABLE:
                 collate_func = detection_collate
             elif cfg.AUG.NUM_SAMPLE > 1 and split in ["train"]:
-                collate_func = partial(multiple_samples_collate,
-                                       fold="imagenet" in dataset_name)
+                collate_func = partial(
+                    multiple_samples_collate, fold="imagenet" in dataset_name
+                )
             else:
                 collate_func = None
 
@@ -173,22 +171,25 @@ def shuffle_dataset(loader, cur_epoch):
         loader (loader): data loader to perform shuffle.
         cur_epoch (int): number of the current epoch.
     """
-    if (loader._dataset_kind ==
-            torch.utils.data.dataloader._DatasetKind.Iterable):
+    if loader._dataset_kind == torch.utils.data.dataloader._DatasetKind.Iterable:
         if hasattr(loader.dataset, "sampler"):
             sampler = loader.dataset.sampler
         else:
             raise RuntimeError(
-                "Unknown sampler for IterableDataset when shuffling dataset")
+                "Unknown sampler for IterableDataset when shuffling dataset"
+            )
     else:
-        sampler = (loader.batch_sampler.sampler if isinstance(
-            loader.batch_sampler, ShortCycleBatchSampler) else loader.sampler)
+        sampler = (
+            loader.batch_sampler.sampler
+            if isinstance(loader.batch_sampler, ShortCycleBatchSampler)
+            else loader.sampler
+        )
     assert isinstance(
-        sampler,
-        (RandomSampler,
-         DistributedSampler)), "Sampler type '{}' not supported".format(
-             type(sampler))
+        sampler, (RandomSampler, DistributedSampler)
+    ), "Sampler type '{}' not supported".format(type(sampler))
     # RandomSampler handles shuffling automatically
     if isinstance(sampler, DistributedSampler):
         # DistributedSampler shuffles data based on epoch
         sampler.set_epoch(cur_epoch)
+
+    # TODO: it looks like RandomSampler is not implemented?

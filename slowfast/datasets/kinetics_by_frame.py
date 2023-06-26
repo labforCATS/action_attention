@@ -24,8 +24,8 @@ logger = logging.get_logger(__name__)
 @DATASET_REGISTRY.register()
 class KineticsByFrame(torch.utils.data.Dataset):
     """
-    Kinetics video loader which loads _frames_ instead of videos. 
-    
+    Kinetics video loader which loads _frames_ instead of videos.
+
     Construct the Kinetics video loader, then sample
     clips from the videos. For training and validation, a single clip is
     randomly sampled from every video with random cropping, scaling, and
@@ -38,7 +38,7 @@ class KineticsByFrame(torch.utils.data.Dataset):
     def __init__(self, cfg, mode, num_retries=10):
         """
         Construct the Kinetics video loader with a given csv file. The format of
-        the csv file is: (NOTE: this is slightly different from the csv format 
+        the csv file is: (NOTE: this is slightly different from the csv format
         for Kinetics _videos_)
         ```
         path_to_folder_of_frames_1 label_1
@@ -81,8 +81,7 @@ class KineticsByFrame(torch.utils.data.Dataset):
         if self.mode in ["train", "val"]:
             self._num_clips = 1
         elif self.mode in ["test"]:
-            self._num_clips = (cfg.TEST.NUM_ENSEMBLE_VIEWS *
-                               cfg.TEST.NUM_SPATIAL_CROPS)
+            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS
 
         logger.info("Constructing Kinetics_by_frame {}...".format(mode))
         self._construct_loader()
@@ -90,16 +89,16 @@ class KineticsByFrame(torch.utils.data.Dataset):
     def _construct_loader(self):
         """
         Construct the video loader.
-        """        
+        """
         # Loading label names.
         with pathmgr.open(
-                os.path.join(
-                    self.cfg.DATA.PATH_TO_DATA_DIR,
-                    "Kinetics-labels.json",
-                ),
-                "r",
+            os.path.join(
+                self.cfg.DATA.PATH_TO_DATA_DIR,
+                "Kinetics-labels.json",
+            ),
+            "r",
         ) as f:
-            # dict that converts string to index 
+            # dict that converts string to index
             label_dict = json.load(f)
 
         # Loading labels.
@@ -114,7 +113,7 @@ class KineticsByFrame(torch.utils.data.Dataset):
         self._labels = []
         for video in label_json:
             video_name = video["id"]
-            template = video["template"] 
+            template = video["template"]
             # whats the difference btwn the "template" keyword and the "label" keyword in the json?
             template = template.replace("[", "")
             template = template.replace("]", "")
@@ -122,27 +121,27 @@ class KineticsByFrame(torch.utils.data.Dataset):
             self._video_names.append(str(video_name))
             self._labels.append(label)
 
-        # get the csv containing video id, frame id, and file paths 
+        # get the csv containing video id, frame id, and file paths
         path_to_file = os.path.join(
             self.cfg.DATA.PATH_TO_DATA_DIR,
             "{}_NEW.csv".format(self.mode),
         )
-        assert pathmgr.exists(path_to_file), "{} dir not found".format(
-            path_to_file)
+        assert pathmgr.exists(path_to_file), "{} dir not found".format(path_to_file)
 
         self._path_to_videos_dict, _ = utils.load_image_lists(
-            path_to_file, self.cfg.DATA.PATH_PREFIX)
+            path_to_file, self.cfg.DATA.PATH_PREFIX
+        )
 
-        assert len(self._path_to_videos_dict) == len(
-            self._video_names), (len(self._path_to_videos_dict),
-                                 len(self._video_names))
+        assert len(self._path_to_videos_dict) == len(self._video_names), (
+            len(self._path_to_videos_dict),
+            len(self._video_names),
+        )
 
         # From dict to list.
         new_paths, new_labels = [], []
         for index in range(len(self._video_names)):
             if self._video_names[index] in self._path_to_videos_dict:
-                new_paths.append(
-                    self._path_to_videos_dict[self._video_names[index]])
+                new_paths.append(self._path_to_videos_dict[self._video_names[index]])
                 new_labels.append(self._labels[index])
 
         self._labels = new_labels
@@ -150,19 +149,21 @@ class KineticsByFrame(torch.utils.data.Dataset):
 
         # Extend self when self._num_clips > 1 (during testing).
         self._path_to_videos = list(
-            chain.from_iterable([[x] * self._num_clips
-                                 for x in self._path_to_videos]))
+            chain.from_iterable([[x] * self._num_clips for x in self._path_to_videos])
+        )
         self._labels = list(
-            chain.from_iterable([[x] * self._num_clips for x in self._labels]))
+            chain.from_iterable([[x] * self._num_clips for x in self._labels])
+        )
         self._spatial_temporal_idx = list(
-            chain.from_iterable([
-                range(self._num_clips)
-                for _ in range(len(self._path_to_videos))
-            ]))
-        
-        logger.info("Kinetics-by-frame dataloader constructed "
-                    " (size: {}) from {}".format(len(self._path_to_videos),
-                                                 path_to_file))
+            chain.from_iterable(
+                [range(self._num_clips) for _ in range(len(self._path_to_videos))]
+            )
+        )
+
+        logger.info(
+            "Kinetics-by-frame dataloader constructed "
+            " (size: {}) from {}".format(len(self._path_to_videos), path_to_file)
+        )
 
     def get_seq_frames(self, index):
         """
@@ -216,28 +217,28 @@ class KineticsByFrame(torch.utils.data.Dataset):
                 crop_size = int(
                     round(
                         self.cfg.MULTIGRID.SHORT_CYCLE_FACTORS[short_cycle_idx]
-                        * self.cfg.MULTIGRID.DEFAULT_S))
+                        * self.cfg.MULTIGRID.DEFAULT_S
+                    )
+                )
             if self.cfg.MULTIGRID.DEFAULT_S > 0:
                 # Decreasing the scale is equivalent to using a larger "span"
                 # in a sampling grid.
                 min_scale = int(
-                    round(
-                        float(min_scale) * crop_size /
-                        self.cfg.MULTIGRID.DEFAULT_S))
+                    round(float(min_scale) * crop_size / self.cfg.MULTIGRID.DEFAULT_S)
+                )
         elif self.mode in ["test"]:
             # spatial_sample_index is in [0, 1, 2]. Corresponding to left,
             # center, or right if width is larger than height, and top, middle,
             # or bottom if height is larger than width.
-            spatial_sample_index = (self._spatial_temporal_idx[index] %
-                                    self.cfg.TEST.NUM_SPATIAL_CROPS)
-            min_scale, max_scale, crop_size = [self.cfg.DATA.TEST_CROP_SIZE
-                                               ] * 3
+            spatial_sample_index = (
+                self._spatial_temporal_idx[index] % self.cfg.TEST.NUM_SPATIAL_CROPS
+            )
+            min_scale, max_scale, crop_size = [self.cfg.DATA.TEST_CROP_SIZE] * 3
             # The testing is deterministic and no jitter should be performed.
             # min_scale, max_scale, and crop_size are expect to be the same.
             assert len({min_scale, max_scale, crop_size}) == 1
         else:
-            raise NotImplementedError("Does not support {} mode".format(
-                self.mode))
+            raise NotImplementedError("Does not support {} mode".format(self.mode))
 
         label = self._labels[index]
 
@@ -247,11 +248,11 @@ class KineticsByFrame(torch.utils.data.Dataset):
             utils.retry_load_images(
                 [self._path_to_videos[index][frame] for frame in seq],
                 self._num_retries,
-            ))
+            )
+        )
 
         # Perform color normalization.
-        frames = utils.tensor_normalize(frames, self.cfg.DATA.MEAN,
-                                        self.cfg.DATA.STD)
+        frames = utils.tensor_normalize(frames, self.cfg.DATA.MEAN, self.cfg.DATA.STD)
 
         # T H W C -> C T H W.
         frames = frames.permute(3, 0, 1, 2)

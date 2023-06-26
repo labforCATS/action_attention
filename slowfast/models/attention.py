@@ -17,16 +17,14 @@ def attention_pool(tensor, pool, thw_shape, has_cls_embed=True, norm=None):
     elif tensor_dim == 3:
         tensor = tensor.unsqueeze(1)
     else:
-        raise NotImplementedError(
-            f"Unsupported input dimension {tensor.shape}")
+        raise NotImplementedError(f"Unsupported input dimension {tensor.shape}")
 
     if has_cls_embed:
         cls_tok, tensor = tensor[:, :, :1, :], tensor[:, :, 1:, :]
 
     B, N, L, C = tensor.shape
     T, H, W = thw_shape
-    tensor = (tensor.reshape(B * N, T, H, W, C).permute(0, 4, 1, 2,
-                                                        3).contiguous())
+    tensor = tensor.reshape(B * N, T, H, W, C).permute(0, 4, 1, 2, 3).contiguous()
 
     tensor = pool(tensor)
 
@@ -46,7 +44,6 @@ def attention_pool(tensor, pool, thw_shape, has_cls_embed=True, norm=None):
 
 
 class MultiScaleAttention(nn.Module):
-
     def __init__(
         self,
         dim,
@@ -89,45 +86,63 @@ class MultiScaleAttention(nn.Module):
 
         if mode in ("avg", "max"):
             pool_op = nn.MaxPool3d if mode == "max" else nn.AvgPool3d
-            self.pool_q = (pool_op(
-                kernel_q, stride_q, padding_q, ceil_mode=False)
-                           if len(kernel_q) > 0 else None)
-            self.pool_k = (pool_op(
-                kernel_kv, stride_kv, padding_kv, ceil_mode=False)
-                           if len(kernel_kv) > 0 else None)
-            self.pool_v = (pool_op(
-                kernel_kv, stride_kv, padding_kv, ceil_mode=False)
-                           if len(kernel_kv) > 0 else None)
+            self.pool_q = (
+                pool_op(kernel_q, stride_q, padding_q, ceil_mode=False)
+                if len(kernel_q) > 0
+                else None
+            )
+            self.pool_k = (
+                pool_op(kernel_kv, stride_kv, padding_kv, ceil_mode=False)
+                if len(kernel_kv) > 0
+                else None
+            )
+            self.pool_v = (
+                pool_op(kernel_kv, stride_kv, padding_kv, ceil_mode=False)
+                if len(kernel_kv) > 0
+                else None
+            )
         elif mode == "conv":
-            self.pool_q = (nn.Conv3d(
-                head_dim,
-                head_dim,
-                kernel_q,
-                stride=stride_q,
-                padding=padding_q,
-                groups=head_dim,
-                bias=False,
-            ) if len(kernel_q) > 0 else None)
+            self.pool_q = (
+                nn.Conv3d(
+                    head_dim,
+                    head_dim,
+                    kernel_q,
+                    stride=stride_q,
+                    padding=padding_q,
+                    groups=head_dim,
+                    bias=False,
+                )
+                if len(kernel_q) > 0
+                else None
+            )
             self.norm_q = norm_layer(head_dim) if len(kernel_q) > 0 else None
-            self.pool_k = (nn.Conv3d(
-                head_dim,
-                head_dim,
-                kernel_kv,
-                stride=stride_kv,
-                padding=padding_kv,
-                groups=head_dim,
-                bias=False,
-            ) if len(kernel_kv) > 0 else None)
+            self.pool_k = (
+                nn.Conv3d(
+                    head_dim,
+                    head_dim,
+                    kernel_kv,
+                    stride=stride_kv,
+                    padding=padding_kv,
+                    groups=head_dim,
+                    bias=False,
+                )
+                if len(kernel_kv) > 0
+                else None
+            )
             self.norm_k = norm_layer(head_dim) if len(kernel_kv) > 0 else None
-            self.pool_v = (nn.Conv3d(
-                head_dim,
-                head_dim,
-                kernel_kv,
-                stride=stride_kv,
-                padding=padding_kv,
-                groups=head_dim,
-                bias=False,
-            ) if len(kernel_kv) > 0 else None)
+            self.pool_v = (
+                nn.Conv3d(
+                    head_dim,
+                    head_dim,
+                    kernel_kv,
+                    stride=stride_kv,
+                    padding=padding_kv,
+                    groups=head_dim,
+                    bias=False,
+                )
+                if len(kernel_kv) > 0
+                else None
+            )
             self.norm_v = norm_layer(head_dim) if len(kernel_kv) > 0 else None
         else:
             raise NotImplementedError(f"Unsupported model {mode}")
@@ -135,17 +150,25 @@ class MultiScaleAttention(nn.Module):
     def forward(self, x, thw_shape):
         B, N, C = x.shape
         if self.pool_first:
-            x = x.reshape(B, N, self.num_heads,
-                          C // self.num_heads).permute(0, 2, 1, 3)
+            x = x.reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
             q = k = v = x
         else:
             q = k = v = x
-            q = (self.q(q).reshape(B, N, self.num_heads,
-                                   C // self.num_heads).permute(0, 2, 1, 3))
-            k = (self.k(k).reshape(B, N, self.num_heads,
-                                   C // self.num_heads).permute(0, 2, 1, 3))
-            v = (self.v(v).reshape(B, N, self.num_heads,
-                                   C // self.num_heads).permute(0, 2, 1, 3))
+            q = (
+                self.q(q)
+                .reshape(B, N, self.num_heads, C // self.num_heads)
+                .permute(0, 2, 1, 3)
+            )
+            k = (
+                self.k(k)
+                .reshape(B, N, self.num_heads, C // self.num_heads)
+                .permute(0, 2, 1, 3)
+            )
+            v = (
+                self.v(v)
+                .reshape(B, N, self.num_heads, C // self.num_heads)
+                .permute(0, 2, 1, 3)
+            )
 
         q, q_shape = attention_pool(
             q,
@@ -170,24 +193,30 @@ class MultiScaleAttention(nn.Module):
         )
 
         if self.pool_first:
-            q_N = (numpy.prod(q_shape) +
-                   1 if self.has_cls_embed else numpy.prod(q_shape))
-            k_N = (numpy.prod(k_shape) +
-                   1 if self.has_cls_embed else numpy.prod(k_shape))
-            v_N = (numpy.prod(v_shape) +
-                   1 if self.has_cls_embed else numpy.prod(v_shape))
+            q_N = numpy.prod(q_shape) + 1 if self.has_cls_embed else numpy.prod(q_shape)
+            k_N = numpy.prod(k_shape) + 1 if self.has_cls_embed else numpy.prod(k_shape)
+            v_N = numpy.prod(v_shape) + 1 if self.has_cls_embed else numpy.prod(v_shape)
 
             q = q.permute(0, 2, 1, 3).reshape(B, q_N, C)
-            q = (self.q(q).reshape(B, q_N, self.num_heads,
-                                   C // self.num_heads).permute(0, 2, 1, 3))
+            q = (
+                self.q(q)
+                .reshape(B, q_N, self.num_heads, C // self.num_heads)
+                .permute(0, 2, 1, 3)
+            )
 
             v = v.permute(0, 2, 1, 3).reshape(B, v_N, C)
-            v = (self.v(v).reshape(B, v_N, self.num_heads,
-                                   C // self.num_heads).permute(0, 2, 1, 3))
+            v = (
+                self.v(v)
+                .reshape(B, v_N, self.num_heads, C // self.num_heads)
+                .permute(0, 2, 1, 3)
+            )
 
             k = k.permute(0, 2, 1, 3).reshape(B, k_N, C)
-            k = (self.k(k).reshape(B, k_N, self.num_heads,
-                                   C // self.num_heads).permute(0, 2, 1, 3))
+            k = (
+                self.k(k)
+                .reshape(B, k_N, self.num_heads, C // self.num_heads)
+                .permute(0, 2, 1, 3)
+            )
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn.softmax(dim=-1)
@@ -201,7 +230,6 @@ class MultiScaleAttention(nn.Module):
 
 
 class MultiScaleBlock(nn.Module):
-
     def __init__(
         self,
         dim,
@@ -244,8 +272,7 @@ class MultiScaleBlock(nn.Module):
             mode=mode,
             pool_first=pool_first,
         )
-        self.drop_path = (DropPath(drop_path)
-                          if drop_path > 0.0 else nn.Identity())
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.has_cls_embed = has_cls_embed
@@ -264,16 +291,17 @@ class MultiScaleBlock(nn.Module):
         if dim != dim_out:
             self.proj = nn.Linear(dim, dim_out)
 
-        self.pool_skip = (nn.MaxPool3d(
-            kernel_skip, stride_skip, padding_skip, ceil_mode=False)
-                          if len(kernel_skip) > 0 else None)
+        self.pool_skip = (
+            nn.MaxPool3d(kernel_skip, stride_skip, padding_skip, ceil_mode=False)
+            if len(kernel_skip) > 0
+            else None
+        )
 
     def forward(self, x, thw_shape):
         x_block, thw_shape_new = self.attn(self.norm1(x), thw_shape)
-        x_res, _ = attention_pool(x,
-                                  self.pool_skip,
-                                  thw_shape,
-                                  has_cls_embed=self.has_cls_embed)
+        x_res, _ = attention_pool(
+            x, self.pool_skip, thw_shape, has_cls_embed=self.has_cls_embed
+        )
         x = x_res + self.drop_path(x_block)
         x_norm = self.norm2(x)
         x_mlp = self.mlp(x_norm)

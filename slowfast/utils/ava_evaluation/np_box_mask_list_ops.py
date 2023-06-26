@@ -44,7 +44,8 @@ def box_list_to_box_mask_list(boxlist):
     if not boxlist.has_field("masks"):
         raise ValueError("boxlist does not contain mask field.")
     box_mask_list = np_box_mask_list.BoxMaskList(
-        box_data=boxlist.get(), mask_data=boxlist.get_field("masks"))
+        box_data=boxlist.get(), mask_data=boxlist.get_field("masks")
+    )
     extra_fields = boxlist.get_extra_fields()
     for key in extra_fields:
         if key != "masks":
@@ -74,8 +75,9 @@ def intersection(box_mask_list1, box_mask_list2):
     Returns:
       a numpy array with shape [N*M] representing pairwise intersection area
     """
-    return np_mask_ops.intersection(box_mask_list1.get_masks(),
-                                    box_mask_list2.get_masks())
+    return np_mask_ops.intersection(
+        box_mask_list1.get_masks(), box_mask_list2.get_masks()
+    )
 
 
 def iou(box_mask_list1, box_mask_list2):
@@ -88,8 +90,7 @@ def iou(box_mask_list1, box_mask_list2):
     Returns:
       a numpy array with shape [N, M] representing pairwise iou scores.
     """
-    return np_mask_ops.iou(box_mask_list1.get_masks(),
-                           box_mask_list2.get_masks())
+    return np_mask_ops.iou(box_mask_list1.get_masks(), box_mask_list2.get_masks())
 
 
 def ioa(box_mask_list1, box_mask_list2):
@@ -106,8 +107,7 @@ def ioa(box_mask_list1, box_mask_list2):
     Returns:
       a numpy array with shape [N, M] representing pairwise ioa scores.
     """
-    return np_mask_ops.ioa(box_mask_list1.get_masks(),
-                           box_mask_list2.get_masks())
+    return np_mask_ops.ioa(box_mask_list1.get_masks(), box_mask_list2.get_masks())
 
 
 def gather(box_mask_list, indices, fields=None):
@@ -137,14 +137,11 @@ def gather(box_mask_list, indices, fields=None):
         if "masks" not in fields:
             fields.append("masks")
     return box_list_to_box_mask_list(
-        np_box_list_ops.gather(boxlist=box_mask_list,
-                               indices=indices,
-                               fields=fields))
+        np_box_list_ops.gather(boxlist=box_mask_list, indices=indices, fields=fields)
+    )
 
 
-def sort_by_field(box_mask_list,
-                  field,
-                  order=np_box_list_ops.SortOrder.DESCEND):
+def sort_by_field(box_mask_list, field, order=np_box_list_ops.SortOrder.DESCEND):
     """Sort boxes and associated fields according to a scalar field.
 
     A common use case is reordering the boxes according to descending scores.
@@ -159,9 +156,8 @@ def sort_by_field(box_mask_list,
         order.
     """
     return box_list_to_box_mask_list(
-        np_box_list_ops.sort_by_field(boxlist=box_mask_list,
-                                      field=field,
-                                      order=order))
+        np_box_list_ops.sort_by_field(boxlist=box_mask_list, field=field, order=order)
+    )
 
 
 def non_max_suppression(
@@ -235,7 +231,8 @@ def non_max_suppression(
                     break
 
                 intersect_over_union = np_mask_ops.iou(
-                    np.expand_dims(masks[i], axis=0), masks[valid_indices])
+                    np.expand_dims(masks[i], axis=0), masks[valid_indices]
+                )
                 intersect_over_union = np.squeeze(intersect_over_union, axis=0)
                 is_index_valid[valid_indices] = np.logical_and(
                     is_index_valid[valid_indices],
@@ -244,8 +241,9 @@ def non_max_suppression(
     return gather(box_mask_list, np.array(selected_indices))
 
 
-def multi_class_non_max_suppression(box_mask_list, score_thresh, iou_thresh,
-                                    max_output_size):
+def multi_class_non_max_suppression(
+    box_mask_list, score_thresh, iou_thresh, max_output_size
+):
     """Multi-class version of non maximum suppression.
 
     This op greedily selects a subset of detection bounding boxes, pruning
@@ -288,8 +286,8 @@ def multi_class_non_max_suppression(box_mask_list, score_thresh, iou_thresh,
     elif len(scores.shape) == 2:
         if scores.shape[1] is None:
             raise ValueError(
-                "scores field must have statically defined second "
-                "dimension")
+                "scores field must have statically defined second " "dimension"
+            )
     else:
         raise ValueError("scores field must be of rank 1 or 2")
 
@@ -303,11 +301,13 @@ def multi_class_non_max_suppression(box_mask_list, score_thresh, iou_thresh,
     selected_boxes_list = []
     for class_idx in range(num_classes):
         box_mask_list_and_class_scores = np_box_mask_list.BoxMaskList(
-            box_data=box_mask_list.get(), mask_data=box_mask_list.get_masks())
+            box_data=box_mask_list.get(), mask_data=box_mask_list.get_masks()
+        )
         class_scores = np.reshape(scores[0:num_scores, class_idx], [-1])
         box_mask_list_and_class_scores.add_field("scores", class_scores)
         box_mask_list_filt = filter_scores_greater_than(
-            box_mask_list_and_class_scores, score_thresh)
+            box_mask_list_and_class_scores, score_thresh
+        )
         nms_result = non_max_suppression(
             box_mask_list_filt,
             max_output_size=max_output_size,
@@ -315,17 +315,15 @@ def multi_class_non_max_suppression(box_mask_list, score_thresh, iou_thresh,
             score_threshold=score_thresh,
         )
         nms_result.add_field(
-            "classes",
-            np.zeros_like(nms_result.get_field("scores")) + class_idx)
+            "classes", np.zeros_like(nms_result.get_field("scores")) + class_idx
+        )
         selected_boxes_list.append(nms_result)
     selected_boxes = np_box_list_ops.concatenate(selected_boxes_list)
     sorted_boxes = np_box_list_ops.sort_by_field(selected_boxes, "scores")
     return box_list_to_box_mask_list(boxlist=sorted_boxes)
 
 
-def prune_non_overlapping_masks(box_mask_list1,
-                                box_mask_list2,
-                                minoverlap=0.0):
+def prune_non_overlapping_masks(box_mask_list1, box_mask_list2, minoverlap=0.0):
     """Prunes the boxes in list1 that overlap less than thresh with list2.
 
     For each mask in box_mask_list1, we want its IOA to be more than minoverlap
@@ -341,10 +339,8 @@ def prune_non_overlapping_masks(box_mask_list1,
     Returns:
       A pruned box_mask_list with size [N', 4].
     """
-    intersection_over_area = ioa(box_mask_list2,
-                                 box_mask_list1)  # [M, N] tensor
-    intersection_over_area = np.amax(intersection_over_area,
-                                     axis=0)  # [N] tensor
+    intersection_over_area = ioa(box_mask_list2, box_mask_list1)  # [M, N] tensor
+    intersection_over_area = np.amax(intersection_over_area, axis=0)  # [N] tensor
     keep_bool = np.greater_equal(intersection_over_area, np.array(minoverlap))
     keep_inds = np.nonzero(keep_bool)[0]
     new_box_mask_list1 = gather(box_mask_list1, keep_inds)
@@ -377,7 +373,8 @@ def concatenate(box_mask_lists, fields=None):
         if "masks" not in fields:
             fields.append("masks")
     return box_list_to_box_mask_list(
-        np_box_list_ops.concatenate(boxlists=box_mask_lists, fields=fields))
+        np_box_list_ops.concatenate(boxlists=box_mask_lists, fields=fields)
+    )
 
 
 def filter_scores_greater_than(box_mask_list, thresh):
@@ -406,8 +403,10 @@ def filter_scores_greater_than(box_mask_list, thresh):
     if len(scores.shape) > 2:
         raise ValueError("Scores should have rank 1 or 2")
     if len(scores.shape) == 2 and scores.shape[1] != 1:
-        raise ValueError("Scores should have rank 1 or have shape "
-                         "consistent with [None, 1]")
-    high_score_indices = np.reshape(np.where(np.greater(scores, thresh)),
-                                    [-1]).astype(np.int32)
+        raise ValueError(
+            "Scores should have rank 1 or have shape " "consistent with [None, 1]"
+        )
+    high_score_indices = np.reshape(np.where(np.greater(scores, thresh)), [-1]).astype(
+        np.int32
+    )
     return gather(box_mask_list, high_score_indices)

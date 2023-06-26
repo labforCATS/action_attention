@@ -53,7 +53,7 @@ class WrongPredictionVis:
         Returns:
             mask (tensor): boolean tensor. `mask[i]` is True if `model` makes a wrong prediction.
         """
-        subset_mask = torch.ones(size=(len(labels), ), dtype=torch.bool)
+        subset_mask = torch.ones(size=(len(labels),), dtype=torch.bool)
         if self.subset is not None:
             for i, label in enumerate(labels):
                 if label not in self.subset:
@@ -94,14 +94,13 @@ class WrongPredictionVis:
             """
             # Permute to (T, H, W, C).
             vid = vid.permute(1, 2, 3, 0)
-            vid = data_utils.revert_tensor_normalize(vid.cpu(),
-                                                     self.cfg.DATA.MEAN,
-                                                     self.cfg.DATA.STD)
+            vid = data_utils.revert_tensor_normalize(
+                vid.cpu(), self.cfg.DATA.MEAN, self.cfg.DATA.STD
+            )
             vid = self.video_vis.draw_clip(vid, preds)
             vid = torch.from_numpy(np.array(vid)).permute(0, 3, 1, 2)
             vid = torch.unsqueeze(vid, dim=0)
-            self.writer.add_video(vid,
-                                  tag="{}: {}".format(tag, true_class_name))
+            self.writer.add_video(vid, tag="{}: {}".format(tag, true_class_name))
 
         mask = self._pick_wrong_preds(labels, preds)
         video_indices = torch.squeeze(mask.nonzero(), dim=-1)
@@ -112,8 +111,7 @@ class WrongPredictionVis:
                 add_video(
                     video_input[pathway][vid_idx],
                     preds=preds[vid_idx],
-                    tag=self.tag +
-                    "/Video {}, Pathway {}".format(cur_vid_idx, pathway),
+                    tag=self.tag + "/Video {}, Pathway {}".format(cur_vid_idx, pathway),
                     true_class_name=self.class_names[labels[vid_idx]],
                 )
 

@@ -8,7 +8,7 @@ def first_20(filename):
     Also copies the corresponding frames and videos into a new file
     """
     count = 0
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         csv_reader = csv.reader(file, delimiter=" ")
         new_csv = []
         video_num = []
@@ -21,13 +21,13 @@ def first_20(filename):
             if count == 3:
                 break
             new_csv += [row[:-1] + ['""']]
-    absolute = '/media/cats/32b7c353-4595-42d8-81aa-d029f1556567/something_something/20bn-something-something-v2/'
-    absolute_new = '/media/cats/32b7c353-4595-42d8-81aa-d029f1556567/something_something/small_set/'
-    csv_place = './../../val.csv'
+    absolute = "/media/cats/32b7c353-4595-42d8-81aa-d029f1556567/something_something/20bn-something-something-v2/"
+    absolute_new = "/media/cats/32b7c353-4595-42d8-81aa-d029f1556567/something_something/small_set/"
+    csv_place = "./../../val.csv"
     # for folder in video_num[1:]:
     #     shutil.copytree(absolute + folder, absolute_new + folder)
-    f = open(csv_place, 'w')
-    writer = csv.writer(f, delimiter=' ')
+    f = open(csv_place, "w")
+    writer = csv.writer(f, delimiter=" ")
     for row in new_csv:
         row[3] = absolute_new + row[3]
         writer.writerow(row)

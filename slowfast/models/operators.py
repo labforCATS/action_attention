@@ -23,8 +23,7 @@ class SE(nn.Module):
 
         width *= multiplier
         min_width = min_width or divisor
-        width_out = max(min_width,
-                        int(width + divisor / 2) // divisor * divisor)
+        width_out = max(min_width, int(width + divisor / 2) // divisor * divisor)
         if width_out < 0.9 * width:
             width_out += divisor
         return int(width_out)

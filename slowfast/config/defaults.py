@@ -800,11 +800,13 @@ _C.AVA.FRAME_DIR = "/mnt/fair-flash3-east/ava_trainval_frames.img/"
 
 # Directory path for files of frame lists.
 _C.AVA.FRAME_LIST_DIR = (
-    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/")
+    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/"
+)
 
 # Directory path for annotation files.
 _C.AVA.ANNOTATION_DIR = (
-    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/")
+    "/mnt/vol/gfsai-flash3-east/ai-group/users/haoqifan/ava/frame_list/"
+)
 
 # Filenames of training samples list files.
 _C.AVA.TRAIN_LISTS = ["train.csv"]
@@ -1091,7 +1093,9 @@ _C.TEST.SAVE_INPUT_VIDEO = False
 
 # (added 6/5): directory to save inputs right before they get passed in
 # to the model
-_C.VIS_MODEL_INPUT_DIR = "/research/cwloka/projects/nikki_sandbox/action_attention/vis_model_input"
+_C.VIS_MODEL_INPUT_DIR = (
+    "/research/cwloka/projects/nikki_sandbox/action_attention/vis_model_input"
+)
 
 
 # Add custom config with default values.

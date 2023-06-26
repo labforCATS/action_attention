@@ -19,7 +19,7 @@ def main():
     print("config files: {}".format(args.cfg_files))
     for path_to_config in args.cfg_files:
         cfg = load_config(args, path_to_config)
-        #We added the line below
+        # We added the line below
         cfg.NUM_GPUS = 1
         # Perform training.
         if cfg.TRAIN.ENABLE:
@@ -30,15 +30,16 @@ def main():
         # Perform multi-clip testing.
         if cfg.TEST.ENABLE:
             launch_job(cfg=cfg, init_method=args.init_method, func=test)
-            print('test')
+            print("test")
         else:
-            print('no test')
+            print("no test")
         # Perform model visualization.
-        if cfg.TENSORBOARD.ENABLE and (cfg.TENSORBOARD.MODEL_VIS.ENABLE or
-                                       cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE):
+        if cfg.TENSORBOARD.ENABLE and (
+            cfg.TENSORBOARD.MODEL_VIS.ENABLE or cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE
+        ):
             launch_job(cfg=cfg, init_method=args.init_method, func=visualize)
         else:
-            print('no visualize')
+            print("no visualize")
         # Run demo.
         if cfg.DEMO.ENABLE:
             demo(cfg)

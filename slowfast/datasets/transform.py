@@ -43,11 +43,9 @@ def _pil_interp(method):
 logger = logging.getLogger(__name__)
 
 
-def random_short_side_scale_jitter(images,
-                                   min_size,
-                                   max_size,
-                                   boxes=None,
-                                   inverse_uniform_sampling=False):
+def random_short_side_scale_jitter(
+    images, min_size, max_size, boxes=None, inverse_uniform_sampling=False
+):
     """
     Perform a spatial short scale jittering on the given images and
     corresponding boxes.
@@ -68,15 +66,13 @@ def random_short_side_scale_jitter(images,
             `num boxes` x 4.
     """
     if inverse_uniform_sampling:
-        size = int(
-            round(1.0 / np.random.uniform(1.0 / max_size, 1.0 / min_size)))
+        size = int(round(1.0 / np.random.uniform(1.0 / max_size, 1.0 / min_size)))
     else:
         size = int(round(np.random.uniform(min_size, max_size)))
 
     height = images.shape[2]
     width = images.shape[3]
-    if (width <= height and width == size) or (height <= width
-                                               and height == size):
+    if (width <= height and width == size) or (height <= width and height == size):
         return images, boxes
     new_width = size
     new_height = size
@@ -144,10 +140,9 @@ def random_crop(images, size, boxes=None):
     x_offset = 0
     if width > size:
         x_offset = int(np.random.randint(0, width - size))
-    cropped = images[:, :, y_offset:y_offset + size, x_offset:x_offset + size]
+    cropped = images[:, :, y_offset : y_offset + size, x_offset : x_offset + size]
 
-    cropped_boxes = (crop_boxes(boxes, x_offset, y_offset)
-                     if boxes is not None else None)
+    cropped_boxes = crop_boxes(boxes, x_offset, y_offset) if boxes is not None else None
 
     return cropped, cropped_boxes
 
@@ -239,9 +234,8 @@ def uniform_crop(images, size, spatial_idx, boxes=None, scale_size=None):
             x_offset = 0
         elif spatial_idx == 2:
             x_offset = width - size
-    cropped = images[:, :, y_offset:y_offset + size, x_offset:x_offset + size]
-    cropped_boxes = (crop_boxes(boxes, x_offset, y_offset)
-                     if boxes is not None else None)
+    cropped = images[:, :, y_offset : y_offset + size, x_offset : x_offset + size]
+    cropped_boxes = crop_boxes(boxes, x_offset, y_offset) if boxes is not None else None
     if ndim == 3:
         cropped = cropped.squeeze(0)
     return cropped, cropped_boxes
@@ -260,10 +254,12 @@ def clip_boxes_to_image(boxes, height, width):
             `num boxes` x 4.
     """
     clipped_boxes = boxes.copy()
-    clipped_boxes[:, [0, 2]] = np.minimum(width - 1.0,
-                                          np.maximum(0.0, boxes[:, [0, 2]]))
-    clipped_boxes[:, [1, 3]] = np.minimum(height - 1.0,
-                                          np.maximum(0.0, boxes[:, [1, 3]]))
+    clipped_boxes[:, [0, 2]] = np.minimum(
+        width - 1.0, np.maximum(0.0, boxes[:, [0, 2]])
+    )
+    clipped_boxes[:, [1, 3]] = np.minimum(
+        height - 1.0, np.maximum(0.0, boxes[:, [1, 3]])
+    )
     return clipped_boxes
 
 
@@ -296,8 +292,7 @@ def grayscale(images):
     """
     # R -> 0.299, G -> 0.587, B -> 0.114.
     img_gray = torch.tensor(images)
-    gray_channel = (0.299 * images[:, 2] + 0.587 * images[:, 1] +
-                    0.114 * images[:, 0])
+    gray_channel = 0.299 * images[:, 2] + 0.587 * images[:, 1] + 0.114 * images[:, 0]
     img_gray[:, 0] = gray_channel
     img_gray[:, 1] = gray_channel
     img_gray[:, 2] = gray_channel
@@ -438,8 +433,7 @@ def lighting_jitter(images, alphastd, eigval, eigvec):
         elif len(images.shape) == 4:
             out_images[:, idx] = images[:, idx] + rgb[2 - idx]
         else:
-            raise NotImplementedError(
-                f"Unsupported dimension {len(images.shape)}")
+            raise NotImplementedError(f"Unsupported dimension {len(images.shape)}")
 
     return out_images
 
@@ -458,15 +452,11 @@ def color_normalization(images, mean, stddev):
             `num frames` x `channel` x `height` x `width`.
     """
     if len(images.shape) == 3:
-        assert (
-            len(mean) == images.shape[0]), "channel mean not computed properly"
-        assert (len(stddev) == images.shape[0]
-                ), "channel stddev not computed properly"
+        assert len(mean) == images.shape[0], "channel mean not computed properly"
+        assert len(stddev) == images.shape[0], "channel stddev not computed properly"
     elif len(images.shape) == 4:
-        assert (
-            len(mean) == images.shape[1]), "channel mean not computed properly"
-        assert (len(stddev) == images.shape[1]
-                ), "channel stddev not computed properly"
+        assert len(mean) == images.shape[1], "channel mean not computed properly"
+        assert len(stddev) == images.shape[1], "channel stddev not computed properly"
     else:
         raise NotImplementedError(f"Unsupported dimension {len(images.shape)}")
 
@@ -478,18 +468,13 @@ def color_normalization(images, mean, stddev):
         elif len(images.shape) == 4:
             out_images[:, idx] = (images[:, idx] - mean[idx]) / stddev[idx]
         else:
-            raise NotImplementedError(
-                f"Unsupported dimension {len(images.shape)}")
+            raise NotImplementedError(f"Unsupported dimension {len(images.shape)}")
     return out_images
 
 
-def _get_param_spatial_crop(scale,
-                            ratio,
-                            height,
-                            width,
-                            num_repeat=10,
-                            log_scale=True,
-                            switch_hw=False):
+def _get_param_spatial_crop(
+    scale, ratio, height, width, num_repeat=10, log_scale=True, switch_hw=False
+):
     """
     Given scale, ratio, height and width, return sampled coordinates of the videos.
     """
@@ -530,11 +515,11 @@ def _get_param_spatial_crop(scale,
 
 
 def random_resized_crop(
-        images,
-        target_height,
-        target_width,
-        scale=(0.8, 1.0),
-        ratio=(3.0 / 4.0, 4.0 / 3.0),
+    images,
+    target_height,
+    target_width,
+    scale=(0.8, 1.0),
+    ratio=(3.0 / 4.0, 4.0 / 3.0),
 ):
     """
     Crop the given images to random size and aspect ratio. A crop of random
@@ -555,7 +540,7 @@ def random_resized_crop(
     width = images.shape[3]
 
     i, j, h, w = _get_param_spatial_crop(scale, ratio, height, width)
-    cropped = images[:, :, i:i + h, j:j + w]
+    cropped = images[:, :, i : i + h, j : j + w]
     return torch.nn.functional.interpolate(
         cropped,
         size=(target_height, target_width),
@@ -565,11 +550,11 @@ def random_resized_crop(
 
 
 def random_resized_crop_with_shift(
-        images,
-        target_height,
-        target_width,
-        scale=(0.8, 1.0),
-        ratio=(3.0 / 4.0, 4.0 / 3.0),
+    images,
+    target_height,
+    target_width,
+    scale=(0.8, 1.0),
+    ratio=(3.0 / 4.0, 4.0 / 3.0),
 ):
     """
     This is similar to random_resized_crop. However, it samples two different
@@ -595,12 +580,12 @@ def random_resized_crop_with_shift(
     w_s = [int(i) for i in torch.linspace(w, w_, steps=t).tolist()]
     out = torch.zeros((3, t, target_height, target_width))
     for ind in range(t):
-        out[:, ind:ind + 1, :, :] = torch.nn.functional.interpolate(
+        out[:, ind : ind + 1, :, :] = torch.nn.functional.interpolate(
             images[
                 :,
-                ind:ind + 1,
-                i_s[ind]:i_s[ind] + h_s[ind],
-                j_s[ind]:j_s[ind] + w_s[ind],
+                ind : ind + 1,
+                i_s[ind] : i_s[ind] + h_s[ind],
+                j_s[ind] : j_s[ind] + w_s[ind],
             ],
             size=(target_height, target_width),
             mode="bilinear",
@@ -639,23 +624,21 @@ def create_random_augment(
         if interpolation and interpolation != "random":
             aa_params["interpolation"] = _pil_interp(interpolation)
         if auto_augment.startswith("rand"):
-            return transforms.Compose(
-                [rand_augment_transform(auto_augment, aa_params)])
+            return transforms.Compose([rand_augment_transform(auto_augment, aa_params)])
     raise NotImplementedError
 
 
 def random_sized_crop_img(
-        im,
-        size,
-        jitter_scale=(0.08, 1.0),
-        jitter_aspect=(3.0 / 4.0, 4.0 / 3.0),
-        max_iter=10,
+    im,
+    size,
+    jitter_scale=(0.08, 1.0),
+    jitter_aspect=(3.0 / 4.0, 4.0 / 3.0),
+    max_iter=10,
 ):
     """
     Performs Inception-style cropping (used for training).
     """
-    assert (len(
-        im.shape) == 3), "Currently only support image for random_sized_crop"
+    assert len(im.shape) == 3, "Currently only support image for random_sized_crop"
     h, w = im.shape[1:3]
     i, j, h, w = _get_param_spatial_crop(
         scale=jitter_scale,
@@ -666,7 +649,7 @@ def random_sized_crop_img(
         log_scale=False,
         switch_hw=True,
     )
-    cropped = im[:, i:i + h, j:j + w]
+    cropped = im[:, i : i + h, j : j + w]
     return torch.nn.functional.interpolate(
         cropped.unsqueeze(0),
         size=(size, size),
@@ -692,11 +675,11 @@ class RandomResizedCropAndInterpolation:
     """
 
     def __init__(
-            self,
-            size,
-            scale=(0.08, 1.0),
-            ratio=(3.0 / 4.0, 4.0 / 3.0),
-            interpolation="bilinear",
+        self,
+        size,
+        scale=(0.08, 1.0),
+        ratio=(3.0 / 4.0, 4.0 / 3.0),
+        interpolation="bilinear",
     ):
         if isinstance(size, tuple):
             self.size = size
@@ -770,14 +753,13 @@ class RandomResizedCropAndInterpolation:
     def __repr__(self):
         if isinstance(self.interpolation, (tuple, list)):
             interpolate_str = " ".join(
-                [_pil_interpolation_to_str[x] for x in self.interpolation])
+                [_pil_interpolation_to_str[x] for x in self.interpolation]
+            )
         else:
             interpolate_str = _pil_interpolation_to_str[self.interpolation]
         format_string = self.__class__.__name__ + "(size={0}".format(self.size)
-        format_string += ", scale={0}".format(
-            tuple(round(s, 4) for s in self.scale))
-        format_string += ", ratio={0}".format(
-            tuple(round(r, 4) for r in self.ratio))
+        format_string += ", scale={0}".format(tuple(round(s, 4) for s in self.scale))
+        format_string += ", ratio={0}".format(tuple(round(r, 4) for r in self.ratio))
         format_string += ", interpolation={0})".format(interpolate_str)
         return format_string
 
@@ -813,13 +795,11 @@ def transforms_imagenet_train(
         img_size = img_size
 
     scale = tuple(scale or (0.08, 1.0))  # default imagenet scale range
-    ratio = tuple(ratio
-                  or (3.0 / 4.0, 4.0 / 3.0))  # default imagenet ratio range
+    ratio = tuple(ratio or (3.0 / 4.0, 4.0 / 3.0))  # default imagenet ratio range
     primary_tfl = [
-        RandomResizedCropAndInterpolation(img_size,
-                                          scale=scale,
-                                          ratio=ratio,
-                                          interpolation=interpolation)
+        RandomResizedCropAndInterpolation(
+            img_size, scale=scale, ratio=ratio, interpolation=interpolation
+        )
     ]
     if hflip > 0.0:
         primary_tfl += [transforms.RandomHorizontalFlip(p=hflip)]
@@ -853,7 +833,7 @@ def transforms_imagenet_train(
             assert len(color_jitter) in (3, 4)
         else:
             # if it's a scalar, duplicate for brightness, contrast, and saturation, no hue
-            color_jitter = (float(color_jitter), ) * 3
+            color_jitter = (float(color_jitter),) * 3
         secondary_tfl += [transforms.ColorJitter(*color_jitter)]
 
     final_tfl = []
@@ -870,7 +850,8 @@ def transforms_imagenet_train(
                 num_splits=re_num_splits,
                 device="cpu",
                 cube=False,
-            ))
+            )
+        )
 
     if separate:
         return (
@@ -888,8 +869,9 @@ def temporal_difference(
     absolute=False,
 ):
     if use_grayscale:
-        gray_channel = (0.299 * frames[2, :] + 0.587 * frames[1, :] +
-                        0.114 * frames[0, :])
+        gray_channel = (
+            0.299 * frames[2, :] + 0.587 * frames[1, :] + 0.114 * frames[0, :]
+        )
         frames[0, :] = gray_channel
         frames[1, :] = gray_channel
         frames[2, :] = gray_channel
@@ -897,10 +879,10 @@ def temporal_difference(
     out_images = torch.zeros_like(frames)
     t = frames.shape[1]
 
-    dt = frames[:, 0:t - 1, :, :] - frames[:, 1:t, :, :]
+    dt = frames[:, 0 : t - 1, :, :] - frames[:, 1:t, :, :]
     if absolute:
         dt = dt.abs()
-    out_images[:, 0:t - 1, :, :] = dt
+    out_images[:, 0 : t - 1, :, :] = dt
     if t <= 1:
         return out_images
     out_images[:, -1, :, :] = dt[:, -1, :, :]
@@ -920,27 +902,33 @@ def color_jitter_video_ssl(
     frames = frames.permute(3, 0, 1, 2)
 
     if moco_v2_aug:
-        color_jitter = tv.transforms.Compose([
-            tv.transforms.ToPILImage(),
-            tv.transforms.RandomApply(
-                [
-                    tv.transforms.ColorJitter(bri_con_sat[0], bri_con_sat[1],
-                                              bri_con_sat[2], hue)
-                ],
-                p=0.8,
-            ),
-            tv.transforms.RandomGrayscale(p=p_convert_gray),
-            tv.transforms.RandomApply([GaussianBlur([0.1, 2.0])], p=0.5),
-            tv.transforms.ToTensor(),
-        ])
+        color_jitter = tv.transforms.Compose(
+            [
+                tv.transforms.ToPILImage(),
+                tv.transforms.RandomApply(
+                    [
+                        tv.transforms.ColorJitter(
+                            bri_con_sat[0], bri_con_sat[1], bri_con_sat[2], hue
+                        )
+                    ],
+                    p=0.8,
+                ),
+                tv.transforms.RandomGrayscale(p=p_convert_gray),
+                tv.transforms.RandomApply([GaussianBlur([0.1, 2.0])], p=0.5),
+                tv.transforms.ToTensor(),
+            ]
+        )
     else:
-        color_jitter = tv.transforms.Compose([
-            tv.transforms.ToPILImage(),
-            tv.transforms.RandomGrayscale(p=p_convert_gray),
-            tv.transforms.ColorJitter(bri_con_sat[0], bri_con_sat[1],
-                                      bri_con_sat[2], hue),
-            tv.transforms.ToTensor(),
-        ])
+        color_jitter = tv.transforms.Compose(
+            [
+                tv.transforms.ToPILImage(),
+                tv.transforms.RandomGrayscale(p=p_convert_gray),
+                tv.transforms.ColorJitter(
+                    bri_con_sat[0], bri_con_sat[1], bri_con_sat[2], hue
+                ),
+                tv.transforms.ToTensor(),
+            ]
+        )
 
     c, t, h, w = frames.shape
     frames = frames.view(c, t * h, w)
@@ -955,17 +943,14 @@ def color_jitter_video_ssl(
 def augment_raw_frames(frames, time_diff_prob=0.0, gaussian_prob=0.0):
     frames = frames.float()
     if gaussian_prob > 0.0:
-        blur_trans = tv.transforms.RandomApply([GaussianBlurVideo()],
-                                               p=gaussian_prob)
+        blur_trans = tv.transforms.RandomApply([GaussianBlurVideo()], p=gaussian_prob)
         frames = blur_trans(frames)
 
     time_diff_out = False
     if time_diff_prob > 0.0 and random.random() < time_diff_prob:
         # T H W C -> C T H W.
         frames = frames.permute(3, 0, 1, 2)
-        frames = temporal_difference(frames,
-                                     use_grayscale=True,
-                                     absolute=False)
+        frames = temporal_difference(frames, use_grayscale=True, absolute=False)
         # end_idx -= 1
         frames += 255.0
         frames /= 2.0
@@ -992,19 +977,13 @@ class GaussianBlur(object):
 
 
 class GaussianBlurVideo(object):
-
-    def __init__(self,
-                 sigma_min=[0.0, 0.1],
-                 sigma_max=[0.0, 2.0],
-                 use_PIL=False):
+    def __init__(self, sigma_min=[0.0, 0.1], sigma_max=[0.0, 2.0], use_PIL=False):
         self.sigma_min = sigma_min
         self.sigma_max = sigma_max
 
     def __call__(self, frames):
-        sigma_y = sigma_x = random.uniform(self.sigma_min[1],
-                                           self.sigma_max[1])
+        sigma_y = sigma_x = random.uniform(self.sigma_min[1], self.sigma_max[1])
         sigma_t = random.uniform(self.sigma_min[0], self.sigma_max[0])
-        frames = gaussian_filter(frames,
-                                 sigma=(0.0, sigma_t, sigma_y, sigma_x))
+        frames = gaussian_filter(frames, sigma=(0.0, sigma_t, sigma_y, sigma_x))
         frames = torch.from_numpy(frames)
         return frames

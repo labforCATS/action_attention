@@ -82,9 +82,7 @@ class SyntheticMotion(torch.utils.data.Dataset):
         if self.mode in ["train", "val"]:
             self._num_clips = 1
         elif self.mode in ["test"]:
-            self._num_clips = (
-                cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS
-            )
+            self._num_clips = cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS
 
         logger.info("Constructing Synthetic Motion {}...".format(mode))
         self._construct_loader()
@@ -108,9 +106,7 @@ class SyntheticMotion(torch.utils.data.Dataset):
         # to the ith video is a list of paths to each frame in the video
         for video in file_json:
             video_id = video["video_id"]
-            label = video[
-                "labels"
-            ]  # TODO: fix typo in video generator src code
+            label = video["labels"]  # TODO: fix typo in video generator src code
             # TODO: check if we actually need to encode label as int? or if its
             # ok as a string?
             # enc_label = int(label_dict[label])
@@ -132,19 +128,14 @@ class SyntheticMotion(torch.utils.data.Dataset):
 
         # Extend self when self._num_clips > 1 (during testing).
         self._path_to_videos = list(
-            chain.from_iterable(
-                [[x] * self._num_clips for x in self._path_to_videos]
-            )
+            chain.from_iterable([[x] * self._num_clips for x in self._path_to_videos])
         )
         self._labels = list(
             chain.from_iterable([[x] * self._num_clips for x in self._labels])
         )
         self._spatial_temporal_idx = list(
             chain.from_iterable(
-                [
-                    range(self._num_clips)
-                    for _ in range(len(self._path_to_videos))
-                ]
+                [range(self._num_clips) for _ in range(len(self._path_to_videos))]
             )
         )
 
@@ -212,30 +203,21 @@ class SyntheticMotion(torch.utils.data.Dataset):
                 # Decreasing the scale is equivalent to using a larger "span"
                 # in a sampling grid.
                 min_scale = int(
-                    round(
-                        float(min_scale)
-                        * crop_size
-                        / self.cfg.MULTIGRID.DEFAULT_S
-                    )
+                    round(float(min_scale) * crop_size / self.cfg.MULTIGRID.DEFAULT_S)
                 )
         elif self.mode in ["test"]:
             # spatial_sample_index is in [0, 1, 2]. Corresponding to left,
             # center, or right if width is larger than height, and top, middle,
             # or bottom if height is larger than width.
             spatial_sample_index = (
-                self._spatial_temporal_idx[index]
-                % self.cfg.TEST.NUM_SPATIAL_CROPS
+                self._spatial_temporal_idx[index] % self.cfg.TEST.NUM_SPATIAL_CROPS
             )
-            min_scale, max_scale, crop_size = [
-                self.cfg.DATA.TEST_CROP_SIZE
-            ] * 3
+            min_scale, max_scale, crop_size = [self.cfg.DATA.TEST_CROP_SIZE] * 3
             # The testing is deterministic and no jitter should be performed.
             # min_scale, max_scale, and crop_size are expect to be the same.
             assert len({min_scale, max_scale, crop_size}) == 1
         else:
-            raise NotImplementedError(
-                "Does not support {} mode".format(self.mode)
-            )
+            raise NotImplementedError("Does not support {} mode".format(self.mode))
 
         label = self._labels[index]
 
@@ -249,9 +231,7 @@ class SyntheticMotion(torch.utils.data.Dataset):
         )
 
         # Perform color normalization.
-        frames = utils.tensor_normalize(
-            frames, self.cfg.DATA.MEAN, self.cfg.DATA.STD
-        )
+        frames = utils.tensor_normalize(frames, self.cfg.DATA.MEAN, self.cfg.DATA.STD)
 
         # T H W C -> C T H W.
         frames = frames.permute(3, 0, 1, 2)

@@ -10,8 +10,9 @@ def get_stem_func(name):
     Retrieves the stem module by name.
     """
     trans_funcs = {"x3d_stem": X3DStem, "basic_stem": ResNetBasicStem}
-    assert (name in trans_funcs.keys()
-            ), "Transformation function '{}' not supported".format(name)
+    assert (
+        name in trans_funcs.keys()
+    ), "Transformation function '{}' not supported".format(name)
     return trans_funcs[name]
 
 
@@ -65,13 +66,16 @@ class VideoModelStem(nn.Module):
         super(VideoModelStem, self).__init__()
 
         assert (
-            len({
-                len(dim_in),
-                len(dim_out),
-                len(kernel),
-                len(stride),
-                len(padding),
-            }) == 1
+            len(
+                {
+                    len(dim_in),
+                    len(dim_out),
+                    len(kernel),
+                    len(stride),
+                    len(padding),
+                }
+            )
+            == 1
         ), "Input pathway dimensions are not consistent. {} {} {} {} {}".format(
             len(dim_in),
             len(dim_out),
@@ -108,9 +112,9 @@ class VideoModelStem(nn.Module):
             self.add_module("pathway{}_stem".format(pathway), stem)
 
     def forward(self, x):
-        assert (len(x) == self.num_pathways
-                ), "Input tensor does not contain {} pathway".format(
-                    self.num_pathways)
+        assert (
+            len(x) == self.num_pathways
+        ), "Input tensor does not contain {} pathway".format(self.num_pathways)
         # use a new list, don't modify in-place the x list, which is bad for activation checkpointing.
         y = []
         for pathway in range(len(x)):
@@ -182,13 +186,11 @@ class ResNetBasicStem(nn.Module):
             padding=self.padding,
             bias=False,
         )
-        self.bn = norm_module(num_features=dim_out,
-                              eps=self.eps,
-                              momentum=self.bn_mmt)
+        self.bn = norm_module(num_features=dim_out, eps=self.eps, momentum=self.bn_mmt)
         self.relu = nn.ReLU(self.inplace_relu)
-        self.pool_layer = nn.MaxPool3d(kernel_size=[1, 3, 3],
-                                       stride=[1, 2, 2],
-                                       padding=[0, 1, 1])
+        self.pool_layer = nn.MaxPool3d(
+            kernel_size=[1, 3, 3], stride=[1, 2, 2], padding=[0, 1, 1]
+        )
 
     def forward(self, x):
         x = self.conv(x)
@@ -271,9 +273,7 @@ class X3DStem(nn.Module):
             groups=dim_out,
         )
 
-        self.bn = norm_module(num_features=dim_out,
-                              eps=self.eps,
-                              momentum=self.bn_mmt)
+        self.bn = norm_module(num_features=dim_out, eps=self.eps, momentum=self.bn_mmt)
         self.relu = nn.ReLU(self.inplace_relu)
 
     def forward(self, x):
@@ -290,13 +290,13 @@ class PatchEmbed(nn.Module):
     """
 
     def __init__(
-            self,
-            dim_in=3,
-            dim_out=768,
-            kernel=(1, 16, 16),
-            stride=(1, 4, 4),
-            padding=(1, 7, 7),
-            conv_2d=False,
+        self,
+        dim_in=3,
+        dim_out=768,
+        kernel=(1, 16, 16),
+        stride=(1, 4, 4),
+        padding=(1, 7, 7),
+        conv_2d=False,
     ):
         super().__init__()
         if conv_2d:

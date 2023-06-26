@@ -40,8 +40,7 @@ def benchmark_data_loading(cfg):
 
     timer = Timer()
     dataloader = loader.construct_loader(cfg, "train")
-    logger.info("Initialize loader using {:.2f} seconds.".format(
-        timer.seconds()))
+    logger.info("Initialize loader using {:.2f} seconds.".format(timer.seconds()))
     # Total batch size across different machines.
     batch_size = cfg.TRAIN.BATCH_SIZE * cfg.NUM_SHARDS
     log_period = cfg.BENCHMARK.LOG_PERIOD
@@ -66,7 +65,8 @@ def benchmark_data_loading(cfg):
                         iter_times[-1],
                         ram_usage,
                         ram_total,
-                    ))
+                    )
+                )
                 timer.reset()
         epoch_times.append(timer_epoch.seconds())
         ram_usage, ram_total = misc.cpu_mem_usage()
@@ -79,7 +79,8 @@ def benchmark_data_loading(cfg):
                 epoch_times[-1],
                 ram_usage,
                 ram_total,
-            ))
+            )
+        )
         logger.info(
             "Epoch {}: on average every {} iters ({} videos) take {:.2f}/{:.2f} "
             "(avg/std) seconds.".format(
@@ -88,10 +89,13 @@ def benchmark_data_loading(cfg):
                 log_period * batch_size,
                 np.mean(iter_times),
                 np.std(iter_times),
-            ))
-    logger.info("On average every epoch ({} videos) takes {:.2f}/{:.2f} "
-                "(avg/std) seconds.".format(
-                    len(dataloader) * batch_size,
-                    np.mean(epoch_times),
-                    np.std(epoch_times),
-                ))
+            )
+        )
+    logger.info(
+        "On average every epoch ({} videos) takes {:.2f}/{:.2f} "
+        "(avg/std) seconds.".format(
+            len(dataloader) * batch_size,
+            np.mean(epoch_times),
+            np.std(epoch_times),
+        )
+    )

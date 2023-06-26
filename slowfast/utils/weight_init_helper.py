@@ -6,10 +6,9 @@ import torch.nn as nn
 from fvcore.nn.weight_init import c2_msra_fill, c2_xavier_fill
 
 
-def init_weights(model,
-                 fc_init_std=0.01,
-                 zero_init_final_bn=True,
-                 zero_init_final_conv=False):
+def init_weights(
+    model, fc_init_std=0.01, zero_init_final_bn=True, zero_init_final_conv=False
+):
     """
     Performs ResNet style weight initialization.
     Args:
@@ -33,8 +32,11 @@ def init_weights(model,
                 c2_msra_fill(m)
 
         elif isinstance(m, (nn.BatchNorm3d, nn.BatchNorm2d, nn.BatchNorm1d)):
-            if (hasattr(m, "transform_final_bn") and m.transform_final_bn
-                    and zero_init_final_bn):
+            if (
+                hasattr(m, "transform_final_bn")
+                and m.transform_final_bn
+                and zero_init_final_bn
+            ):
                 batchnorm_weight = 0.0
             else:
                 batchnorm_weight = 1.0

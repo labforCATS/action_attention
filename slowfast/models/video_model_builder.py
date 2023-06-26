@@ -208,16 +208,13 @@ class SlowFast(nn.Module):
         num_groups = cfg.RESNET.NUM_GROUPS
         width_per_group = cfg.RESNET.WIDTH_PER_GROUP
         dim_inner = num_groups * width_per_group
-        out_dim_ratio = (cfg.SLOWFAST.BETA_INV //
-                         cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO)
+        out_dim_ratio = cfg.SLOWFAST.BETA_INV // cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO
 
         temp_kernel = _TEMPORAL_KERNEL_BASIS[cfg.MODEL.ARCH]
 
         self.s1 = stem_helper.VideoModelStem(
             dim_in=cfg.DATA.INPUT_CHANNEL_NUM,
-            dim_out=[
-                width_per_group, width_per_group // cfg.SLOWFAST.BETA_INV
-            ],
+            dim_out=[width_per_group, width_per_group // cfg.SLOWFAST.BETA_INV],
             kernel=[temp_kernel[0][0] + [7, 7], temp_kernel[0][1] + [7, 7]],
             stride=[[1, 2, 2]] * 2,
             padding=[
@@ -368,8 +365,7 @@ class SlowFast(nn.Module):
                 num_classes=cfg.MODEL.NUM_CLASSES,
                 pool_size=[
                     [
-                        cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA //
-                        pool_size[0][0],
+                        cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA // pool_size[0][0],
                         1,
                         1,
                     ],
@@ -389,11 +385,12 @@ class SlowFast(nn.Module):
                     width_per_group * 32 // cfg.SLOWFAST.BETA_INV,
                 ],
                 num_classes=cfg.MODEL.NUM_CLASSES,
-                pool_size=[None, None] if cfg.MULTIGRID.SHORT_CYCLE
-                or cfg.MODEL.MODEL_NAME == "ContrastiveModel" else [
+                pool_size=[None, None]
+                if cfg.MULTIGRID.SHORT_CYCLE
+                or cfg.MODEL.MODEL_NAME == "ContrastiveModel"
+                else [
                     [
-                        cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA //
-                        pool_size[0][0],
+                        cfg.DATA.NUM_FRAMES // cfg.SLOWFAST.ALPHA // pool_size[0][0],
                         cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][1],
                         cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][2],
                     ],
@@ -613,12 +610,16 @@ class ResNet(nn.Module):
             self.head = head_helper.ResNetBasicHead(
                 dim_in=[width_per_group * 32],
                 num_classes=cfg.MODEL.NUM_CLASSES,
-                pool_size=[None] if cfg.MULTIGRID.SHORT_CYCLE
-                or cfg.MODEL.MODEL_NAME == "ContrastiveModel" else [[
-                    cfg.DATA.NUM_FRAMES // pool_size[0][0],
-                    cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][1],
-                    cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][2],
-                ]],  # None for AdaptiveAvgPool3d((1, 1, 1))
+                pool_size=[None]
+                if cfg.MULTIGRID.SHORT_CYCLE
+                or cfg.MODEL.MODEL_NAME == "ContrastiveModel"
+                else [
+                    [
+                        cfg.DATA.NUM_FRAMES // pool_size[0][0],
+                        cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][1],
+                        cfg.DATA.TRAIN_CROP_SIZE // 32 // pool_size[0][2],
+                    ]
+                ],  # None for AdaptiveAvgPool3d((1, 1, 1))
                 dropout_rate=cfg.MODEL.DROPOUT_RATE,
                 act_func=cfg.MODEL.HEAD_ACT,
                 detach_final_fc=cfg.MODEL.DETACH_FINAL_FC,
@@ -670,8 +671,11 @@ class X3D(nn.Module):
         exp_stage = 2.0
         self.dim_c1 = cfg.X3D.DIM_C1
 
-        self.dim_res2 = (round_width(self.dim_c1, exp_stage, divisor=8)
-                         if cfg.X3D.SCALE_RES2 else self.dim_c1)
+        self.dim_res2 = (
+            round_width(self.dim_c1, exp_stage, divisor=8)
+            if cfg.X3D.SCALE_RES2
+            else self.dim_c1
+        )
         self.dim_res3 = round_width(self.dim_res2, exp_stage, divisor=8)
         self.dim_res4 = round_width(self.dim_res3, exp_stage, divisor=8)
         self.dim_res5 = round_width(self.dim_res4, exp_stage, divisor=8)
@@ -684,8 +688,9 @@ class X3D(nn.Module):
             [3, self.dim_res5, 2],
         ]
         self._construct_network(cfg)
-        init_helper.init_weights(self, cfg.MODEL.FC_INIT_STD,
-                                 cfg.RESNET.ZERO_INIT_FINAL_BN)
+        init_helper.init_weights(
+            self, cfg.MODEL.FC_INIT_STD, cfg.RESNET.ZERO_INIT_FINAL_BN
+        )
 
     def _round_repeats(self, repeats, multiplier):
         """Round number of layers based on depth multiplier."""
@@ -734,8 +739,7 @@ class X3D(nn.Module):
             dim_inner = int(cfg.X3D.BOTTLENECK_FACTOR * dim_out)
 
             n_rep = self._round_repeats(block[0], d_mul)
-            prefix = "s{}".format(stage +
-                                  2)  # start w res2 to follow convention
+            prefix = "s{}".format(stage + 2)  # start w res2 to follow convention
 
             s = resnet_helper.ResStage(
                 dim_in=[dim_in],
@@ -744,8 +748,7 @@ class X3D(nn.Module):
                 temp_kernel_sizes=temp_kernel[1],
                 stride=[block[2]],
                 num_blocks=[n_rep],
-                num_groups=[dim_inner]
-                if cfg.X3D.CHANNELWISE_3x3x3 else [num_groups],
+                num_groups=[dim_inner] if cfg.X3D.CHANNELWISE_3x3x3 else [num_groups],
                 num_block_temp_kernel=[n_rep],
                 nonlocal_inds=cfg.NONLOCAL.LOCATION[0],
                 nonlocal_group=cfg.NONLOCAL.GROUP[0],
@@ -755,8 +758,9 @@ class X3D(nn.Module):
                 stride_1x1=cfg.RESNET.STRIDE_1X1,
                 norm_module=self.norm_module,
                 dilation=cfg.RESNET.SPATIAL_DILATIONS[stage],
-                drop_connect_rate=cfg.MODEL.DROPCONNECT_RATE * (stage + 2) /
-                (len(self.block_basis) + 1),
+                drop_connect_rate=cfg.MODEL.DROPCONNECT_RATE
+                * (stage + 2)
+                / (len(self.block_basis) + 1),
             )
             dim_in = dim_out
             self.add_module(prefix, s)
@@ -838,8 +842,9 @@ class MViT(nn.Module):
         ]
         num_patches = math.prod(self.patch_dims)
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)
-               ]  # stochastic depth decay rule
+        dpr = [
+            x.item() for x in torch.linspace(0, drop_path_rate, depth)
+        ]  # stochastic depth decay rule
 
         if self.cls_embed_on:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
@@ -849,16 +854,15 @@ class MViT(nn.Module):
 
         if self.sep_pos_embed:
             self.pos_embed_spatial = nn.Parameter(
-                torch.zeros(1, self.patch_dims[1] * self.patch_dims[2],
-                            embed_dim))
+                torch.zeros(1, self.patch_dims[1] * self.patch_dims[2], embed_dim)
+            )
             self.pos_embed_temporal = nn.Parameter(
-                torch.zeros(1, self.patch_dims[0], embed_dim))
+                torch.zeros(1, self.patch_dims[0], embed_dim)
+            )
             if self.cls_embed_on:
-                self.pos_embed_class = nn.Parameter(
-                    torch.zeros(1, 1, embed_dim))
+                self.pos_embed_class = nn.Parameter(torch.zeros(1, 1, embed_dim))
         else:
-            self.pos_embed = nn.Parameter(
-                torch.zeros(1, pos_embed_dim, embed_dim))
+            self.pos_embed = nn.Parameter(torch.zeros(1, pos_embed_dim, embed_dim))
 
         if self.drop_rate > 0.0:
             self.pos_drop = nn.Dropout(p=self.drop_rate)
@@ -875,14 +879,12 @@ class MViT(nn.Module):
         stride_kv = [[] for i in range(cfg.MVIT.DEPTH)]
 
         for i in range(len(cfg.MVIT.POOL_Q_STRIDE)):
-            stride_q[cfg.MVIT.POOL_Q_STRIDE[i]
-                     [0]] = cfg.MVIT.POOL_Q_STRIDE[i][1:]
+            stride_q[cfg.MVIT.POOL_Q_STRIDE[i][0]] = cfg.MVIT.POOL_Q_STRIDE[i][1:]
             if cfg.MVIT.POOL_KVQ_KERNEL is not None:
                 pool_q[cfg.MVIT.POOL_Q_STRIDE[i][0]] = cfg.MVIT.POOL_KVQ_KERNEL
             else:
                 pool_q[cfg.MVIT.POOL_Q_STRIDE[i][0]] = [
-                    s + 1 if s > 1 else s
-                    for s in cfg.MVIT.POOL_Q_STRIDE[i][1:]
+                    s + 1 if s > 1 else s for s in cfg.MVIT.POOL_Q_STRIDE[i][1:]
                 ]
 
         # If POOL_KV_STRIDE_ADAPTIVE is not None, initialize POOL_KV_STRIDE.
@@ -898,15 +900,12 @@ class MViT(nn.Module):
                 cfg.MVIT.POOL_KV_STRIDE.append([i] + _stride_kv)
 
         for i in range(len(cfg.MVIT.POOL_KV_STRIDE)):
-            stride_kv[cfg.MVIT.POOL_KV_STRIDE[i]
-                      [0]] = cfg.MVIT.POOL_KV_STRIDE[i][1:]
+            stride_kv[cfg.MVIT.POOL_KV_STRIDE[i][0]] = cfg.MVIT.POOL_KV_STRIDE[i][1:]
             if cfg.MVIT.POOL_KVQ_KERNEL is not None:
-                pool_kv[cfg.MVIT.POOL_KV_STRIDE[i]
-                        [0]] = cfg.MVIT.POOL_KVQ_KERNEL
+                pool_kv[cfg.MVIT.POOL_KV_STRIDE[i][0]] = cfg.MVIT.POOL_KVQ_KERNEL
             else:
                 pool_kv[cfg.MVIT.POOL_KV_STRIDE[i][0]] = [
-                    s + 1 if s > 1 else s
-                    for s in cfg.MVIT.POOL_KV_STRIDE[i][1:]
+                    s + 1 if s > 1 else s for s in cfg.MVIT.POOL_KV_STRIDE[i][1:]
                 ]
 
         self.norm_stem = norm_layer(embed_dim) if cfg.MVIT.NORM_STEM else None
@@ -1011,16 +1010,18 @@ class MViT(nn.Module):
 
         if self.cls_embed_on:
             cls_tokens = self.cls_token.expand(
-                B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
+                B, -1, -1
+            )  # stole cls_tokens impl from Phil Wang, thanks
             x = torch.cat((cls_tokens, x), dim=1)
 
         if self.sep_pos_embed:
             pos_embed = self.pos_embed_spatial.repeat(
-                1, self.patch_dims[0], 1) + torch.repeat_interleave(
-                    self.pos_embed_temporal,
-                    self.patch_dims[1] * self.patch_dims[2],
-                    dim=1,
-                )
+                1, self.patch_dims[0], 1
+            ) + torch.repeat_interleave(
+                self.pos_embed_temporal,
+                self.patch_dims[1] * self.patch_dims[2],
+                dim=1,
+            )
             if self.cls_embed_on:
                 pos_embed = torch.cat([self.pos_embed_class, pos_embed], 1)
             x = x + pos_embed
