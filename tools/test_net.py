@@ -228,9 +228,6 @@ def test(cfg):
             == 0
         )
         # Create meters for multi-view testing.
-        print("len(test_loader)", len(test_loader))
-        print("test_loader.batch_size", test_loader.batch_size)
-        # pdb.set_trace()
         test_meter = TestMeter(
             test_loader.dataset.num_videos
             // (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS),
