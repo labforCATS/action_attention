@@ -49,8 +49,9 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
     model.eval()
     test_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(test_loader):
-
+    for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(
+        test_loader
+    ):
         if cfg.TEST.SAVE_INPUT_VIDEO:
             save_inputs(inputs, video_idx, cfg, "test")
 
@@ -80,12 +81,20 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             metadata = meta["metadata"]
 
             preds = preds.detach().cpu() if cfg.NUM_GPUS else preds.detach()
-            ori_boxes = ori_boxes.detach().cpu() if cfg.NUM_GPUS else ori_boxes.detach()
-            metadata = metadata.detach().cpu() if cfg.NUM_GPUS else metadata.detach()
+            ori_boxes = (
+                ori_boxes.detach().cpu()
+                if cfg.NUM_GPUS
+                else ori_boxes.detach()
+            )
+            metadata = (
+                metadata.detach().cpu() if cfg.NUM_GPUS else metadata.detach()
+            )
 
             if cfg.NUM_GPUS > 1:
                 preds = torch.cat(du.all_gather_unaligned(preds), dim=0)
-                ori_boxes = torch.cat(du.all_gather_unaligned(ori_boxes), dim=0)
+                ori_boxes = torch.cat(
+                    du.all_gather_unaligned(ori_boxes), dim=0
+                )
                 metadata = torch.cat(du.all_gather_unaligned(metadata), dim=0)
 
             test_meter.iter_toc()
@@ -93,7 +102,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             test_meter.update_stats(preds, ori_boxes, metadata)
             test_meter.log_iter_stats(None, cur_iter)
         elif cfg.TASK == "ssl" and cfg.MODEL.MODEL_NAME == "ContrastiveModel":
-
             if not cfg.CONTRASTIVE.KNN_ON:
                 test_meter.finalize_metrics()
                 return test_meter
@@ -106,7 +114,9 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             yd, yi = model(inputs, video_idx, time)
             batchSize = yi.shape[0]
             K = yi.shape[1]
-            C = cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM  # eg 400 for Kinetics400
+            C = (
+                cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM
+            )  # eg 400 for Kinetics400
             candidates = train_labels.view(1, -1).expand(batchSize, -1)
             retrieval = torch.gather(candidates, 1, yi)
             retrieval_one_hot = torch.zeros((batchSize * K, C)).cuda()
@@ -123,7 +133,9 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
         # Gather all the predictions across all the devices to perform ensemble.
         if cfg.NUM_GPUS > 1:
-            preds, labels, video_idx = du.all_gather([preds, labels, video_idx])
+            preds, labels, video_idx = du.all_gather(
+                [preds, labels, video_idx]
+            )
         if cfg.NUM_GPUS:
             preds = preds.cpu()
             labels = labels.cpu()
@@ -131,7 +143,9 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
         test_meter.iter_toc()
         # Update and log stats.
-        test_meter.update_stats(preds.detach(), labels.detach(), video_idx.detach())
+        test_meter.update_stats(
+            preds.detach(), labels.detach(), video_idx.detach()
+        )
         test_meter.log_iter_stats(cur_iter)
 
         test_meter.iter_tic()
@@ -153,19 +167,23 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             #     for p in range(len(new_preds[pred])):
             #         new_preds[pred][p] = float(new_preds[pred][p] - num)
             # print(new_preds)
-            print(all_labels)
-            print(predictions)
+            print("all_labels", all_labels)
+            print("predictions", predictions)
         if writer is not None:
             writer.plot_eval(preds=all_preds, labels=all_labels)
 
         if cfg.TEST.SAVE_RESULTS_PATH != "":
-            save_path = os.path.join(cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH)
+            save_path = os.path.join(
+                cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH
+            )
 
             if du.is_root_proc():
                 with pathmgr.open(save_path, "wb") as f:
                     pickle.dump([all_preds, all_labels], f)
 
-            logger.info("Successfully saved prediction results to {}".format(save_path))
+            logger.info(
+                "Successfully saved prediction results to {}".format(save_path)
+            )
 
     test_meter.finalize_metrics()
     return test_meter
@@ -198,7 +216,6 @@ def save_inputs(inputs, video_idx, cfg, pathway):
         os.makedirs(fast_folder)
 
     for batch in range(cfg.TEST.BATCH_SIZE):
-
         # permute input from BCTHW to BTHWC
         slow_tensor = inputs[0].permute(0, 2, 3, 4, 1)
         slow_tensor = data_utils.revert_tensor_normalize(
@@ -216,9 +233,13 @@ def save_inputs(inputs, video_idx, cfg, pathway):
         for slow_frame in range(num_slow_frame):
             if slow_tensor.device != torch.device("cpu"):
                 slow_tensor = slow_tensor.to("cpu")
-            slow_tensor_image = slow_tensor[batch, slow_frame, :, :, :].numpy() * 255
+            slow_tensor_image = (
+                slow_tensor[batch, slow_frame, :, :, :].numpy() * 255
+            )
             one_based_slow_frame = slow_frame + 1
-            slow_name = f"{video_idx.item():03d}_{one_based_slow_frame:06d}.jpg"
+            slow_name = (
+                f"{video_idx.item():03d}_{one_based_slow_frame:06d}.jpg"
+            )
             slow_name = os.path.join(slow_folder, slow_name)
             cv2.imwrite(slow_name, slow_tensor_image)
 
@@ -226,9 +247,13 @@ def save_inputs(inputs, video_idx, cfg, pathway):
         for fast_frame in range(num_fast_frame):
             if fast_tensor.device != torch.device("cpu"):
                 fast_tensor = fast_tensor.to("cpu")
-            fast_tensor_image = fast_tensor[batch, fast_frame, :, :, :].numpy() * 255
+            fast_tensor_image = (
+                fast_tensor[batch, fast_frame, :, :, :].numpy() * 255
+            )
             one_based_fast_frame = fast_frame + 1
-            fast_name = f"{video_idx.item():03d}_{one_based_fast_frame:06d}.jpg"
+            fast_name = (
+                f"{video_idx.item():03d}_{one_based_fast_frame:06d}.jpg"
+            )
             fast_name = os.path.join(fast_folder, fast_name)
             cv2.imwrite(fast_name, fast_tensor_image)
 
@@ -289,6 +314,9 @@ def test(cfg):
             == 0
         )
         # Create meters for multi-view testing.
+        print("len(test_loader)", len(test_loader))
+        print("test_loader.batch_size", test_loader.batch_size)
+        pdb.set_trace()
         test_meter = TestMeter(
             test_loader.dataset.num_videos
             // (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS),
@@ -302,7 +330,9 @@ def test(cfg):
         )
 
     # Set up writer for logging to Tensorboard format.
-    if cfg.TENSORBOARD.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
+    if cfg.TENSORBOARD.ENABLE and du.is_master_proc(
+        cfg.NUM_GPUS * cfg.NUM_SHARDS
+    ):
         writer = tb.TensorboardWriter(cfg)
     else:
         writer = None
