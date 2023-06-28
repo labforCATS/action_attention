@@ -5,9 +5,12 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import os
+import cv2
 from sklearn.metrics import confusion_matrix
 
 import slowfast.utils.logging as logging
+import slowfast.datasets.utils as data_utils
 from slowfast.datasets.utils import pack_pathway_output, tensor_normalize
 
 logger = logging.get_logger(__name__)
@@ -372,3 +375,113 @@ class TaskInfo:
         Add the corresponding action predictions.
         """
         self.action_preds = preds
+
+
+def save_inputs(data_loader, cfg, mode, save_video = False):
+    """
+    Saves the frames of the inputs to the model as a .jpg
+
+    Args:
+        inputs(list) - length 2, consisting of tensors that contain the slow
+            and fast pathways for the current video
+        video_idx(int) - indicates the current video's index
+        cfg (CfgNode): configs. Details can be found in
+            slowfast/config/defaults.py
+        mode(string) - a value of either "test", "train", or "val"
+    """
+    if (mode != "train" and mode != "test" and mode != "val"):
+        raise ValueError("mode must be 'train' or 'test' or 'val'")
+    output_folder_path = os.path.join(cfg.OUTPUT_DIR, mode)
+
+    if not os.path.exists(output_folder_path):
+        os.makedirs(output_folder_path)
+
+    # go through each batch passed to the model
+    if mode == "test":
+        video_indices = np.empty(cfg.TEST.BATCH_SIZE)
+    else:
+        video_indices = np.empty(cfg.TRAIN.BATCH_SIZE)
+    for batch, (inputs, labels, index, time, meta) in enumerate(data_loader):
+        print("we are at batch number:", batch)
+        video_indices = index.numpy()
+        batch_size = 0
+        if mode == "test":
+            batch_size = cfg.TEST.BATCH_SIZE
+        else:
+            batch_size = cfg.TRAIN.BATCH_SIZE
+
+        # go through each image in the batch
+        for batch_index in range(batch_size):
+            video_index = video_indices[batch_index]
+            
+            # make folders to store output images
+            slow_folder = os.path.join(output_folder_path, str(video_index), "slow")
+            fast_folder = os.path.join(output_folder_path, str(video_index), "fast")
+            if not os.path.exists(slow_folder):
+                os.makedirs(slow_folder)
+            if not os.path.exists(fast_folder):
+                os.makedirs(fast_folder)
+
+            # isolate the current slow and fast pathways
+            curr_slow_tensor = inputs[0][batch_index, :, :, :, :]
+            curr_slow_tensor = torch.unsqueeze(curr_slow_tensor, dim=0)
+            curr_fast_tensor = inputs[1][batch_index, :, :, :, :]
+            curr_fast_tensor = torch.unsqueeze(curr_fast_tensor, dim=0)
+            # revert tensor normalization
+            curr_slow_tensor = curr_slow_tensor.permute(0, 2, 3, 4, 1)
+            curr_slow_tensor = data_utils.revert_tensor_normalize(
+                curr_slow_tensor, cfg.DATA.MEAN, cfg.DATA.STD
+            )
+            curr_fast_tensor = curr_fast_tensor.permute(0, 2, 3, 4, 1)
+            curr_fast_tensor = data_utils.revert_tensor_normalize(
+                curr_fast_tensor, cfg.DATA.MEAN, cfg.DATA.STD
+            )
+
+            num_slow_frame = curr_slow_tensor.size(dim=1)
+            num_fast_frame = curr_fast_tensor.size(dim=1)
+
+            
+            # save all slow frames as a jpg
+            for slow_frame in range(num_slow_frame):
+                # move the tensor to cpu if needed
+                if curr_slow_tensor.device != torch.device("cpu"):
+                    curr_slow_tensor = curr_slow_tensor.to("cpu")
+                # isolate the individual frames from the tensor
+                curr_slow_tensor_image = curr_slow_tensor[0, slow_frame, :, :, :].numpy() * 255
+                one_based_slow_frame = slow_frame + 1
+                slow_name = f"{video_index:03d}_{one_based_slow_frame:06d}.jpg"
+                slow_name = os.path.join(slow_folder, slow_name)
+                cv2.imwrite(slow_name, curr_slow_tensor_image)
+
+            # save all fast frames as a jpg
+            for fast_frame in range(num_fast_frame):
+                # move the tensor to cpu if needed
+                if curr_fast_tensor.device != torch.device("cpu"):
+                    curr_fast_tensor = curr_fast_tensor.to("cpu")
+                # isolate the individual frames from the tensor
+                curr_fast_tensor_image = curr_fast_tensor[0, fast_frame, :, :, :].numpy() * 255
+                one_based_fast_frame = fast_frame + 1
+                fast_name = f"{video_index:03d}_{one_based_fast_frame:06d}.jpg"
+                fast_name = os.path.join(fast_folder, fast_name)
+                cv2.imwrite(fast_name, curr_fast_tensor_image)
+    
+    # save the input frames as a video
+    if save_video:
+        for video_index in video_indices:
+            video_dir = os.path.join(cfg.OUTPUT_DIR, mode, str(video_index))
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+
+            pathways = ["slow", "fast"]
+            for pathway in pathways:
+                video_name = os.path.join(video_dir, f"{pathway}_{video_index:06d}.mp4")
+                if mode == "test":
+                    video = cv2.VideoWriter(video_name, fourcc, 25, (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE))
+                else:
+                    video = cv2.VideoWriter(video_name, fourcc, 25, (cfg.DATA.TRAIN_CROP_SIZE, cfg.DATA.TRAIN_CROP_SIZE))
+                pathway_dir = os.path.join(video_dir, pathway)
+                for image_path in os.listdir(pathway_dir):
+                    if image_path.endswith(".jpg"):
+                        image = cv2.imread(image_path)
+                        video.write(image)
+                cv2.destroyAllWindows()
+                video.release()

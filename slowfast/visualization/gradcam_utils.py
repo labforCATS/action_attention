@@ -80,9 +80,7 @@ class GradCAM:
         for layer_name in self.target_layers:
             self._register_single_hook(layer_name=layer_name)
 
-    def _calculate_localization_map(
-        self, inputs, labels=None, method="grad_cam"
-    ):
+    def _calculate_localization_map(self, inputs, labels=None, method="grad_cam"):
         """
         Calculate localization map for all inputs with Grad-CAM.
         Args:
@@ -129,9 +127,7 @@ class GradCAM:
                 method=self.method,
             )
             weights = weights.view(B, C, Tg, 1, 1)
-            localization_map = torch.sum(
-                weights * activations, dim=1, keepdim=True
-            )
+            localization_map = torch.sum(weights * activations, dim=1, keepdim=True)
             localization_map = F.relu(localization_map)
             localization_map = F.interpolate(
                 localization_map,
@@ -140,12 +136,8 @@ class GradCAM:
                 align_corners=False,
             )
             localization_map_min, localization_map_max = (
-                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[
-                    0
-                ],
-                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[
-                    0
-                ],
+                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
+                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
             )
             localization_map_min = torch.reshape(
                 localization_map_min, shape=(B, 1, 1, 1, 1)
@@ -163,9 +155,7 @@ class GradCAM:
 
         return localization_maps, preds
 
-    def __call__(
-        self, output_dir, inputs, video_indices, cfg, labels=None, alpha=0.5
-    ):
+    def __call__(self, output_dir, inputs, video_indices, cfg, labels=None, alpha=0.5):
         """
         Visualize the localization maps on their corresponding inputs as heatmap,
         using Grad-CAM.
@@ -173,7 +163,7 @@ class GradCAM:
 
         Args:
             inputs (list of tensor(s)): the input clips.
-            video_idx (tensor of size 1): index for the current input clip
+            video_idx (tensor): index for the current input clip
             labels (Optional[tensor]): labels of the current input clips.
             cfg (CfgNode): configs. Details can be found in
                 slowfast/config/defaults.py
@@ -219,23 +209,17 @@ class GradCAM:
                     frame_map = map_to_save[frame_idx] * 255
 
                     one_based_frame_idx = frame_idx + 1
-                    frame_name = (
-                        f"{video_indices[i]:03d}_{one_based_frame_idx:06d}.jpg"
-                    )
+                    frame_name = f"{video_indices[i]:03d}_{one_based_frame_idx:06d}.jpg"
                     name = os.path.join(visualization_path, frame_name)
 
                     if cfg.MODEL.ARCH == "slowfast":
                         if i == 0:
-                            slow_folder = os.path.join(
-                                visualization_path, "slow"
-                            )
+                            slow_folder = os.path.join(visualization_path, "slow")
                             if not os.path.exists(slow_folder):
                                 os.makedirs(slow_folder)
                             name = os.path.join(slow_folder, frame_name)
                         else:
-                            fast_folder = os.path.join(
-                                visualization_path, "fast"
-                            )
+                            fast_folder = os.path.join(visualization_path, "fast")
                             if not os.path.exists(fast_folder):
                                 os.makedirs(fast_folder)
                             name = os.path.join(fast_folder, frame_name)
