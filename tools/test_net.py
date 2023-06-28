@@ -63,6 +63,8 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             else:
                 inputs = inputs.cuda(non_blocking=True)
             # Transfer the data to the current GPU device.
+            # print("labels", labels.shape)
+            # pdb.set_trace()
             labels = labels.cuda()
             video_idx = video_idx.cuda()
             for key, val in meta.items():
@@ -316,7 +318,7 @@ def test(cfg):
         # Create meters for multi-view testing.
         print("len(test_loader)", len(test_loader))
         print("test_loader.batch_size", test_loader.batch_size)
-        pdb.set_trace()
+        # pdb.set_trace()
         test_meter = TestMeter(
             test_loader.dataset.num_videos
             // (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS),
@@ -348,7 +350,7 @@ def test(cfg):
             cfg.TEST.DATASET[0],
             test_meter.stats["top1_acc"],
             test_meter.stats["top1_acc"],
-            test_meter.stats["top5_acc"],
+            test_meter.stats["top2_acc"],
             misc.gpu_mem_usage(),
             cfg.TEST.DATASET[0],
             cfg.MODEL.NUM_CLASSES,

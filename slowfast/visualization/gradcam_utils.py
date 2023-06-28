@@ -174,7 +174,6 @@ class GradCAM:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
-
         alpha = 0.5
         result_ls = []
         localization_maps, preds = self._calculate_localization_map(
@@ -182,6 +181,7 @@ class GradCAM:
         )
         dataset = cfg.DATA.PATH_TO_DATA_DIR.split("/")[-1]
 
+        video_indices = video_idx.numpy()
         for i, localization_map in enumerate(localization_maps):
             # Convert (B, 1, T, H, W) to (B, T, H, W)
             localization_map = localization_map.squeeze(dim=1)
@@ -196,7 +196,6 @@ class GradCAM:
             map_to_save = localization_map.numpy()[0]
 
             # obtain and save the heat map for the input clip
-            # TODO: pull out into separate function
             for frame_idx in range(len(map_to_save)):
                 frame_map = map_to_save[frame_idx] * 255
 
@@ -205,15 +204,16 @@ class GradCAM:
                     heatmap_path,
                     cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
                     dataset,
-                    str(video_idx.item()),
+                    str(video_indices[i])
                 )
-                if not os.path.exists(heatmap_path):
-                    os.makedirs(heatmap_path)
+                # if not os.path.exists(heatmap_path):
+                #     os.makedirs(heatmap_path)
                 if not os.path.exists(visualization_path):
                     os.makedirs(visualization_path)
+                
 
                 one_based_frame_idx = frame_idx + 1
-                frame_name = f"{video_idx.item():03d}_{one_based_frame_idx:06d}.jpg"
+                frame_name = f"{video_indices[i]:03d}_{one_based_frame_idx:06d}.jpg"
                 name = os.path.join(visualization_path, frame_name)
 
                 if cfg.MODEL.ARCH == "slowfast":
@@ -235,8 +235,11 @@ class GradCAM:
                     )
                 cv2.imwrite(name, frame_map)
 
-            heatmap = self.colormap(localization_map.numpy())
+            loc_map = localization_map[i,:,:,:]
+            loc_map = torch.unsqueeze(loc_map, dim=0)
+            heatmap = self.colormap(loc_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
+
 
             # Permute input from (B, C, T, H, W) to (B, T, H, W, C)
             curr_inp = inputs[i].permute(0, 2, 3, 4, 1)
@@ -258,18 +261,18 @@ class GradCAM:
                 os.makedirs(vis_method_folder)
 
             # save the input frames in order
-            for frame_idx in range(len(inp_to_save)):
-                frame_map = inp_to_save[frame_idx] * 255
+            # for frame_idx in range(len(inp_to_save)):
+            #     frame_map = inp_to_save[frame_idx] * 255
 
-                one_based_frame_idx = frame_idx + 1
-                frame_name = f"{video_idx.item():03d}_{one_based_frame_idx:06d}.jpg"
+            #     one_based_frame_idx = frame_idx + 1
+            #     frame_name = f"{video_idx.item():03d}_{one_based_frame_idx:06d}.jpg"
 
-                vid_idx_folder = os.path.join(vis_method_folder, str(video_idx.item()))
-                if not os.path.exists(vid_idx_folder):
-                    os.makedirs(vid_idx_folder)
+            #     vid_idx_folder = os.path.join(vis_method_folder, str(video_idx.item()))
+            #     if not os.path.exists(vid_idx_folder):
+            #         os.makedirs(vid_idx_folder)
 
-                name = os.path.join(vid_idx_folder, frame_name)
-                cv2.imwrite(name, frame_map)
+            #     name = os.path.join(vid_idx_folder, frame_name)
+                # cv2.imwrite(name, frame_map)
 
             heatmap = torch.from_numpy(heatmap)
             curr_inp = alpha * heatmap + (1 - alpha) * curr_inp
