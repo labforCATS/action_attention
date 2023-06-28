@@ -21,6 +21,7 @@ import slowfast.utils.metrics as metrics
 import slowfast.utils.misc as misc
 import slowfast.visualization.tensorboard_vis as tb
 import slowfast.datasets.utils as data_utils
+from slowfast.visualization.utils import save_inputs
 from slowfast.datasets import loader
 from slowfast.datasets.mixup import MixUp
 from slowfast.models import build_model
@@ -28,69 +29,70 @@ from slowfast.models.contrastive import cancel_swav_gradients
 from slowfast.utils.meters import AVAMeter, EpochTimer, TrainMeter, ValMeter
 from slowfast.utils.multigrid import MultigridSchedule
 
+
 logger = logging.get_logger(__name__)
 
 
-def save_inputs(inputs, video_idx, cfg, pathway):
-    """
-    Saves the frames of the inputs to the model as a .jpg
+# def save_inputs(inputs, video_idx, cfg, pathway):
+#     """
+#     Saves the frames of the inputs to the model as a .jpg
 
-    Args:
-        inputs(list) - length 2, consisting of tensors that contain the slow
-            and fast pathways for the current video
-        video_idx(int) - indicates the current video's index
-        cfg (CfgNode): configs. Details can be found in
-            slowfast/config/defaults.py
-        pathway(string) - a value of either "test" or "train"
-    """
+#     Args:
+#         inputs(list) - length 2, consisting of tensors that contain the slow
+#             and fast pathways for the current video
+#         video_idx(int) - indicates the current video's index
+#         cfg (CfgNode): configs. Details can be found in
+#             slowfast/config/defaults.py
+#         pathway(string) - a value of either "test" or "train"
+#     """
 
-    train_folder_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, pathway)
-    slow_folder = os.path.join(train_folder_path, str(video_idx.item()), "slow")
-    fast_folder = os.path.join(train_folder_path, str(video_idx.item()), "fast")
+#     train_folder_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, pathway)
+#     slow_folder = os.path.join(train_folder_path, str(video_idx.item()), "slow")
+#     fast_folder = os.path.join(train_folder_path, str(video_idx.item()), "fast")
 
-    if not os.path.exists(cfg.VIS_MODEL_INPUT_DIR):
-        os.makedirs(cfg.VIS_MODEL_INPUT_DIR)
-    if not os.path.exists(train_folder_path):
-        os.makedirs(train_folder_path)
-    if not os.path.exists(slow_folder):
-        os.makedirs(slow_folder)
-    if not os.path.exists(fast_folder):
-        os.makedirs(fast_folder)
+#     if not os.path.exists(cfg.VIS_MODEL_INPUT_DIR):
+#         os.makedirs(cfg.VIS_MODEL_INPUT_DIR)
+#     if not os.path.exists(train_folder_path):
+#         os.makedirs(train_folder_path)
+#     if not os.path.exists(slow_folder):
+#         os.makedirs(slow_folder)
+#     if not os.path.exists(fast_folder):
+#         os.makedirs(fast_folder)
 
-    for batch in range(cfg.TEST.BATCH_SIZE):
+#     for batch in range(cfg.TEST.BATCH_SIZE):
 
-        # permute input from BCTHW to BTHWC
-        slow_tensor = inputs[0].permute(0, 2, 3, 4, 1)
-        slow_tensor = data_utils.revert_tensor_normalize(
-            slow_tensor, cfg.DATA.MEAN, cfg.DATA.STD
-        )
-        fast_tensor = inputs[1].permute(0, 2, 3, 4, 1)
-        fast_tensor = data_utils.revert_tensor_normalize(
-            fast_tensor, cfg.DATA.MEAN, cfg.DATA.STD
-        )
+#         # permute input from BCTHW to BTHWC
+#         slow_tensor = inputs[0].permute(0, 2, 3, 4, 1)
+#         slow_tensor = data_utils.revert_tensor_normalize(
+#             slow_tensor, cfg.DATA.MEAN, cfg.DATA.STD
+#         )
+#         fast_tensor = inputs[1].permute(0, 2, 3, 4, 1)
+#         fast_tensor = data_utils.revert_tensor_normalize(
+#             fast_tensor, cfg.DATA.MEAN, cfg.DATA.STD
+#         )
 
-        num_slow_frame = slow_tensor.size(dim=1)
-        num_fast_frame = fast_tensor.size(dim=1)
+#         num_slow_frame = slow_tensor.size(dim=1)
+#         num_fast_frame = fast_tensor.size(dim=1)
 
-        # save all slow frames as a jpg
-        for slow_frame in range(num_slow_frame):
-            if slow_tensor.device != torch.device("cpu"):
-                slow_tensor = slow_tensor.to("cpu")
-            slow_tensor_image = slow_tensor[batch, slow_frame, :, :, :].numpy() * 255
-            one_based_slow_frame = slow_frame + 1
-            slow_name = f"{video_idx.item():03d}_{one_based_slow_frame:06d}.jpg"
-            slow_name = os.path.join(slow_folder, slow_name)
-            cv2.imwrite(slow_name, slow_tensor_image)
+#         # save all slow frames as a jpg
+#         for slow_frame in range(num_slow_frame):
+#             if slow_tensor.device != torch.device("cpu"):
+#                 slow_tensor = slow_tensor.to("cpu")
+#             slow_tensor_image = slow_tensor[batch, slow_frame, :, :, :].numpy() * 255
+#             one_based_slow_frame = slow_frame + 1
+#             slow_name = f"{video_idx.item():03d}_{one_based_slow_frame:06d}.jpg"
+#             slow_name = os.path.join(slow_folder, slow_name)
+#             cv2.imwrite(slow_name, slow_tensor_image)
 
-        # save all fast frames as a jpg
-        for fast_frame in range(num_fast_frame):
-            if fast_tensor.device != torch.device("cpu"):
-                fast_tensor = fast_tensor.to("cpu")
-            fast_tensor_image = fast_tensor[batch, fast_frame, :, :, :].numpy() * 255
-            one_based_fast_frame = fast_frame + 1
-            fast_name = f"{video_idx.item():03d}_{one_based_fast_frame:06d}.jpg"
-            fast_name = os.path.join(fast_folder, fast_name)
-            cv2.imwrite(fast_name, fast_tensor_image)
+#         # save all fast frames as a jpg
+#         for fast_frame in range(num_fast_frame):
+#             if fast_tensor.device != torch.device("cpu"):
+#                 fast_tensor = fast_tensor.to("cpu")
+#             fast_tensor_image = fast_tensor[batch, fast_frame, :, :, :].numpy() * 255
+#             one_based_fast_frame = fast_frame + 1
+#             fast_name = f"{video_idx.item():03d}_{one_based_fast_frame:06d}.jpg"
+#             fast_name = os.path.join(fast_folder, fast_name)
+#             cv2.imwrite(fast_name, fast_tensor_image)
 
 
 def train_epoch(
@@ -155,8 +157,15 @@ def train_epoch(
     #     print("Using weights: ", [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82])
 
     for cur_iter, (inputs, labels, index, time, meta) in enumerate(train_loader):
-        if cfg.TRAIN.SAVE_INPUT_VIDEO:
-            save_inputs(inputs, index, cfg, "train")
+        # print(index.shape)
+        # print(index)
+        # print(inputs)
+        # # print(inputs.shape)
+        # print(len(inputs))
+        # print(type(inputs[0]))
+        # print(inputs[0].shape)
+
+        
 
         if cfg.NUM_GPUS:
             if isinstance(inputs, (list,)):
@@ -675,6 +684,10 @@ def train(cfg):
     # Create the video train and val loaders.
     train_loader = loader.construct_loader(cfg, "train")
     val_loader = loader.construct_loader(cfg, "val")
+    if cfg.TRAIN.SAVE_INPUT_VIDEO:
+            save_inputs(train_loader, cfg, "train", True)
+    if cfg.TRAIN.SAVE_INPUT_VIDEO:
+            save_inputs(val_loader, cfg, "val", True)
     precise_bn_loader = (
         loader.construct_loader(cfg, "train", is_precise_bn=True)
         if cfg.BN.USE_PRECISE_STATS

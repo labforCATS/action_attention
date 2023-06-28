@@ -165,7 +165,7 @@ class GradCAM:
 
         Args:
             inputs (list of tensor(s)): the input clips.
-            video_idx (tensor of size 1): index for the current input clip
+            video_idx (tensor): index for the current input clip
             labels (Optional[tensor]): labels of the current input clips.
             cfg (CfgNode): configs. Details can be found in
                 slowfast/config/defaults.py
@@ -174,6 +174,10 @@ class GradCAM:
             result_ls (list of tensor(s)): the visualized inputs.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
+        print(video_idx)
+        print(type(video_idx))
+        print(video_idx.shape)
+        pdb.set_trace()
 
         alpha = 0.5
         result_ls = []
