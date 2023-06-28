@@ -1,5 +1,5 @@
 TRAIN:
-  ENABLE: True
+  ENABLE: False
   DATASET: SyntheticMotion
   BATCH_SIZE: 10
   EVAL_PERIOD: 10
