@@ -381,13 +381,15 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
     """
     Saves the frames of the inputs to the model as a .jpg
 
-    Args:
-        inputs(list) - length 2, consisting of tensors that contain the slow
-            and fast pathways for the current video
-        video_idx(int) - indicates the current video's index
+    Inputs:
+        data_loader: data loader for the dataset
         cfg (CfgNode): configs. Details can be found in
             slowfast/config/defaults.py
-        mode(string) - a value of either "test", "train", or "val"
+        mode(string): a value of either "test", "train", or "val"
+        save_video (boolean): whether to save model inputs as a video
+    Outputs:
+        saves frames (and video, if applicable) to the output folder specified
+        in config file
     """
     if (mode != "train" and mode != "test" and mode != "val"):
         raise ValueError("mode must be 'train' or 'test' or 'val'")
