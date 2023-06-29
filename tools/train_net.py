@@ -159,7 +159,10 @@ def train_epoch(
         misc.frozen_bn_stats(model)
 
     weights = None
-    if cfg.TRAIN.DATASET.lower() == "ucf":
+    if (
+        cfg.TRAIN.DATASET.lower() == "ucf"
+        and cfg.MODEL.LOSS_FUNC == "cross_entropy"
+    ):
         # assign weight to each of the classes (presumably to handle unbalanced
         # training set?)
         weights = torch.tensor(
@@ -171,13 +174,7 @@ def train_epoch(
         weight=weights, reduction="mean"
     )
 
-    # if cfg.MODEL.LOSS_FUNC == 'cross_entropy':
-    #     loss_fun = loss_fun(weights = [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82])
-    #     print("Using weights: ", [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82])
-
-    for cur_iter, (inputs, labels, index, time, meta) in enumerate(
-        train_loader
-    ):
+    for cur_iter, (inputs, labels, index, time, meta) in enumerate(train_loader):
         if cfg.TRAIN.SAVE_INPUT_VIDEO:
             save_inputs(inputs, index, cfg, "train")
 

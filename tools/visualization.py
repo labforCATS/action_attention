@@ -87,7 +87,8 @@ def run_visualization(vis_loader, model, cfg, writer=None):
     )
     if n_devices > 1:
         grad_cam_layer_ls = [
-            "module/" + layer for layer in cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST
+            "module/" + layer
+            for layer in cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST
         ]
     else:
         grad_cam_layer_ls = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST
@@ -108,7 +109,7 @@ def run_visualization(vis_loader, model, cfg, writer=None):
     global_idx = -1
 
     count = 1
-    for inputs, labels, video_idx, time, meta in tqdm.tqdm(vis_loader):
+    for inputs, labels, video_indices, time, meta in tqdm.tqdm(vis_loader):
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
             if isinstance(inputs, (list,)):
@@ -125,19 +126,19 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                     meta[key] = val.cuda(non_blocking=True)
 
         if cfg.DETECTION.ENABLE:
-            activations, preds = model_vis.get_activations(inputs, meta["boxes"])
+            activations, preds = model_vis.get_activations(
+                inputs, meta["boxes"]
+            )
 
         else:
             activations, preds = model_vis.get_activations(inputs)
 
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
-            # TODO: verify with andy if the parameter count are as intended
-            # it seems like the count variable isn't used for anything besides debugging?
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL:
                 inputs, preds = gradcam(
                     output_dir=cfg.OUTPUT_DIR,
                     inputs=inputs,
-                    video_idx=video_idx,
+                    video_indices=video_indices,
                     cfg=cfg,
                     labels=labels,
                 )
@@ -145,15 +146,17 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             else:
                 print(
                     os.path.join(
-                        cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD
+                        cfg.OUTPUT_DIR,
+                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
                     )
                 )
                 inputs, preds = gradcam(
                     os.path.join(
-                        cfg.OUTPUT_DIR, cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD
+                        cfg.OUTPUT_DIR,
+                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
                     ),
                     inputs=inputs,
-                    video_idx=video_idx,
+                    video_indices=video_indices,
                     cfg=cfg,
                     labels=labels,
                 )
@@ -194,7 +197,9 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                     ):
                         for path_idx, input_pathway in enumerate(cur_input):
                             if cfg.TEST.DATASET == "ava" and cfg.AVA.BGR:
-                                video = input_pathway[cur_batch_idx, [2, 1, 0], ...]
+                                video = input_pathway[
+                                    cur_batch_idx, [2, 1, 0], ...
+                                ]
                             else:
                                 video = input_pathway[cur_batch_idx]
 
@@ -207,7 +212,9 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                             else:
                                 # Permute from (T, C, H, W) to (T, H, W, C)
                                 video = video.permute(0, 2, 3, 1)
-                            bboxes = None if cur_boxes is None else cur_boxes[:, 1:]
+                            bboxes = (
+                                None if cur_boxes is None else cur_boxes[:, 1:]
+                            )
                             cur_prediction = (
                                 cur_preds
                                 if cfg.DETECTION.ENABLE
@@ -248,7 +255,7 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                 slowfast/config/defaults.py
         """
         wrong_prediction_visualizer = WrongPredictionVis(cfg=cfg)
-        for batch_idx, (inputs, labels, video_idx, time) in tqdm.tqdm(
+        for batch_idx, (inputs, labels, video_indices, time) in tqdm.tqdm(
             enumerate(vis_loader)
         ):
             if cfg.NUM_GPUS:
@@ -310,7 +317,8 @@ def visualize(cfg):
             slowfast/config/defaults.py
     """
     if cfg.TENSORBOARD.ENABLE and (
-        cfg.TENSORBOARD.MODEL_VIS.ENABLE or cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE
+        cfg.TENSORBOARD.MODEL_VIS.ENABLE
+        or cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE
     ):
         # Set up environment.
         du.init_distributed_training(cfg.NUM_GPUS, cfg.SHARD_ID)
@@ -346,7 +354,9 @@ def visualize(cfg):
             writer = None
         if cfg.TENSORBOARD.PREDICTIONS_PATH != "":
             assert not cfg.DETECTION.ENABLE, "Detection is not supported."
-            logger.info("Visualizing class-level performance from saved results...")
+            logger.info(
+                "Visualizing class-level performance from saved results..."
+            )
             if writer is not None:
                 with pathmgr.open(cfg.TENSORBOARD.PREDICTIONS_PATH, "rb") as f:
                     preds, labels = pickle.load(f, encoding="latin1")
@@ -379,13 +389,17 @@ def visualize(cfg):
                         )
                     )
             logger.info(
-                "Visualize model analysis for {} iterations".format(len(vis_loader))
+                "Visualize model analysis for {} iterations".format(
+                    len(vis_loader)
+                )
             )
             # Run visualization on the model
             run_visualization(vis_loader, model, cfg, writer)
         if cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE:
             logger.info(
-                "Visualize Wrong Predictions for {} iterations".format(len(vis_loader))
+                "Visualize Wrong Predictions for {} iterations".format(
+                    len(vis_loader)
+                )
             )
             perform_wrong_prediction_vis(vis_loader, model, cfg)
 

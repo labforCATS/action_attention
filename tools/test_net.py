@@ -344,7 +344,7 @@ def test(cfg):
     if writer is not None:
         writer.close()
     result_string = (
-        "_a{}{}{} Top1 Acc: {} Top5 Acc: {} MEM: {:.2f} dataset: {}{}"
+        "_a{}{}{} Top1 Acc: {} Top2 Acc: {} MEM: {:.2f} dataset: {}{}" # TODO: change back to top5
         "".format(
             out_str_prefix,
             cfg.TEST.DATASET[0],

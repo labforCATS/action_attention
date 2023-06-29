@@ -82,7 +82,7 @@ MODEL:
 TEST:
   ENABLE: True
   DATASET: kineticsbyframe
-  BATCH_SIZE: 64
+  BATCH_SIZE: 2
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True

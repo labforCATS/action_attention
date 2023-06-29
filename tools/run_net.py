@@ -10,6 +10,9 @@ from test_net import test
 from train_net import train
 from visualization import visualize
 
+from datetime import datetime
+import pdb
+
 
 def main():
     """
@@ -24,20 +27,30 @@ def main():
         # Perform training.
         if cfg.TRAIN.ENABLE:
             print("Starting training")
+            start = datetime.now()
             launch_job(cfg=cfg, init_method=args.init_method, func=train)
+            print("Training complete, runtime was", datetime.now() - start)
         else:
             print("No training")
         # Perform multi-clip testing.
         if cfg.TEST.ENABLE:
+            print("Starting testing")
+            start = datetime.now()
             launch_job(cfg=cfg, init_method=args.init_method, func=test)
-            print("test")
+            print("Testing complete, runtime was", datetime.now() - start)
         else:
             print("no test")
         # Perform model visualization.
         if cfg.TENSORBOARD.ENABLE and (
-            cfg.TENSORBOARD.MODEL_VIS.ENABLE or cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE
+            cfg.TENSORBOARD.MODEL_VIS.ENABLE
+            or cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE
         ):
+            print("Starting visualization")
+            start = datetime.now()
             launch_job(cfg=cfg, init_method=args.init_method, func=visualize)
+            print(
+                "Visualization complete, runtime was", datetime.now() - start
+            )
         else:
             print("no visualize")
         # Run demo.

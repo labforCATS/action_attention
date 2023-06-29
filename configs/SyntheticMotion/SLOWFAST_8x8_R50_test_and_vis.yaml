@@ -2,7 +2,7 @@ TRAIN:
   ENABLE: False
   DATASET: SyntheticMotion
   BATCH_SIZE: 10
-  EVAL_PERIOD: 10
+  EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
   AUTO_RESUME: True
   CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/action_attention/SLOWFAST_8x8_R50.pkl
@@ -77,9 +77,9 @@ MODEL:
   DROPOUT_RATE: 0.5
   
 TEST:
-  ENABLE: True
+  ENABLE: False
   DATASET: SyntheticMotion
-  BATCH_SIZE: 12
+  BATCH_SIZE: 3
   SAVE_INPUT_VIDEO: False # TODO: check if this saves once or multiple times
 DATA_LOADER:
   NUM_WORKERS: 8
