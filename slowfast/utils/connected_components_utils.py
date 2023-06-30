@@ -12,6 +12,7 @@ import logging
 import pdb
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
@@ -48,7 +49,7 @@ def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
                     ...
 
     Output:
-        Returns a stacked and resized 3d array.
+        Returns a stacked and resized 3d array *with shape (T, W, H)*.
     """
     # load in heatmap data
     img_paths_list = os.listdir(heatmaps_dir)
@@ -62,6 +63,11 @@ def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
         img_list.append(img)
 
     img_stack = np.stack(img_list, axis=0)  # dimensions (T, H, W)
+
+    # permute the volume to be (T, W, H) so that we get a more intuitive
+    # visualization with frames on the x-axis, width on the y-axis, and height
+    # on the z-axis
+    img_stack = np.swapaxes(img_stack, 1, 2)
 
     # downsample the image_stack
     img_stack = zoom(img_stack, (t_scale, s_scale, s_scale))
@@ -110,9 +116,9 @@ def plot_heatmap(
     s_scale_step = int(1 / s_scale)
 
     X, Y, Z = np.mgrid[
-        0 : volume.shape[0] * t_scale_step : t_scale_step,
-        0 : volume.shape[1] * s_scale_step : s_scale_step,
-        0 : volume.shape[2] * s_scale_step : s_scale_step,
+        0 : volume.shape[0] * t_scale_step : t_scale_step,  # frames
+        0 : volume.shape[1] * s_scale_step : s_scale_step,  # width
+        0 : volume.shape[2] * s_scale_step : s_scale_step,  # height
     ]
 
     start = datetime.now()
@@ -147,10 +153,16 @@ def plot_heatmap(
                 method="update",
                 args=[
                     {"visible": [False] * len(fig.data)},
-                    {"title": "Slider switched to threshold: {:.1f}".format(i / 10)},
+                    {
+                        "title": "Slider switched to threshold: {:.1f}".format(
+                            i / 10
+                        )
+                    },
                 ],  # layout attribute
             )
-            step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+            step["args"][0]["visible"][
+                i
+            ] = True  # Toggle i'th trace to "visible"
             steps.append(step)
 
         sliders = [
@@ -162,7 +174,9 @@ def plot_heatmap(
             )
         ]
 
-        fig.update_layout(sliders=sliders)
+        fig.update_layout(
+            sliders=sliders,
+        )
 
     else:
         if isomin is None:
@@ -181,13 +195,15 @@ def plot_heatmap(
             )
         )
 
-    # add labels
+    # add labels and fix default axis view
     fig.update_layout(
-        scene=dict(
-            xaxis_title="Frames -->",
-            yaxis_title="Image Width",
-            zaxis_title="Image Height",
-        ),
+        scene={
+            "xaxis_title": "Frames",
+            "yaxis_title": "Image Width",
+            "zaxis_title": "Image Height",
+            "xaxis": {"autorange": "reversed"},  # frames axis
+            "zaxis": {"autorange": "reversed"},  # height axis
+        }
     )
 
     # save interactive figure
@@ -198,7 +214,7 @@ def plot_heatmap(
         os.makedirs(fdir)
 
     fig.write_html(fpath)
-    logger.info("heatmap volume generated and saved", datetime.now() - start)
+    logger.info(f"heatmap volume generated and saved {datetime.now() - start}")
 
 
 def plot_components(volume, output_dir, thresh=0.0, t_scale=1.0, s_scale=1.0):
@@ -301,15 +317,21 @@ def plot_all_heatmaps(
     for video_idx in vid_ids:
         if model_arch == "slowfast":
             for stream in ["slow", "fast"]:
-                heatmaps_dir = os.path.join(heatmaps_root_dir, str(video_idx), stream)
+                heatmaps_dir = os.path.join(
+                    heatmaps_root_dir, str(video_idx), stream
+                )
                 logger.info("generating heatmap volumes to " + heatmaps_dir)
-                output_dir = os.path.join(output_root_dir, str(video_idx), stream)
+                output_dir = os.path.join(
+                    output_root_dir, str(video_idx), stream
+                )
 
                 img_stack = load_heatmaps(heatmaps_dir, t_scale, s_scale)
 
                 plot_heatmap(
                     img_stack,
-                    os.path.join(output_dir, "heatmap_volume_with_slider.html"),
+                    os.path.join(
+                        output_dir, "heatmap_volume_with_slider.html"
+                    ),
                     surface_count,
                     t_scale,
                     s_scale,
@@ -350,7 +372,9 @@ def heatmap_stats(volume, thresh=0.2):
     connectivity = 26  # 26, 18, and 6 (3D) are allowed
     result = cc3d.connected_components(volume, connectivity=connectivity)
     stats = cc3d.statistics(result)
-    n_components = len(stats["voxel_counts"]) - 1  # ignoring "background" element
+    n_components = (
+        len(stats["voxel_counts"]) - 1
+    )  # ignoring "background" element
 
     # TODO:
     raise NotImplementedError
@@ -462,7 +486,9 @@ def get_3d_measurements(component_volume):
             labels,
             stats,
             _,
-        ) = cv2.connectedComponentsWithStats(frame.astype(np.uint8), connectivity=8)
+        ) = cv2.connectedComponentsWithStats(
+            frame.astype(np.uint8), connectivity=8
+        )
 
         # iter over components (ignore component 0, which is the background)
         for c in range(1, n_components):
@@ -510,4 +536,24 @@ def generate_stats(component_volume):
         temporal_mean,
         temporal_median,
         temporal_mode,
+    )
+
+
+if __name__ == "__main__":
+    heatmaps_root_dir = "/research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/grad_cam/heatmaps/grad_cam/"
+    output_root_dir = "/research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/grad_cam/heatmaps/grad_cam_volumes/"
+    model_arch = "slowfast"
+    t_scale = 0.25
+    s_scale = 1 / 8
+
+    print("plotting all heatmaps")
+
+    plot_all_heatmaps(
+        heatmaps_root_dir=heatmaps_root_dir,
+        output_root_dir=output_root_dir,
+        model_arch=model_arch,
+        surface_count=8,
+        thresh=0.2,
+        t_scale=t_scale,
+        s_scale=s_scale,
     )
