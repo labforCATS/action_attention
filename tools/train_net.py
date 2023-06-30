@@ -635,6 +635,9 @@ def train(cfg):
     if cfg.TRAIN.AUTO_RESUME and cu.has_checkpoint(cfg.OUTPUT_DIR):
         logger.info("Load from last checkpoint.")
         last_checkpoint = cu.get_last_checkpoint(cfg.OUTPUT_DIR, task=cfg.TASK)
+        print("line 638:")
+        print("\tlast checkpoint path:", last_checkpoint)
+        pdb.set_trace()
         if last_checkpoint is not None:
             checkpoint_epoch = cu.load_checkpoint(
                 last_checkpoint,
@@ -644,8 +647,13 @@ def train(cfg):
                 scaler if cfg.TRAIN.MIXED_PRECISION else None,
             )
             start_epoch = checkpoint_epoch + 1
+            print("start epoch:", start_epoch)
+            pdb.set_trace()
         elif "ssl_eval" in cfg.TASK:
             last_checkpoint = cu.get_last_checkpoint(cfg.OUTPUT_DIR, task="ssl")
+            print("line 652, ssl_eval true:")
+            print("\tlast checkpoint path:", last_checkpoint)
+            pdb.set_trace()
             checkpoint_epoch = cu.load_checkpoint(
                 last_checkpoint,
                 model,
@@ -672,7 +680,13 @@ def train(cfg):
             clear_name_pattern=cfg.TRAIN.CHECKPOINT_CLEAR_NAME_PATTERN,
         )
         start_epoch = checkpoint_epoch + 1
+        print("line 680:")
+        print("\tcheckpoint epoch:", checkpoint_epoch)
+        print("\tstart epoch:", start_epoch)
+        pdb.set_trace()
     else:
+        print("we in the else branch babeeeeyyyyyyyy")
+        pdb.set_trace()
         start_epoch = 0
 
     # ### FINE_TUNING SPECIFIC CODE ####
@@ -755,9 +769,15 @@ def train(cfg):
                     last_checkpoint = cu.get_last_checkpoint(
                         cfg.OUTPUT_DIR, task=cfg.TASK
                     )
+                    print("line 767")
+                    print("\tlast checkpoint path:", last_checkpoint)
+                    pdb.set_trace()
                     assert "{:05d}.pyth".format(cur_epoch) in last_checkpoint
                 else:
                     last_checkpoint = cfg.TRAIN.CHECKPOINT_FILE_PATH
+                    print("line 772")
+                    print("\tlast checkpoint path:", last_checkpoint)
+                    pdb.set_trace()
                 logger.info("Load from {}".format(last_checkpoint))
                 cu.load_checkpoint(last_checkpoint, model, cfg.NUM_GPUS > 1, optimizer)
 
@@ -803,6 +823,12 @@ def train(cfg):
             cfg, cur_epoch, None if multigrid is None else multigrid.schedule
         )
 
+        print("it do be an epoch of significance my dudes")
+        print("\tis checkpoint epoch:", is_checkp_epoch)
+        print("\tis eval epoch:", is_eval_epoch)
+        print("\tBN use precise stats:", cfg.BN.USE_PRECISE_STATS)
+        print("\tlen(get_bn_modules(model)) > 0", len(get_bn_modules(model)) > 0)
+        pdb.set_trace()
         # Compute precise BN stats.
         if (
             (is_checkp_epoch or is_eval_epoch)
