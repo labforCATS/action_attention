@@ -1,16 +1,16 @@
 TRAIN:
-  ENABLE: False
+  ENABLE: True
   DATASET: SyntheticMotion
   BATCH_SIZE: 10
-  EVAL_PERIOD: 10
+  EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
-  AUTO_RESUME: True
-  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/action_attention/SLOWFAST_8x8_R50.pkl
+  RESUME_FROM_CHECKPOINT: False
+  CHECKPOINT_FILE_PATH: /projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/SLOWFAST_8x8_R50_train.pkl
   CHECKPOINT_TYPE: caffe2
   SAVE_INPUT_VIDEO: False
 
 TENSORBOARD:
-  ENABLE: True
+  ENABLE: False
   CLASS_NAMES_PATH: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/synthetic_motion_labels.json
   MODEL_VIS:
     ENABLE: True
@@ -63,7 +63,7 @@ BN:
 SOLVER:
   BASE_LR: 0.1
   LR_POLICY: cosine
-  MAX_EPOCH: 48
+  MAX_EPOCH: 2
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: 34.0
@@ -78,7 +78,7 @@ MODEL:
   DROPOUT_RATE: 0.5
   
 TEST:
-  ENABLE: True
+  ENABLE: False
   DATASET: SyntheticMotion
   BATCH_SIZE: 2
   SAVE_INPUT_VIDEO: False

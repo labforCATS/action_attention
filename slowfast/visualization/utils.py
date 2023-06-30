@@ -404,17 +404,11 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
     else:
         video_indices = np.empty(cfg.TRAIN.BATCH_SIZE)
     for batch, (inputs, labels, index, time, meta) in enumerate(data_loader):
-        print("we are at batch number:", batch)
         video_indices = index.numpy()
-        batch_size = 0
-        if mode == "test":
-            batch_size = cfg.TEST.BATCH_SIZE
-        else:
-            batch_size = cfg.TRAIN.BATCH_SIZE
 
         # go through each image in the batch
-        for batch_index in range(batch_size):
-            video_index = video_indices[batch_index]
+        for i in range(len(labels)):
+            video_index = video_indices[i]
             
             # make folders to store output images
             slow_folder = os.path.join(output_folder_path, str(video_index), "slow")
@@ -425,9 +419,9 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
                 os.makedirs(fast_folder)
 
             # isolate the current slow and fast pathways
-            curr_slow_tensor = inputs[0][batch_index, :, :, :, :]
+            curr_slow_tensor = inputs[0][i, :, :, :, :]
             curr_slow_tensor = torch.unsqueeze(curr_slow_tensor, dim=0)
-            curr_fast_tensor = inputs[1][batch_index, :, :, :, :]
+            curr_fast_tensor = inputs[1][i, :, :, :, :]
             curr_fast_tensor = torch.unsqueeze(curr_fast_tensor, dim=0)
             # revert tensor normalization
             curr_slow_tensor = curr_slow_tensor.permute(0, 2, 3, 4, 1)
