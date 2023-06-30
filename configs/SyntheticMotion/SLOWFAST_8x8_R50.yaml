@@ -88,4 +88,4 @@ DATA_LOADER:
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/projects/nikki_sandbox/output/synthetic_vids/dataset_1000/ispy_0.1_9/output
+OUTPUT_DIR: /research/cwloka/projects/hannah_sandbox/output/synthetic_vids/dataset_1000/ispy_0.1_9/output

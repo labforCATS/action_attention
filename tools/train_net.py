@@ -636,15 +636,15 @@ def train(cfg):
     # Create the video train and val loaders.
     train_loader = loader.construct_loader(cfg, "train")
     val_loader = loader.construct_loader(cfg, "val")
-    if cfg.TRAIN.SAVE_INPUT_VIDEO:
-        save_inputs(train_loader, cfg, "train", True)
-    if cfg.TRAIN.SAVE_INPUT_VIDEO:
-        save_inputs(val_loader, cfg, "val", True)
     precise_bn_loader = (
         loader.construct_loader(cfg, "train", is_precise_bn=True)
         if cfg.BN.USE_PRECISE_STATS
         else None
     )
+    
+    save_inputs(train_loader, cfg, "train", cfg.TRAIN.SAVE_INPUT_VIDEO)
+    save_inputs(val_loader, cfg, "val", cfg.TRAIN.SAVE_INPUT_VIDEO)
+
 
     if (
         cfg.TASK == "ssl"

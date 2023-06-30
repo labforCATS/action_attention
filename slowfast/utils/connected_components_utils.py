@@ -49,7 +49,7 @@ def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
                     ...
 
     Output:
-        Returns a stacked and resized 3d array.
+        Returns a stacked and resized 3d array *with shape (T, W, H)*.
     """
     # load in heatmap data
     img_paths_list = os.listdir(heatmaps_dir)
@@ -63,6 +63,11 @@ def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
         img_list.append(img)
 
     img_stack = np.stack(img_list, axis=0)  # dimensions (T, H, W)
+
+    # permute the volume to be (T, W, H) so that we get a more intuitive
+    # visualization with frames on the x-axis, width on the y-axis, and height
+    # on the z-axis
+    img_stack = np.swapaxes(img_stack, 1, 2)
 
     # downsample the image_stack
     img_stack = zoom(img_stack, (t_scale, s_scale, s_scale))
@@ -111,9 +116,9 @@ def plot_heatmap(
     s_scale_step = int(1 / s_scale)
 
     X, Y, Z = np.mgrid[
-        0 : volume.shape[0] * t_scale_step : t_scale_step,
-        0 : volume.shape[1] * s_scale_step : s_scale_step,
-        0 : volume.shape[2] * s_scale_step : s_scale_step,
+        0 : volume.shape[0] * t_scale_step : t_scale_step,  # frames
+        0 : volume.shape[1] * s_scale_step : s_scale_step,  # width
+        0 : volume.shape[2] * s_scale_step : s_scale_step,  # height
     ]
 
     start = datetime.now()
@@ -169,7 +174,9 @@ def plot_heatmap(
             )
         ]
 
-        fig.update_layout(sliders=sliders)
+        fig.update_layout(
+            sliders=sliders,
+        )
 
     else:
         if isomin is None:
@@ -188,13 +195,15 @@ def plot_heatmap(
             )
         )
 
-    # add labels
+    # add labels and fix default axis view
     fig.update_layout(
-        scene=dict(
-            xaxis_title="Frames -->",
-            yaxis_title="Image Width",
-            zaxis_title="Image Height",
-        ),
+        scene={
+            "xaxis_title": "Frames",
+            "yaxis_title": "Image Width",
+            "zaxis_title": "Image Height",
+            "xaxis": {"autorange": "reversed"},  # frames axis
+            "zaxis": {"autorange": "reversed"},  # height axis
+        }
     )
 
     # save interactive figure
