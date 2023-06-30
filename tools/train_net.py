@@ -33,68 +33,6 @@ from slowfast.utils.multigrid import MultigridSchedule
 logger = logging.get_logger(__name__)
 
 
-# def save_inputs(inputs, video_idx, cfg, pathway):
-#     """
-#     Saves the frames of the inputs to the model as a .jpg
-
-#     Args:
-#         inputs(list) - length 2, consisting of tensors that contain the slow
-#             and fast pathways for the current video
-#         video_idx(int) - indicates the current video's index
-#         cfg (CfgNode): configs. Details can be found in
-#             slowfast/config/defaults.py
-#         pathway(string) - a value of either "test" or "train"
-#     """
-
-#     train_folder_path = os.path.join(cfg.VIS_MODEL_INPUT_DIR, pathway)
-#     slow_folder = os.path.join(train_folder_path, str(video_idx.item()), "slow")
-#     fast_folder = os.path.join(train_folder_path, str(video_idx.item()), "fast")
-
-#     if not os.path.exists(cfg.VIS_MODEL_INPUT_DIR):
-#         os.makedirs(cfg.VIS_MODEL_INPUT_DIR)
-#     if not os.path.exists(train_folder_path):
-#         os.makedirs(train_folder_path)
-#     if not os.path.exists(slow_folder):
-#         os.makedirs(slow_folder)
-#     if not os.path.exists(fast_folder):
-#         os.makedirs(fast_folder)
-
-#     for batch in range(cfg.TEST.BATCH_SIZE):
-
-#         # permute input from BCTHW to BTHWC
-#         slow_tensor = inputs[0].permute(0, 2, 3, 4, 1)
-#         slow_tensor = data_utils.revert_tensor_normalize(
-#             slow_tensor, cfg.DATA.MEAN, cfg.DATA.STD
-#         )
-#         fast_tensor = inputs[1].permute(0, 2, 3, 4, 1)
-#         fast_tensor = data_utils.revert_tensor_normalize(
-#             fast_tensor, cfg.DATA.MEAN, cfg.DATA.STD
-#         )
-
-#         num_slow_frame = slow_tensor.size(dim=1)
-#         num_fast_frame = fast_tensor.size(dim=1)
-
-#         # save all slow frames as a jpg
-#         for slow_frame in range(num_slow_frame):
-#             if slow_tensor.device != torch.device("cpu"):
-#                 slow_tensor = slow_tensor.to("cpu")
-#             slow_tensor_image = slow_tensor[batch, slow_frame, :, :, :].numpy() * 255
-#             one_based_slow_frame = slow_frame + 1
-#             slow_name = f"{video_idx.item():03d}_{one_based_slow_frame:06d}.jpg"
-#             slow_name = os.path.join(slow_folder, slow_name)
-#             cv2.imwrite(slow_name, slow_tensor_image)
-
-#         # save all fast frames as a jpg
-#         for fast_frame in range(num_fast_frame):
-#             if fast_tensor.device != torch.device("cpu"):
-#                 fast_tensor = fast_tensor.to("cpu")
-#             fast_tensor_image = fast_tensor[batch, fast_frame, :, :, :].numpy() * 255
-#             one_based_fast_frame = fast_frame + 1
-#             fast_name = f"{video_idx.item():03d}_{one_based_fast_frame:06d}.jpg"
-#             fast_name = os.path.join(fast_folder, fast_name)
-#             cv2.imwrite(fast_name, fast_tensor_image)
-
-
 def train_epoch(
     train_loader,
     model,
@@ -143,30 +81,20 @@ def train_epoch(
     if cfg.MODEL.FROZEN_BN:
         misc.frozen_bn_stats(model)
 
-    weights = torch.tensor(
-        [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 7.5, 11.54, 6.82]
-    )
-    weights = weights.cuda()
+    weights = None
+    if cfg.TRAIN.DATASET.lower() == "ucf" and cfg.MODEL.LOSS_FUNC == "cross_entropy":
+        # assign weight to each of the classes (presumably to handle unbalanced
+        # training set?)
+        weights = torch.tensor(
+            [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 7.5, 11.54, 6.82]
+        )
+        weights = weights.cuda()
     # Explicitly declare reduction to mean.
     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(
         weight=weights, reduction="mean"
     )
 
-    # if cfg.MODEL.LOSS_FUNC == 'cross_entropy':
-    #     loss_fun = loss_fun(weights = [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82])
-    #     print("Using weights: ", [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82])
-
     for cur_iter, (inputs, labels, index, time, meta) in enumerate(train_loader):
-        # print(index.shape)
-        # print(index)
-        # print(inputs)
-        # # print(inputs.shape)
-        # print(len(inputs))
-        # print(type(inputs[0]))
-        # print(inputs[0].shape)
-
-        
-
         if cfg.NUM_GPUS:
             if isinstance(inputs, (list,)):
                 for i in range(len(inputs)):
@@ -200,13 +128,17 @@ def train_epoch(
             inputs[0] = samples
 
         with torch.cuda.amp.autocast(enabled=cfg.TRAIN.MIXED_PRECISION):
-
             # Explicitly declare reduction to mean.
             perform_backward = True
             optimizer.zero_grad()
 
             if cfg.MODEL.MODEL_NAME == "ContrastiveModel":
-                (model, preds, partial_loss, perform_backward,) = contrastive_forward(
+                (
+                    model,
+                    preds,
+                    partial_loss,
+                    perform_backward,
+                ) = contrastive_forward(
                     model, cfg, inputs, index, time, epoch_exact, scaler
                 )
             elif cfg.DETECTION.ENABLE:
@@ -286,7 +218,14 @@ def train_epoch(
                 loss = loss.item()
             else:
                 # Compute the errors.
-                num_topks_correct = metrics.topks_correct(preds, labels, (1, 5))
+                num_topks_correct = metrics.topks_correct(
+                    preds,
+                    labels,
+                    (
+                        1,
+                        2,
+                    ),  # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
+                )
                 top1_err, top5_err = [
                     (1.0 - x / preds.size(0)) * 100.0 for x in num_topks_correct
                 ]
@@ -430,7 +369,14 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, train_loader, write
                     preds, labels = du.all_gather([preds, labels])
             else:
                 # Compute the errors.
-                num_topks_correct = metrics.topks_correct(preds, labels, (1, 5))
+                num_topks_correct = metrics.topks_correct(
+                    preds,
+                    labels,
+                    (
+                        1,
+                        2,
+                    ),  # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
+                )
 
                 # Combine the errors across the GPUs.
                 top1_err, top5_err = [
@@ -454,12 +400,18 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, train_loader, write
                 )
                 # write to tensorboard format if available.
                 if writer is not None:
+                    # writer.add_scalars(
+                    #     {"Val/Top1_err": top1_err, "Val/Top5_err": top5_err},
+                    #     global_step=len(val_loader) * cur_epoch + cur_iter,
+                    # )
                     writer.add_scalars(
-                        {"Val/Top1_err": top1_err, "Val/Top5_err": top5_err},
+                        {"Val/Top1_err": top1_err, "Val/top5_err": top5_err},
                         global_step=len(val_loader) * cur_epoch + cur_iter,
                     )
 
             val_meter.update_predictions(preds, labels)
+            print("preds", preds)
+            print("labels", labels)
 
         val_meter.log_iter_stats(cur_epoch, cur_iter)
         val_meter.iter_tic()
@@ -698,15 +650,15 @@ def train(cfg):
     # Create the video train and val loaders.
     train_loader = loader.construct_loader(cfg, "train")
     val_loader = loader.construct_loader(cfg, "val")
-    if cfg.TRAIN.SAVE_INPUT_VIDEO:
-            save_inputs(train_loader, cfg, "train", True)
-    if cfg.TRAIN.SAVE_INPUT_VIDEO:
-            save_inputs(val_loader, cfg, "val", True)
     precise_bn_loader = (
         loader.construct_loader(cfg, "train", is_precise_bn=True)
         if cfg.BN.USE_PRECISE_STATS
         else None
     )
+    
+    save_inputs(train_loader, cfg, "train", cfg.TRAIN.SAVE_INPUT_VIDEO)
+    save_inputs(val_loader, cfg, "val", cfg.TRAIN.SAVE_INPUT_VIDEO)
+
 
     if (
         cfg.TASK == "ssl"
@@ -737,7 +689,6 @@ def train(cfg):
 
     epoch_timer = EpochTimer()
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
-
         if cur_epoch > 0 and cfg.DATA.LOADER_CHUNK_SIZE > 0:
             num_chunks = math.ceil(
                 cfg.DATA.LOADER_CHUNK_OVERALL_SIZE / cfg.DATA.LOADER_CHUNK_SIZE

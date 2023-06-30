@@ -51,7 +51,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
     test_meter.iter_tic()
 
     for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(test_loader):
-
         if cfg.TEST.SAVE_INPUT_VIDEO:
             save_inputs(test_loader, cfg, "test")
 
@@ -63,6 +62,8 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             else:
                 inputs = inputs.cuda(non_blocking=True)
             # Transfer the data to the current GPU device.
+            # print("labels", labels.shape)
+            # pdb.set_trace()
             labels = labels.cuda()
             video_idx = video_idx.cuda()
             for key, val in meta.items():
@@ -94,7 +95,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             test_meter.update_stats(preds, ori_boxes, metadata)
             test_meter.log_iter_stats(None, cur_iter)
         elif cfg.TASK == "ssl" and cfg.MODEL.MODEL_NAME == "ContrastiveModel":
-
             if not cfg.CONTRASTIVE.KNN_ON:
                 test_meter.finalize_metrics()
                 return test_meter
@@ -154,8 +154,8 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             #     for p in range(len(new_preds[pred])):
             #         new_preds[pred][p] = float(new_preds[pred][p] - num)
             # print(new_preds)
-            print(all_labels)
-            print(predictions)
+            print("all_labels", all_labels)
+            print("predictions", predictions)
         if writer is not None:
             writer.plot_eval(preds=all_preds, labels=all_labels)
 
@@ -251,13 +251,13 @@ def test(cfg):
     if writer is not None:
         writer.close()
     result_string = (
-        "_a{}{}{} Top1 Acc: {} Top5 Acc: {} MEM: {:.2f} dataset: {}{}"
+        "_a{}{}{} Top1 Acc: {} Top2 Acc: {} MEM: {:.2f} dataset: {}{}"  # TODO: change back to top5
         "".format(
             out_str_prefix,
             cfg.TEST.DATASET[0],
             test_meter.stats["top1_acc"],
             test_meter.stats["top1_acc"],
-            test_meter.stats["top5_acc"],
+            test_meter.stats["top2_acc"],
             misc.gpu_mem_usage(),
             cfg.TEST.DATASET[0],
             cfg.MODEL.NUM_CLASSES,

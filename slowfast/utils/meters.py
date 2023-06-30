@@ -368,7 +368,9 @@ class TestMeter(object):
         self.data_timer.pause()
         self.net_timer.reset()
 
-    def finalize_metrics(self, ks=(1, 5)):
+    def finalize_metrics(self, ks=(1, 2)):
+        # TODO: CHANGE DEFAULT ks BACK TO (1,5) ONCE WE GENERATE MORE THAN 5
+        # MOTION CLASSES
         """
         Calculate and log the final ensembled metrics.
         ks (tuple): list of top-k values for topk_accuracies. For example,

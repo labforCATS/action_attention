@@ -12,7 +12,7 @@ TENSORBOARD:
   ENABLE: False
   # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf/Ucf-labels.json
   # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_high_loop_slow/Ucf-labels.json
-  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_backwards/Ucf-labels.json
+  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_backwards/Ucf-labels.json # does this need to be updated to kinetics ??
   MODEL_VIS:
     ENABLE: True
     MODEL_WEIGHTS: False # Set to True to visualize model weights.
@@ -24,6 +24,7 @@ TENSORBOARD:
       LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of CNN layers to use for Grad-CAM visualization method.
                   # The number of layer must be equal to the number of pathway(s).
       USE_TRUE_LABEL: False
+      METHOD: grad_cam
 
 DATA:
   PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/kinetics_small/
