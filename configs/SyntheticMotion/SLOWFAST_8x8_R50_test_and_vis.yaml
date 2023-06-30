@@ -1,5 +1,5 @@
 TRAIN:
-  ENABLE: False
+  ENABLE: True
   DATASET: SyntheticMotion
   BATCH_SIZE: 10
   EVAL_PERIOD: 1
@@ -87,4 +87,4 @@ DATA_LOADER:
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output
+OUTPUT_DIR: /research/cwloka/projects/nikki_sandbox/output/synthetic_vids/dataset_1000/ispy_0.1_9/output

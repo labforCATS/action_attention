@@ -270,7 +270,7 @@ def train_epoch(
         train_meter.log_iter_stats(cur_epoch, cur_iter)
         torch.cuda.synchronize()
         train_meter.iter_tic()
-    del inputs
+        del inputs
     # Log epoch stats.
     train_meter.log_epoch_stats(cur_epoch)
     train_meter.reset()
