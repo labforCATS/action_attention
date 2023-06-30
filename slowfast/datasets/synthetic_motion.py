@@ -91,6 +91,17 @@ class SyntheticMotion(torch.utils.data.Dataset):
         """
         Construct the video loader.
         """
+        # get the map from labels to integer encoding
+        label_dict_path = os.path.join(
+            self.cfg.DATA.PATH_TO_DATA_DIR,
+            "synthetic_motion_labels.json",
+        )
+        with pathmgr.open(
+            label_dict_path,
+            "r",
+        ) as f:
+            label_dict = json.load(f)
+
         # get the csv containing video id, num frames, labels, and file paths
         csv_path = os.path.join(
             self.cfg.DATA.PATH_TO_DATA_DIR,
@@ -106,12 +117,12 @@ class SyntheticMotion(torch.utils.data.Dataset):
         # to the ith video is a list of paths to each frame in the video
         for video in file_json:
             video_id = video["video_id"]
-            label = video["labels"]  # TODO: fix typo in video generator src code
-            # TODO: check if we actually need to encode label as int? or if its
-            # ok as a string?
-            # enc_label = int(label_dict[label])
+            label_str = video[
+                "labels"
+            ]  # TODO: fix typo in video generator src code ("labels" -> "label")
+            enc_label = int(label_dict[label_str])
             self._video_ids.append(str(video_id))
-            self._labels.append(label)
+            self._labels.append(enc_label)
             frame_paths = []
 
             for frame_num in range(video["num_frames"]):
