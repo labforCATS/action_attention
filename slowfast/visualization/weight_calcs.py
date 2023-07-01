@@ -60,7 +60,7 @@ def get_model_weights(inputs=None, grads=None, activations=None, method="grad_ca
 
         weights = weights.sum(axis=(2, 3))
         print("weights after sum", weights.shape)
-        pdb.set_trace()
+        # pdb.set_trace()
 
         return weights
 

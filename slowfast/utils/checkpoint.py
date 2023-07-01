@@ -31,6 +31,7 @@ def make_checkpoint_dir(path_to_job):
             pathmgr.mkdirs(checkpoint_dir)
         except Exception:
             pass
+    print("checkpoint dir:", checkpoint_dir)
     return checkpoint_dir
 
 
@@ -144,6 +145,7 @@ def save_checkpoint(path_to_job, model, optimizer, epoch, cfg, scaler=None):
         path_to_job, epoch + 1, cfg.TASK
     )
     print("path_to_checkpoint", path_to_checkpoint)
+    pdb.set_trace()
     # expecting this to be the weird pyth format with an epoch in the name
     if not os.path.exists(path_to_checkpoint):
         with open(path_to_checkpoint, "w") as f:
@@ -151,7 +153,7 @@ def save_checkpoint(path_to_job, model, optimizer, epoch, cfg, scaler=None):
     with pathmgr.open(path_to_checkpoint, "wb") as f:
         torch.save(checkpoint, f)
 
-    pdb.set_trace()
+    # pdb.set_trace()
     return path_to_checkpoint
 
 

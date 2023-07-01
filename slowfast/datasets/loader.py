@@ -94,6 +94,7 @@ def construct_loader(cfg, split, is_precise_bn=False):
     """
     assert split in ["train", "val", "test"]
     if split in ["train"]:
+        print("line 97")
         dataset_name = cfg.TRAIN.DATASET
         batch_size = int(cfg.TRAIN.BATCH_SIZE / max(1, cfg.NUM_GPUS))
         shuffle = True
@@ -113,6 +114,7 @@ def construct_loader(cfg, split, is_precise_bn=False):
     dataset = build_dataset(dataset_name, cfg, split)
 
     if isinstance(dataset, torch.utils.data.IterableDataset):
+        print("line 117")
         loader = torch.utils.data.DataLoader(
             dataset,
             batch_size=batch_size,
@@ -123,6 +125,7 @@ def construct_loader(cfg, split, is_precise_bn=False):
             worker_init_fn=utils.loader_worker_init_fn(dataset),
         )
     else:
+        print("line 128")
         if cfg.MULTIGRID.SHORT_CYCLE and split in ["train"] and not is_precise_bn:
             # Create a sampler for multi-process training
             sampler = utils.create_sampler(dataset, shuffle, cfg)
@@ -138,16 +141,20 @@ def construct_loader(cfg, split, is_precise_bn=False):
                 worker_init_fn=utils.loader_worker_init_fn(dataset),
             )
         else:
+            print("line 144")
             # Create a sampler for multi-process training
             sampler = utils.create_sampler(dataset, shuffle, cfg)
             # Create a loader
             if cfg.DETECTION.ENABLE:
+                print("line 149")
                 collate_func = detection_collate
             elif cfg.AUG.NUM_SAMPLE > 1 and split in ["train"]:
+                print("line 152")
                 collate_func = partial(
                     multiple_samples_collate, fold="imagenet" in dataset_name
                 )
             else:
+                print("line 157")
                 collate_func = None
 
             loader = torch.utils.data.DataLoader(

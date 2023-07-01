@@ -410,6 +410,7 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
         for i in range(len(labels)):
             video_index = video_indices[i]
             
+            
             # make folders to store output images
             slow_folder = os.path.join(output_folder_path, str(video_index), "slow")
             fast_folder = os.path.join(output_folder_path, str(video_index), "fast")
@@ -469,6 +470,9 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
 
             pathways = ["slow", "fast"]
             for pathway in pathways:
+                print(video_index)
+                print(type(video_index))
+                
                 video_name = os.path.join(video_dir, f"{pathway}_{video_index:06d}.mp4")
                 if mode == "test":
                     video = cv2.VideoWriter(video_name, fourcc, 25, (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE))

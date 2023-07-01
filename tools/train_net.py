@@ -62,6 +62,7 @@ def train_epoch(
     model.train()
     train_meter.iter_tic()
     data_size = len(train_loader)
+    print("data size:", data_size)
 
     if cfg.MIXUP.ENABLE:
         mixup_fn = MixUp(
@@ -106,6 +107,12 @@ def train_epoch(
     )
 
     print('before dataloader batches')
+    # for inputs, labels, index, time, meta in train_loader:
+    #     print("inputs:", inputs)
+    #     print("labels:", labels)
+    #     print("index:", index)
+
+    # pdb.set_trace()
     for cur_iter, (inputs, labels, index, time, meta) in enumerate(
         train_loader
     ):
@@ -140,7 +147,7 @@ def train_epoch(
         lr = optim.get_epoch_lr(epoch_exact, cfg)
         optim.set_lr(optimizer, lr)
 
-        pdb.set_trace()
+        # pdb.set_trace()
 
         train_meter.data_toc()
         if cfg.MIXUP.ENABLE:
@@ -180,7 +187,7 @@ def train_epoch(
         # check Nan Loss.
         misc.check_nan_losses(loss)
 
-        pdb.set_trace()
+        # pdb.set_trace()
 
         if perform_backward:
             scaler.scale(loss).backward()
@@ -208,7 +215,7 @@ def train_epoch(
             scaler.step(optimizer)
         scaler.update()
 
-        pdb.set_trace()
+        # pdb.set_trace()
 
         if cfg.MIXUP.ENABLE:
             _top_max_k_vals, top_max_k_inds = torch.topk(
@@ -221,7 +228,7 @@ def train_epoch(
             preds[idx_top2] = 0.0
             labels = top_max_k_inds[:, 0]
 
-        pdb.set_trace()
+        # pdb.set_trace()
         if cfg.DETECTION.ENABLE:
             print("we better not be in here")
             if cfg.NUM_GPUS > 1:
@@ -239,7 +246,7 @@ def train_epoch(
 
         else:
             print("in outer else block")
-            pdb.set_trace()
+            # pdb.set_trace()
             top1_err, top5_err = None, None
             if cfg.DATA.MULTI_LABEL:
                 # Gather all the predictions across all the devices.
@@ -307,6 +314,8 @@ def train_epoch(
         # TODO: check if indent here is correct
         del inputs
     # Log epoch stats.
+    print("didn't even go into the loop")
+    # pdb.set_trace()
     train_meter.log_epoch_stats(cur_epoch)
     train_meter.reset()
 
@@ -749,7 +758,7 @@ def train(cfg):
         # Train for one epoch.
         epoch_timer.epoch_tic()
         print('abt to train')
-        pdb.set_trace()
+        # pdb.set_trace()
         train_epoch(
             train_loader,
             model,

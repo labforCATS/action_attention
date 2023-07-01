@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import cv2
 import os
+import pdb
 
 logger = logging.get_logger(__name__)
 
@@ -37,7 +38,10 @@ def save_dataloader_samples(cfg, n_batches=1):
     logging.setup_logging(cfg.OUTPUT_DIR)
 
     # create dataloader, load data
+    # print("pre construction: test")
     train_loader = loader.construct_loader(cfg, "train")
+    # train_loader = loader.construct_loader(cfg, "train")
+    # print("post construction")
     loader.shuffle_dataset(train_loader, cur_epoch=0)
 
     # initialize video writer
@@ -49,7 +53,9 @@ def save_dataloader_samples(cfg, n_batches=1):
         os.makedirs(video_dir)
 
     # get some videos from the dataloader
+    # print("we not here")
     for batch, (inputs, labels, index, time, meta) in enumerate(train_loader):
+        # print("we here")
         if batch >= n_batches:
             break
 
@@ -100,6 +106,7 @@ def save_dataloader_samples(cfg, n_batches=1):
 
                 cv2.destroyAllWindows()
                 video.release()
+    # pdb.set_trace()
 
 
 if __name__ == "__main__":
