@@ -8,6 +8,7 @@ import torch
 import os
 import cv2
 from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
 
 import slowfast.utils.logging as logging
 import slowfast.datasets.utils as data_utils
@@ -470,7 +471,6 @@ def save_inputs(data_loader, cfg, mode, save_video=False):
                 fast_name = os.path.join(fast_folder, fast_name)
                 cv2.imwrite(fast_name, curr_fast_tensor_image)
 
-
         # save the input frames as a video
         if save_video:
             fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -481,7 +481,6 @@ def save_inputs(data_loader, cfg, mode, save_video=False):
 
                 pathways = ["slow", "fast"]
                 for pathway in pathways:
-
                     video_name = os.path.join(
                         video_dir, f"{pathway}_{video_index:06d}.mp4"
                     )
@@ -510,3 +509,51 @@ def save_inputs(data_loader, cfg, mode, save_video=False):
                             video.write(image)
                     cv2.destroyAllWindows()
                     video.release()
+
+
+def plot_train_val_curves(train_losses, train_accs, val_losses, val_accs, cfg):
+    """Plots the training and validation accuracy and loss over the epochs.
+
+    The plots are saved to the configured outputs directory and will be
+    overridden and updated each epoch.
+
+    TODO: eventually move this to tensorboard for better interface?
+
+    Args:
+
+    Output:
+    """
+    save_path = os.path.join(cfg.OUTPUT_DIR, "train_val_curves.jpg")
+
+    fig, axs = plt.subplots(1, 2)
+
+    # plot losses
+    axs[0].plot(np.arange(len(train_losses)), train_losses, label="train")
+    axs[0].plot(
+        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_losses)),
+        val_losses,
+        label="val",
+    )
+
+    # plot accuracies
+    axs[1].plot(np.arange(len(train_accs)), train_accs, label="train")
+    axs[1].plot(
+        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_accs)),
+        val_accs,
+        label="val",
+    )
+
+    # add labels, titles, etc 
+    axs[0].set_xlabel("Epochs")
+    axs[1].set_xlabel("Epochs")
+    axs[0].set_ylabel("Loss")
+    axs[1].set_ylabel("Accuracy")
+    axs[0].set_title("Loss over training")
+    axs[1].set_title("Accuracy over training")
+
+    axs[0].legend()
+    axs[1].legend()
+
+    plt.tight_layout()
+
+    plt.savefig(save_path)

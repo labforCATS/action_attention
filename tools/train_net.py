@@ -21,7 +21,7 @@ import slowfast.utils.metrics as metrics
 import slowfast.utils.misc as misc
 import slowfast.visualization.tensorboard_vis as tb
 import slowfast.datasets.utils as data_utils
-from slowfast.visualization.utils import save_inputs
+from slowfast.visualization.utils import save_inputs, plot_train_val_curves
 from slowfast.datasets import loader
 from slowfast.datasets.mixup import MixUp
 from slowfast.models import build_model
@@ -45,6 +45,7 @@ def train_epoch(
 ):
     """
     Perform the video training for one epoch.
+
     Args:
         train_loader (loader): video training loader.
         model (model): the video model to train.
@@ -56,6 +57,9 @@ def train_epoch(
             slowfast/config/defaults.py
         writer (TensorboardWriter, optional): TensorboardWriter object
             to writer Tensorboard log.
+
+    Returns:
+        train loss and accuracy.
     """
     # Enable train mode.
     model.train()
@@ -233,19 +237,11 @@ def train_epoch(
                     [loss] = du.all_reduce([loss])
                 loss = loss.item()
             else:
-                # Compute the errors.
-                num_topks_correct = metrics.topks_correct(
-                    preds,
-                    labels,
-                    (
-                        1,
-                        2,
-                    ),  # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
-                )
-                top1_err, top5_err = [
-                    (1.0 - x / preds.size(0)) * 100.0
-                    for x in num_topks_correct
-                ]
+                # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
+                top1_err, top5_err = metrics.topk_errors(preds, labels, [1, 2])
+                print("top1_err", top1_err)  # THIS IS PERCENTAGE
+                print("top5_err", top5_err)
+
                 # Gather all the predictions across all the devices.
                 if cfg.NUM_GPUS > 1:
                     loss, top1_err, top5_err = du.all_reduce(
@@ -292,15 +288,28 @@ def train_epoch(
         del inputs
     # Log epoch stats.
     train_meter.log_epoch_stats(cur_epoch)
+
+    train_loss = (
+        train_meter.loss_total
+    )  # should we take the avg loss? i believe this is currently the cumulative loss for all samples
+    total_samples = len(train_loader.dataset)
+    n_wrong = train_meter.num_top1_mis
+    train_acc = (total_samples - n_wrong) / total_samples
+
+    print("train total_samples", total_samples)
+    print("train n_wrong", n_wrong)
+    print("train_acc", train_acc)
+    print("train_loss", train_loss)
+
     train_meter.reset()
+    return train_loss, train_acc
 
 
 @torch.no_grad()
-def eval_epoch(
-    val_loader, model, val_meter, cur_epoch, cfg, train_loader, writer
-):
+def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
     """
     Evaluate the model on the val set.
+
     Args:
         val_loader (loader): data loader to provide validation data.
         model (model): model to evaluate the performance.
@@ -310,6 +319,9 @@ def eval_epoch(
             slowfast/config/defaults.py
         writer (TensorboardWriter, optional): TensorboardWriter object
             to writer Tensorboard log.
+
+    Returns:
+        validation loss and accuracy.
     """
 
     # Evaluation mode enabled. The running stats would not be updated.
@@ -397,32 +409,54 @@ def eval_epoch(
                     preds, labels = du.all_gather([preds, labels])
             else:
                 # Compute the errors.
-                num_topks_correct = metrics.topks_correct(
-                    preds,
-                    labels,
-                    (
-                        1,
-                        2,
-                    ),  # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
-                )
-
-                # Combine the errors across the GPUs.
-                top1_err, top5_err = [
-                    (1.0 - x / preds.size(0)) * 100.0
-                    for x in num_topks_correct
-                ]
+                top1_err, top5_err = metrics.topk_errors(preds, labels, (1, 2))
+                # TODO: CHANGE ks BACK TO 5 ONCE WE GET ENOUGH CLASSES
                 if cfg.NUM_GPUS > 1:
                     top1_err, top5_err = du.all_reduce([top1_err, top5_err])
 
                 # Copy the errors from GPU to CPU (sync point).
                 top1_err, top5_err = top1_err.item(), top5_err.item()
 
+                # Compute loss
+                if cfg.MODEL.MODEL_NAME == "ContrastiveModel":
+                    raise NotImplementedError
+                else:
+                    weights = None
+                    if (
+                        cfg.TRAIN.DATASET.lower() == "ucf"
+                        and cfg.MODEL.LOSS_FUNC == "cross_entropy"
+                    ):
+                        # assign weight to each of the classes (presumably to handle unbalanced
+                        # training set?)
+                        weights = torch.tensor(
+                            [
+                                10.71,
+                                8.33,
+                                7.5,
+                                25.0,
+                                12.5,
+                                11.54,
+                                12.5,
+                                7.5,
+                                11.54,
+                                6.82,
+                            ]
+                        )
+                        weights = weights.cuda()
+                    # Explicitly declare reduction to mean.
+                    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(
+                        weight=weights,
+                        reduction="mean",
+                    )
+                    loss = loss_fun(preds, labels).item()
+
                 val_meter.iter_toc()
                 # Update and log stats.
                 val_meter.update_stats(
-                    top1_err,
-                    top5_err,
-                    batch_size
+                    top1_err=top1_err,
+                    top5_err=top5_err,
+                    loss=loss,
+                    mb_size=batch_size
                     * max(
                         cfg.NUM_GPUS, 1
                     ),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
@@ -463,7 +497,20 @@ def eval_epoch(
                 preds=all_preds, labels=all_labels, global_step=cur_epoch
             )
 
+    val_loss = (
+        val_meter.loss_total
+    )  # should we take the avg loss? i believe this is currently the cumulative loss for all samples
+    total_samples = len(val_loader.dataset)
+    n_wrong = val_meter.num_top1_mis
+    val_acc = (total_samples - n_wrong) / total_samples
+
+    print("val total_samples", total_samples)
+    print("val n_wrong", n_wrong)
+    print("val_acc", val_acc)
+    print("val_loss", val_loss)
+
     val_meter.reset()
+    return val_loss, val_acc
 
 
 def contrastive_forward(model, cfg, inputs, index, time, epoch_exact, scaler):
@@ -677,13 +724,21 @@ def train(cfg):
     else:
         writer = None
 
+    # track train and val losses and accuracies
+    train_losses = []
+    train_accs = []
+    val_losses = []
+    val_accs = []
+
+    # TODO: handle tracking train/val loss/acc if we are resuming training from
+    # the middle of some epochs
+
     # Perform the training loop.
     logger.info("Start epoch: {}".format(start_epoch + 1))
 
     epoch_timer = EpochTimer()
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
         logger.info(f"cur epoch {cur_epoch}")
-        # pdb.set_trace()
         if cur_epoch > 0 and cfg.DATA.LOADER_CHUNK_SIZE > 0:
             num_chunks = math.ceil(
                 cfg.DATA.LOADER_CHUNK_OVERALL_SIZE / cfg.DATA.LOADER_CHUNK_SIZE
@@ -727,10 +782,10 @@ def train(cfg):
         loader.shuffle_dataset(train_loader, cur_epoch)
         if hasattr(train_loader.dataset, "_set_epoch_num"):
             train_loader.dataset._set_epoch_num(cur_epoch)
+
         # Train for one epoch.
         epoch_timer.epoch_tic()
-
-        train_epoch(
+        train_loss, train_acc = train_epoch(
             train_loader,
             model,
             optimizer,
@@ -741,6 +796,9 @@ def train(cfg):
             writer,
         )
         epoch_timer.epoch_toc()
+        train_losses.append(train_loss)
+        train_accs.append(train_acc)
+
         logger.info(
             f"Epoch {cur_epoch} takes {epoch_timer.last_epoch_time():.2f}s. Epochs "
             f"from {start_epoch} to {cur_epoch} take "
@@ -762,6 +820,7 @@ def train(cfg):
             )
             or cur_epoch == cfg.SOLVER.MAX_EPOCH - 1
         )
+
         is_eval_epoch = misc.is_eval_epoch(
             cfg, cur_epoch, None if multigrid is None else multigrid.schedule
         )
@@ -782,7 +841,6 @@ def train(cfg):
 
         # Save a checkpoint.
         logger.info("saving chkp")
-        # pdb.set_trace()
         if is_checkp_epoch:
             cu.save_checkpoint(
                 cfg.OUTPUT_DIR,
@@ -792,18 +850,24 @@ def train(cfg):
                 cfg,
                 scaler if cfg.TRAIN.MIXED_PRECISION else None,
             )
-        # pdb.set_trace()
         # Evaluate the model on validation set.
         if is_eval_epoch:
-            eval_epoch(
+            val_loss, val_acc = eval_epoch(
                 val_loader,
                 model,
                 val_meter,
                 cur_epoch,
                 cfg,
-                train_loader,
                 writer,
             )
+            val_losses.append(val_loss)
+            val_accs.append(val_acc)
+
+        # Update plot for train/val accuracy and loss curves
+        plot_train_val_curves(
+            train_losses, train_accs, val_losses, val_accs, cfg
+        )
+
     if writer is not None:
         writer.close()
     result_string = "Top1 Acc: {:.2f} Top5 Acc: {:.2f} MEM: {:.2f}" "".format(

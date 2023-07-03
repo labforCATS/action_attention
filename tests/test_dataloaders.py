@@ -106,7 +106,6 @@ def save_dataloader_samples(cfg, n_batches=1):
 
                 cv2.destroyAllWindows()
                 video.release()
-    # pdb.set_trace()
 
 
 if __name__ == "__main__":

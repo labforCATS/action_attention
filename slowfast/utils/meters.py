@@ -406,18 +406,13 @@ class TestMeter(object):
             self.stats["top1_acc"] = map_str
             self.stats["top5_acc"] = map_str
         else:
-            num_topks_correct = metrics.topks_correct(
+            topk_accs = metrics.topk_accuracies(
                 self.video_preds, self.video_labels, ks
             )
-            topks = [
-                (x / self.video_preds.size(0)) * 100.0
-                for x in num_topks_correct
-            ]
-            assert len({len(ks), len(topks)}) == 1
-            for k, topk in zip(ks, topks):
-                # self.stats["top{}_acc".format(k)] = topk.cpu().numpy()
+            assert len({len(ks), len(topk_accs)}) == 1
+            for k, acc in zip(ks, topk_accs):
                 self.stats["top{}_acc".format(k)] = "{:.{prec}f}".format(
-                    topk, prec=2
+                    acc, prec=2
                 )
         logging.log_json_stats(self.stats)
 
@@ -555,6 +550,16 @@ class TrainMeter(object):
             # Aggregate stats
             self.num_top1_mis += top1_err * mb_size
             self.num_top5_mis += top5_err * mb_size
+            assert (
+                isinstance(self.num_top1_mis, int)
+                or self.num_top1_mis.is_integer()
+            )
+            assert (
+                isinstance(self.num_top5_mis, int)
+                or self.num_top5_mis.is_integer()
+            )
+            self.num_top1_mis = int(self.num_top1_mis)
+            self.num_top5_mis = int(self.num_top5_mis)
 
     def log_iter_stats(self, cur_epoch, cur_iter):
         """
@@ -618,6 +623,9 @@ class TrainMeter(object):
             stats["top1_err"] = top1_err
             stats["top5_err"] = top5_err
             stats["loss"] = avg_loss
+
+            print("stats", stats)
+            print("type(avg_loss)", type(avg_loss))
         logging.log_json_stats(stats, self.output_dir)
 
 
@@ -640,6 +648,7 @@ class ValMeter(object):
         # Current minibatch errors (smoothed over a window).
         self.mb_top1_err = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_top5_err = ScalarMeter(cfg.LOG_PERIOD)
+        self.loss_total = 0.0
         # Min errors (over the full val set).
         self.min_top1_err = 100.0
         self.min_top5_err = 100.0
@@ -660,6 +669,7 @@ class ValMeter(object):
         self.net_timer.reset()
         self.mb_top1_err.reset()
         self.mb_top5_err.reset()
+        self.loss_total = 0.0
         self.num_top1_mis = 0
         self.num_top5_mis = 0
         self.num_samples = 0
@@ -684,19 +694,32 @@ class ValMeter(object):
         self.data_timer.pause()
         self.net_timer.reset()
 
-    def update_stats(self, top1_err, top5_err, mb_size):
+    def update_stats(self, top1_err, top5_err, loss, mb_size):
         """
         Update the current stats.
         Args:
             top1_err (float): top1 error rate.
             top5_err (float): top5 error rate.
+            loss (float): loss value.
             mb_size (int): mini batch size.
         """
         self.mb_top1_err.add_value(top1_err)
         self.mb_top5_err.add_value(top5_err)
+        self.loss_total += loss * mb_size
+        self.num_samples += mb_size
+
         self.num_top1_mis += top1_err * mb_size
         self.num_top5_mis += top5_err * mb_size
-        self.num_samples += mb_size
+        assert (
+            isinstance(self.num_top1_mis, int)
+            or self.num_top1_mis.is_integer()
+        )
+        assert (
+            isinstance(self.num_top5_mis, int)
+            or self.num_top5_mis.is_integer()
+        )
+        self.num_top1_mis = int(self.num_top1_mis)
+        self.num_top5_mis = int(self.num_top5_mis)
 
     def update_predictions(self, preds, labels):
         """
@@ -736,6 +759,7 @@ class ValMeter(object):
         logging.log_json_stats(stats)
 
     def log_epoch_stats(self, cur_epoch):
+        # TODO: PICK UP HERE
         """
         Log the stats of the current epoch.
         Args:
@@ -756,11 +780,13 @@ class ValMeter(object):
                 torch.cat(self.all_labels).cpu().numpy(),
             )
         else:
+            avg_loss = self.loss_total / self.num_samples
             top1_err = self.num_top1_mis / self.num_samples
             top5_err = self.num_top5_mis / self.num_samples
             self.min_top1_err = min(self.min_top1_err, top1_err)
             self.min_top5_err = min(self.min_top5_err, top5_err)
 
+            stats["loss"] = avg_loss
             stats["top1_err"] = top1_err
             stats["top5_err"] = top5_err
             stats["min_top1_err"] = self.min_top1_err

@@ -64,8 +64,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             else:
                 inputs = inputs.cuda(non_blocking=True)
             # Transfer the data to the current GPU device.
-            # print("labels", labels.shape)
-            # pdb.set_trace()
             labels = labels.cuda()
             video_idx = video_idx.cuda()
             for key, val in meta.items():
