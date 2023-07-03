@@ -40,24 +40,30 @@ def topks_correct(preds, labels, ks):
 
 
 def topk_errors(preds, labels, ks):
-    """
-    Computes the top-k error for each k.
+    """Computes the top-k error for each k.
+
     Args:
         preds (array): array of predictions. Dimension is N.
         labels (array): array of labels. Dimension is N.
         ks (list): list of ks to calculate the top accuracies.
+
+    Returns:
+        list containing top k errors as floats btwn 0 and 1
     """
     num_topks_correct = topks_correct(preds, labels, ks)
-    return [(1.0 - x / preds.size(0)) * 100.0 for x in num_topks_correct]
+    return [(1.0 - x / preds.size(0)) for x in num_topks_correct]
 
 
 def topk_accuracies(preds, labels, ks):
-    """
-    Computes the top-k accuracy for each k.
+    """Computes the top-k accuracy for each k.
+
     Args:
         preds (array): array of predictions. Dimension is N.
         labels (array): array of labels. Dimension is N.
         ks (list): list of ks to calculate the top accuracies.
+
+    Returns:
+        list containing top k accuracies as floats btwn 0 and 1
     """
     num_topks_correct = topks_correct(preds, labels, ks)
-    return [(x / preds.size(0)) * 100.0 for x in num_topks_correct]
+    return [(x / preds.size(0)) for x in num_topks_correct]

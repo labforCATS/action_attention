@@ -237,19 +237,11 @@ def train_epoch(
                     [loss] = du.all_reduce([loss])
                 loss = loss.item()
             else:
-                # Compute the errors.
-                num_topks_correct = metrics.topks_correct(
-                    preds,
-                    labels,
-                    (
-                        1,
-                        2,
-                    ),  # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
-                )
-                top1_err, top5_err = [
-                    (1.0 - x / preds.size(0)) * 100.0
-                    for x in num_topks_correct
-                ]
+                # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
+                top1_err, top5_err = metrics.topk_errors(preds, labels, [1, 2])
+                print("top1_err", top1_err)  # THIS IS PERCENTAGE
+                print("top5_err", top5_err)
+
                 # Gather all the predictions across all the devices.
                 if cfg.NUM_GPUS > 1:
                     loss, top1_err, top5_err = du.all_reduce(
@@ -314,9 +306,7 @@ def train_epoch(
 
 
 @torch.no_grad()
-def eval_epoch(
-    val_loader, model, val_meter, cur_epoch, cfg, writer
-):
+def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
     """
     Evaluate the model on the val set.
 
@@ -419,32 +409,54 @@ def eval_epoch(
                     preds, labels = du.all_gather([preds, labels])
             else:
                 # Compute the errors.
-                num_topks_correct = metrics.topks_correct(
-                    preds,
-                    labels,
-                    (
-                        1,
-                        2,
-                    ),  # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
-                )
-
-                # Combine the errors across the GPUs.
-                top1_err, top5_err = [
-                    (1.0 - x / preds.size(0)) * 100.0
-                    for x in num_topks_correct
-                ]
+                top1_err, top5_err = metrics.topk_errors(preds, labels, (1, 2))
+                # TODO: CHANGE ks BACK TO 5 ONCE WE GET ENOUGH CLASSES
                 if cfg.NUM_GPUS > 1:
                     top1_err, top5_err = du.all_reduce([top1_err, top5_err])
 
                 # Copy the errors from GPU to CPU (sync point).
                 top1_err, top5_err = top1_err.item(), top5_err.item()
 
+                # Compute loss
+                if cfg.MODEL.MODEL_NAME == "ContrastiveModel":
+                    raise NotImplementedError
+                else:
+                    weights = None
+                    if (
+                        cfg.TRAIN.DATASET.lower() == "ucf"
+                        and cfg.MODEL.LOSS_FUNC == "cross_entropy"
+                    ):
+                        # assign weight to each of the classes (presumably to handle unbalanced
+                        # training set?)
+                        weights = torch.tensor(
+                            [
+                                10.71,
+                                8.33,
+                                7.5,
+                                25.0,
+                                12.5,
+                                11.54,
+                                12.5,
+                                7.5,
+                                11.54,
+                                6.82,
+                            ]
+                        )
+                        weights = weights.cuda()
+                    # Explicitly declare reduction to mean.
+                    loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(
+                        weight=weights,
+                        reduction="mean",
+                    )
+                    loss = loss_fun(preds, labels).item()
+
                 val_meter.iter_toc()
                 # Update and log stats.
                 val_meter.update_stats(
-                    top1_err,
-                    top5_err,
-                    batch_size
+                    top1_err=top1_err,
+                    top5_err=top5_err,
+                    loss=loss,
+                    mb_size=batch_size
                     * max(
                         cfg.NUM_GPUS, 1
                     ),  # If running  on CPU (cfg.NUM_GPUS == 1), use 1 to represent 1 CPU.
@@ -727,7 +739,6 @@ def train(cfg):
     epoch_timer = EpochTimer()
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
         logger.info(f"cur epoch {cur_epoch}")
-        # pdb.set_trace()
         if cur_epoch > 0 and cfg.DATA.LOADER_CHUNK_SIZE > 0:
             num_chunks = math.ceil(
                 cfg.DATA.LOADER_CHUNK_OVERALL_SIZE / cfg.DATA.LOADER_CHUNK_SIZE
@@ -774,7 +785,7 @@ def train(cfg):
 
         # Train for one epoch.
         epoch_timer.epoch_tic()
-        train_loss, train_val = train_epoch(
+        train_loss, train_acc = train_epoch(
             train_loader,
             model,
             optimizer,
@@ -786,7 +797,7 @@ def train(cfg):
         )
         epoch_timer.epoch_toc()
         train_losses.append(train_loss)
-        train_vals.append(train_val)
+        train_accs.append(train_acc)
 
         logger.info(
             f"Epoch {cur_epoch} takes {epoch_timer.last_epoch_time():.2f}s. Epochs "
@@ -830,7 +841,6 @@ def train(cfg):
 
         # Save a checkpoint.
         logger.info("saving chkp")
-        # pdb.set_trace()
         if is_checkp_epoch:
             cu.save_checkpoint(
                 cfg.OUTPUT_DIR,

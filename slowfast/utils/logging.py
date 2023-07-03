@@ -15,6 +15,7 @@ import slowfast.utils.distributed as du
 from slowfast.utils.env import pathmgr
 
 from datetime import datetime
+import pdb
 
 
 def _suppress_print():
@@ -31,7 +32,9 @@ def _suppress_print():
 @functools.lru_cache(maxsize=None)
 def _cached_log_stream(filename):
     # Use 1K buffer if writing to cloud storage.
-    io = pathmgr.open(filename, "a", buffering=1024 if "://" in filename else -1)
+    io = pathmgr.open(
+        filename, "a", buffering=1024 if "://" in filename else -1
+    )
     atexit.register(io.close)
     return io
 
@@ -65,8 +68,13 @@ def setup_logging(output_dir=None):
         ch.setFormatter(plain_formatter)
         logger.addHandler(ch)
 
-    if output_dir is not None and du.is_master_proc(du.get_world_size()):
-        filename = os.path.join(output_dir, f"stdout_{datetime.now()}.log")
+    log_dir = os.path.join(output_dir, "logs")
+
+    if log_dir is not None and du.is_master_proc(du.get_world_size()):
+        if not os.path.isdir(log_dir):
+            os.makedirs(log_dir)
+        filename = os.path.join(log_dir, f"stdout_{datetime.now()}.log")
+
         fh = logging.StreamHandler(_cached_log_stream(filename))
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(plain_formatter)
@@ -104,4 +112,6 @@ def log_json_stats(stats, output_dir=None):
             ) as f:
                 f.write("json_stats: {:s}\n".format(json_stats))
         except Exception:
-            logger.info("Failed to write to json_stats.log: {}".format(json_stats))
+            logger.info(
+                "Failed to write to json_stats.log: {}".format(json_stats)
+            )

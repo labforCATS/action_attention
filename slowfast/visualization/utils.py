@@ -251,7 +251,9 @@ class GetWeightAndActivation:
             if hasattr(cur_layer, "weight"):
                 weights[layer] = cur_layer.weight.clone().detach()
             else:
-                logger.error("Layer {} does not have weight attribute.".format(layer))
+                logger.error(
+                    "Layer {} does not have weight attribute.".format(layer)
+                )
         return weights
 
 
@@ -412,8 +414,12 @@ def save_inputs(data_loader, cfg, mode, save_video=False):
             video_index = video_indices[i]
 
             # make folders to store output images
-            slow_folder = os.path.join(output_folder_path, f"{video_index:06d}", "slow")
-            fast_folder = os.path.join(output_folder_path, f"{video_index:06d}", "fast")
+            slow_folder = os.path.join(
+                output_folder_path, f"{video_index:06d}", "slow"
+            )
+            fast_folder = os.path.join(
+                output_folder_path, f"{video_index:06d}", "fast"
+            )
             if not os.path.exists(slow_folder):
                 os.makedirs(slow_folder)
             if not os.path.exists(fast_folder):
@@ -469,7 +475,9 @@ def save_inputs(data_loader, cfg, mode, save_video=False):
         if save_video:
             fourcc = cv2.VideoWriter_fourcc(*"mp4v")
             for video_index in video_indices:
-                video_dir = os.path.join(cfg.OUTPUT_DIR, mode, str(video_index))
+                video_dir = os.path.join(
+                    cfg.OUTPUT_DIR, mode, str(video_index)
+                )
 
                 pathways = ["slow", "fast"]
                 for pathway in pathways:
@@ -520,24 +528,32 @@ def plot_train_val_curves(train_losses, train_accs, val_losses, val_accs, cfg):
     fig, axs = plt.subplots(1, 2)
 
     # plot losses
-    axs[0].plot(x=np.arange(len(train_losses)), y=train_losses, legend="train")
+    axs[0].plot(np.arange(len(train_losses)), train_losses, label="train")
     axs[0].plot(
-        x=cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_losses)), y=val_losses, legend="val"
+        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_losses)),
+        val_losses,
+        label="val",
     )
 
     # plot accuracies
-    axs[1].plot(x=np.arange(len(train_accs)), y=train_accs, legend="train")
+    axs[1].plot(np.arange(len(train_accs)), train_accs, label="train")
     axs[1].plot(
-        x=cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_accs)), y=val_accs, legend="val"
+        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_accs)),
+        val_accs,
+        label="val",
     )
 
-    # TODO: add nice title and formatting etc etc
+    # add labels, titles, etc 
     axs[0].set_xlabel("Epochs")
     axs[1].set_xlabel("Epochs")
     axs[0].set_ylabel("Loss")
     axs[1].set_ylabel("Accuracy")
+    axs[0].set_title("Loss over training")
+    axs[1].set_title("Accuracy over training")
 
     axs[0].legend()
     axs[1].legend()
+
+    plt.tight_layout()
 
     plt.savefig(save_path)

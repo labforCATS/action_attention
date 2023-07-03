@@ -4,11 +4,10 @@ TRAIN:
   BATCH_SIZE: 2
   EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
-  RESUME_FROM_CHECKPOINT: True
+  RESUME_FROM_CHECKPOINT: False
   CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/output/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00002.pyth 
-  #/research/cwloka/data/action_attn/action_attention/SLOWFAST_8x8_R50.pkl
   CHECKPOINT_TYPE: pytorch
-  SAVE_INPUT_VIDEO: True
+  SAVE_INPUT_VIDEO: False
 
 TENSORBOARD:
   ENABLE: False
@@ -63,7 +62,7 @@ BN:
 SOLVER:
   BASE_LR: 0.1
   LR_POLICY: cosine
-  MAX_EPOCH: 4
+  MAX_EPOCH: 50
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: 34.0
@@ -88,4 +87,4 @@ DATA_LOADER:
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/projects/hannah_sandbox/output/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output
+OUTPUT_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output
