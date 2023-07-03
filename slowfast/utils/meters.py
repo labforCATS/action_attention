@@ -547,8 +547,6 @@ class TrainMeter(object):
         self.lr = lr
         self.loss_total += loss * mb_size
         self.num_samples += mb_size
-        print("mb_size", mb_size)
-        print("self.num_samples", self.num_samples)
 
         if not self._cfg.DATA.MULTI_LABEL:
             # Current minibatch stats

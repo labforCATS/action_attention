@@ -57,12 +57,10 @@ def train_epoch(
         writer (TensorboardWriter, optional): TensorboardWriter object
             to writer Tensorboard log.
     """
-    print('inside train epoch')
     # Enable train mode.
     model.train()
     train_meter.iter_tic()
     data_size = len(train_loader)
-    print("data size:", data_size)
 
     if cfg.MIXUP.ENABLE:
         mixup_fn = MixUp(
@@ -74,7 +72,6 @@ def train_epoch(
             num_classes=cfg.MODEL.NUM_CLASSES,
         )
 
-    print('akjsdfbaksdf')
     iters_noupdate = 0
     if (
         cfg.MODEL.MODEL_NAME == "ContrastiveModel"
@@ -106,17 +103,10 @@ def train_epoch(
         weight=weights, reduction="mean"
     )
 
-    print('before dataloader batches')
-    # for inputs, labels, index, time, meta in train_loader:
-    #     print("inputs:", inputs)
-    #     print("labels:", labels)
-    #     print("index:", index)
-
-    # pdb.set_trace()
     for cur_iter, (inputs, labels, index, time, meta) in enumerate(
         train_loader
     ):
-        print('cur_iter',cur_iter)
+        logger.info(f"cur_iter {cur_iter}")
         if cfg.NUM_GPUS:
             if isinstance(inputs, (list,)):
                 for i in range(len(inputs)):
@@ -141,13 +131,10 @@ def train_epoch(
             if isinstance(inputs[0], list)
             else inputs[0].size(0)
         )
-        print("bactch size", batch_size)
         # Update the learning rate.
         epoch_exact = cur_epoch + float(cur_iter) / data_size
         lr = optim.get_epoch_lr(epoch_exact, cfg)
         optim.set_lr(optimizer, lr)
-
-        # pdb.set_trace()
 
         train_meter.data_toc()
         if cfg.MIXUP.ENABLE:
@@ -187,8 +174,6 @@ def train_epoch(
         # check Nan Loss.
         misc.check_nan_losses(loss)
 
-        # pdb.set_trace()
-
         if perform_backward:
             scaler.scale(loss).backward()
         # Unscales the gradients of optimizer's assigned params in-place
@@ -215,8 +200,6 @@ def train_epoch(
             scaler.step(optimizer)
         scaler.update()
 
-        # pdb.set_trace()
-
         if cfg.MIXUP.ENABLE:
             _top_max_k_vals, top_max_k_inds = torch.topk(
                 labels, 2, dim=1, largest=True, sorted=True
@@ -228,9 +211,7 @@ def train_epoch(
             preds[idx_top2] = 0.0
             labels = top_max_k_inds[:, 0]
 
-        # pdb.set_trace()
         if cfg.DETECTION.ENABLE:
-            print("we better not be in here")
             if cfg.NUM_GPUS > 1:
                 loss = du.all_reduce([loss])[0]
             loss = loss.item()
@@ -245,8 +226,6 @@ def train_epoch(
                 )
 
         else:
-            print("in outer else block")
-            # pdb.set_trace()
             top1_err, top5_err = None, None
             if cfg.DATA.MULTI_LABEL:
                 # Gather all the predictions across all the devices.
@@ -254,7 +233,6 @@ def train_epoch(
                     [loss] = du.all_reduce([loss])
                 loss = loss.item()
             else:
-                print("in this else block")
                 # Compute the errors.
                 num_topks_correct = metrics.topks_correct(
                     preds,
@@ -282,7 +260,6 @@ def train_epoch(
                 )
 
             # Update and log stats.
-            print("update stats")
             train_meter.update_stats(
                 top1_err,
                 top5_err,
@@ -314,8 +291,6 @@ def train_epoch(
         # TODO: check if indent here is correct
         del inputs
     # Log epoch stats.
-    print("didn't even go into the loop")
-    # pdb.set_trace()
     train_meter.log_epoch_stats(cur_epoch)
     train_meter.reset()
 
@@ -416,8 +391,6 @@ def eval_epoch(
                 preds = torch.sum(probs, 1)
             else:
                 preds = model(inputs)
-                print("Labels = ", labels)
-                print("Preds = ", preds)
 
             if cfg.DATA.MULTI_LABEL:
                 if cfg.NUM_GPUS > 1:
@@ -466,8 +439,6 @@ def eval_epoch(
                     )
 
             val_meter.update_predictions(preds, labels)
-            print("preds", preds)
-            print("labels", labels)
 
         val_meter.log_iter_stats(cur_epoch, cur_iter)
         val_meter.iter_tic()
@@ -676,8 +647,9 @@ def train(cfg):
         else None
     )
 
-    save_inputs(train_loader, cfg, "train", cfg.TRAIN.SAVE_INPUT_VIDEO)
-    save_inputs(val_loader, cfg, "val", cfg.TRAIN.SAVE_INPUT_VIDEO)
+    # TODO: TURN BACK ON AFTER ALLOWING SAVING ONLY A SUBSET
+    # save_inputs(train_loader, cfg, "train", cfg.TRAIN.SAVE_INPUT_VIDEO)
+    # save_inputs(val_loader, cfg, "val", cfg.TRAIN.SAVE_INPUT_VIDEO)
 
     if (
         cfg.TASK == "ssl"
@@ -710,7 +682,8 @@ def train(cfg):
 
     epoch_timer = EpochTimer()
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
-        print('cur epoch', cur_epoch)
+        logger.info(f"cur epoch {cur_epoch}")
+        # pdb.set_trace()
         if cur_epoch > 0 and cfg.DATA.LOADER_CHUNK_SIZE > 0:
             num_chunks = math.ceil(
                 cfg.DATA.LOADER_CHUNK_OVERALL_SIZE / cfg.DATA.LOADER_CHUNK_SIZE
@@ -750,15 +723,13 @@ def train(cfg):
                     last_checkpoint, model, cfg.NUM_GPUS > 1, optimizer
                 )
 
-        print('shuffle datset')
         # Shuffle the dataset.
         loader.shuffle_dataset(train_loader, cur_epoch)
         if hasattr(train_loader.dataset, "_set_epoch_num"):
             train_loader.dataset._set_epoch_num(cur_epoch)
         # Train for one epoch.
         epoch_timer.epoch_tic()
-        print('abt to train')
-        # pdb.set_trace()
+
         train_epoch(
             train_loader,
             model,
@@ -810,7 +781,8 @@ def train(cfg):
         _ = misc.aggregate_sub_bn_stats(model)
 
         # Save a checkpoint.
-        print("saving chkp")
+        logger.info("saving chkp")
+        # pdb.set_trace()
         if is_checkp_epoch:
             cu.save_checkpoint(
                 cfg.OUTPUT_DIR,
@@ -820,6 +792,7 @@ def train(cfg):
                 cfg,
                 scaler if cfg.TRAIN.MIXED_PRECISION else None,
             )
+        # pdb.set_trace()
         # Evaluate the model on validation set.
         if is_eval_epoch:
             eval_epoch(
