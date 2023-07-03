@@ -4,7 +4,7 @@ TRAIN:
   BATCH_SIZE: 64
   EVAL_PERIOD: 10
   CHECKPOINT_PERIOD: 1
-  AUTO_RESUME: True
+  RESUME_FROM_CHECKPOINT: True
   # CHECKPOINT_FILE_PATH: /path/to/your/directory/imagenet50_pretrain.pyth
   CHECKPOINT_INFLATE: True
 DATA:

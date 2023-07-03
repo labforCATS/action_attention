@@ -13,6 +13,7 @@ import slowfast.utils.distributed as du
 import slowfast.utils.logging as logging
 from slowfast.utils.c2_model_loading import get_name_convert_func
 from slowfast.utils.env import checkpoint_pathmgr as pathmgr
+import pdb
 
 logger = logging.get_logger(__name__)
 
@@ -30,6 +31,7 @@ def make_checkpoint_dir(path_to_job):
             pathmgr.mkdirs(checkpoint_dir)
         except Exception:
             pass
+    logger.info(f"checkpoint dir: {checkpoint_dir}")
     return checkpoint_dir
 
 
@@ -138,12 +140,14 @@ def save_checkpoint(path_to_job, model, optimizer, epoch, cfg, scaler=None):
         checkpoint["scaler_state"] = scaler.state_dict()
     # Write the checkpoint.
     path_to_checkpoint = get_path_to_checkpoint(path_to_job, epoch + 1, cfg.TASK)
-    print(path_to_checkpoint)
+    logger.info(f"path_to_checkpoint {path_to_checkpoint}")
+    # expecting this to be the weird pyth format with an epoch in the name
     if not os.path.exists(path_to_checkpoint):
         with open(path_to_checkpoint, "w") as f:
             pass
     with pathmgr.open(path_to_checkpoint, "wb") as f:
         torch.save(checkpoint, f)
+
     return path_to_checkpoint
 
 
@@ -479,23 +483,39 @@ def load_test_checkpoint(cfg, model):
         )
 
 
+# TODO: THIS FUNCTION IS NEVER CALLED ANYWHERE, SHOULD WE JUST DELETE IT?
 def load_train_checkpoint(cfg, model, optimizer, scaler=None):
     """
     Loading checkpoint logic for training.
     """
-    if cfg.TRAIN.AUTO_RESUME and has_checkpoint(cfg.OUTPUT_DIR):
+    if cfg.TRAIN.RESUME_FROM_CHECKPOINT and has_checkpoint(cfg.OUTPUT_DIR):
         last_checkpoint = get_last_checkpoint(cfg.OUTPUT_DIR, cfg.TASK)
         logger.info("Load from last checkpoint, {}.".format(last_checkpoint))
-        checkpoint_epoch = load_checkpoint(
-            last_checkpoint,
-            model,
-            cfg.NUM_GPUS > 1,
-            optimizer,
-            scaler=scaler,
-            clear_name_pattern=cfg.TRAIN.CHECKPOINT_CLEAR_NAME_PATTERN,
-        )
-        start_epoch = checkpoint_epoch + 1
-    elif cfg.TRAIN.CHECKPOINT_FILE_PATH != "":
+        if last_checkpoint is not None:
+            checkpoint_epoch = load_checkpoint(
+                last_checkpoint,
+                model,
+                cfg.NUM_GPUS > 1,
+                optimizer,
+                scaler=scaler,
+                clear_name_pattern=cfg.TRAIN.CHECKPOINT_CLEAR_NAME_PATTERN,
+            )
+            start_epoch = checkpoint_epoch + 1
+        elif "ssl_eval" in cfg.TASK:
+            last_checkpoint = get_last_checkpoint(cfg.OUTPUT_DIR, task="ssl")
+            checkpoint_epoch = load_checkpoint(
+                last_checkpoint,
+                model,
+                cfg.NUM_GPUS > 1,
+                optimizer,
+                scaler,
+                epoch_reset=True,
+                clear_name_pattern=cfg.TRAIN.CHECKPOINT_CLEAR_NAME_PATTERN,
+            )
+            start_epoch = checkpoint_epoch + 1
+        else:
+            start_epoch = 0
+    elif cfg.TRAIN.RESUME_FROM_CHECKPOINT and cfg.TRAIN.CHECKPOINT_FILE_PATH != "":
         logger.info("Load from given checkpoint file.")
         checkpoint_epoch = load_checkpoint(
             cfg.TRAIN.CHECKPOINT_FILE_PATH,
