@@ -110,6 +110,7 @@ def train_epoch(
     for cur_iter, (inputs, labels, index, time, meta) in enumerate(
         train_loader
     ):
+        logger.info(f"cur_iter {cur_iter}")
         if cfg.NUM_GPUS:
             if isinstance(inputs, (list,)):
                 for i in range(len(inputs)):
@@ -290,7 +291,9 @@ def train_epoch(
         train_meter.log_iter_stats(cur_epoch, cur_iter)
         torch.cuda.synchronize()
         train_meter.iter_tic()
-    del inputs
+
+        # TODO: check if indent here is correct
+        del inputs
     # Log epoch stats.
     train_meter.log_epoch_stats(cur_epoch)
 
@@ -311,7 +314,9 @@ def train_epoch(
 
 
 @torch.no_grad()
-def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
+def eval_epoch(
+    val_loader, model, val_meter, cur_epoch, cfg, writer
+):
     """
     Evaluate the model on the val set.
 
@@ -408,8 +413,6 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
                 preds = torch.sum(probs, 1)
             else:
                 preds = model(inputs)
-                print("Labels = ", labels)
-                print("Preds = ", preds)
 
             if cfg.DATA.MULTI_LABEL:
                 if cfg.NUM_GPUS > 1:
@@ -458,8 +461,6 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
                     )
 
             val_meter.update_predictions(preds, labels)
-            print("preds", preds)
-            print("labels", labels)
 
         val_meter.log_iter_stats(cur_epoch, cur_iter)
         val_meter.iter_tic()
@@ -658,54 +659,13 @@ def train(cfg):
 
     # Construct the optimizer.
     optimizer = optim.construct_optimizer(model, cfg)
-    # Create a GradScaler for mixed precision training
+    # Create a GradScaler for mixed p[][]recision training
     scaler = torch.cuda.amp.GradScaler(enabled=cfg.TRAIN.MIXED_PRECISION)
 
     # Load a checkpoint to resume training if applicable.
-    if cfg.TRAIN.AUTO_RESUME and cu.has_checkpoint(cfg.OUTPUT_DIR):
-        logger.info("Load from last checkpoint.")
-        last_checkpoint = cu.get_last_checkpoint(cfg.OUTPUT_DIR, task=cfg.TASK)
-        if last_checkpoint is not None:
-            checkpoint_epoch = cu.load_checkpoint(
-                last_checkpoint,
-                model,
-                cfg.NUM_GPUS > 1,
-                optimizer,
-                scaler if cfg.TRAIN.MIXED_PRECISION else None,
-            )
-            start_epoch = checkpoint_epoch + 1
-        elif "ssl_eval" in cfg.TASK:
-            last_checkpoint = cu.get_last_checkpoint(
-                cfg.OUTPUT_DIR, task="ssl"
-            )
-            checkpoint_epoch = cu.load_checkpoint(
-                last_checkpoint,
-                model,
-                cfg.NUM_GPUS > 1,
-                optimizer,
-                scaler if cfg.TRAIN.MIXED_PRECISION else None,
-                epoch_reset=True,
-                clear_name_pattern=cfg.TRAIN.CHECKPOINT_CLEAR_NAME_PATTERN,
-            )
-            start_epoch = checkpoint_epoch + 1
-        else:
-            start_epoch = 0
-    elif cfg.TRAIN.CHECKPOINT_FILE_PATH != "":
-        logger.info("Load from given checkpoint file.")
-        checkpoint_epoch = cu.load_checkpoint(
-            cfg.TRAIN.CHECKPOINT_FILE_PATH,
-            model,
-            cfg.NUM_GPUS > 1,
-            optimizer,
-            scaler if cfg.TRAIN.MIXED_PRECISION else None,
-            inflation=cfg.TRAIN.CHECKPOINT_INFLATE,
-            convert_from_caffe2=cfg.TRAIN.CHECKPOINT_TYPE == "caffe2",
-            epoch_reset=cfg.TRAIN.CHECKPOINT_EPOCH_RESET,
-            clear_name_pattern=cfg.TRAIN.CHECKPOINT_CLEAR_NAME_PATTERN,
-        )
-        start_epoch = checkpoint_epoch + 1
-    else:
-        start_epoch = 0
+    start_epoch = cu.load_train_checkpoint(
+        cfg, model, optimizer, scaler if cfg.TRAIN.MIXED_PRECISION else None
+    )
 
     # ### FINE_TUNING SPECIFIC CODE ####
     # for param in model.parameters():
@@ -722,12 +682,9 @@ def train(cfg):
         else None
     )
 
-    # save the direct outputs from the dataloaders as frames/videos to verify
-    # they are as expected
-    # TODO: add parameter that allows us to limit the number of frames/videos
-    # saved so that we dont waste runtime on it
-    save_inputs(train_loader, cfg, "train", cfg.TRAIN.SAVE_INPUT_VIDEO)
-    save_inputs(val_loader, cfg, "val", cfg.TRAIN.SAVE_INPUT_VIDEO)
+    # TODO: TURN BACK ON AFTER ALLOWING SAVING ONLY A SUBSET
+    # save_inputs(train_loader, cfg, "train", cfg.TRAIN.SAVE_INPUT_VIDEO)
+    # save_inputs(val_loader, cfg, "val", cfg.TRAIN.SAVE_INPUT_VIDEO)
 
     if (
         cfg.TASK == "ssl"
@@ -769,6 +726,8 @@ def train(cfg):
 
     epoch_timer = EpochTimer()
     for cur_epoch in range(start_epoch, cfg.SOLVER.MAX_EPOCH):
+        logger.info(f"cur epoch {cur_epoch}")
+        # pdb.set_trace()
         if cur_epoch > 0 and cfg.DATA.LOADER_CHUNK_SIZE > 0:
             num_chunks = math.ceil(
                 cfg.DATA.LOADER_CHUNK_OVERALL_SIZE / cfg.DATA.LOADER_CHUNK_SIZE
@@ -870,6 +829,8 @@ def train(cfg):
         _ = misc.aggregate_sub_bn_stats(model)
 
         # Save a checkpoint.
+        logger.info("saving chkp")
+        # pdb.set_trace()
         if is_checkp_epoch:
             cu.save_checkpoint(
                 cfg.OUTPUT_DIR,
@@ -879,7 +840,6 @@ def train(cfg):
                 cfg,
                 scaler if cfg.TRAIN.MIXED_PRECISION else None,
             )
-
         # Evaluate the model on validation set.
         if is_eval_epoch:
             val_loss, val_acc = eval_epoch(
