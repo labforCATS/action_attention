@@ -9,11 +9,12 @@ import os
 import cv2
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+import pdb
+import json
 
 import slowfast.utils.logging as logging
 import slowfast.datasets.utils as data_utils
 from slowfast.datasets.utils import pack_pathway_output, tensor_normalize
-import pdb
 
 logger = logging.get_logger(__name__)
 
@@ -509,49 +510,78 @@ def save_inputs(data_loader, cfg, mode, save_video=False):
                     video.release()
 
 
-def plot_train_val_curves(train_losses, train_accs, val_losses, val_accs, cfg):
+def plot_train_val_curves(cfg):
     """Plots the training and validation accuracy and loss over the epochs.
 
-    The plots are saved to the configured outputs directory and will be
-    overridden and updated each epoch.
-
-    TODO: eventually move this to tensorboard for better interface?
-
-    Args:
-
-    Output:
+    Data is read from the auto-generated json_stats.log; Plots are saved to the
+    configured outputs directory and will be overridden and updated each epoch.
     """
-    save_path = os.path.join(cfg.OUTPUT_DIR, "train_val_curves.jpg")
+    try:
+        save_path = os.path.join(cfg.OUTPUT_DIR, "train_val_curves.jpg")
 
-    fig, axs = plt.subplots(1, 2)
+        # retrieve data from json_stats.log
+        stats_path = os.path.join(cfg.OUTPUT_DIR, "json_stats.log")
+        train_epochs = []
+        train_losses = []
+        train_accs = []
+        val_epochs = []
+        val_losses = []
+        val_accs = []
 
-    # plot losses
-    axs[0].plot(np.arange(len(train_losses)), train_losses, label="train")
-    axs[0].plot(
-        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_losses)),
-        val_losses,
-        label="val",
-    )
+        with open(stats_path, "r") as f:
+            for line in f.readlines():
+                dict_str = line.rstrip().removeprefix("json_stats: ")
+                stats_dict = json.loads(dict_str)
+                mode = stats_dict["_type"].removesuffix("_epoch")
+                epoch = int(stats_dict["epoch"].split("/")[0])
+                loss = float(stats_dict["loss"])
+                acc = 1.0 - float(stats_dict["top1_err"])
 
-    # plot accuracies
-    axs[1].plot(np.arange(len(train_accs)), train_accs, label="train")
-    axs[1].plot(
-        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_accs)),
-        val_accs,
-        label="val",
-    )
+                if mode == "train":
+                    train_epochs.append(epoch)
+                    train_losses.append(loss)
+                    train_accs.append(acc)
+                elif mode == "val":
+                    val_epochs.append(epoch)
+                    val_losses.append(loss)
+                    val_accs.append(acc)
+                else:
+                    raise ValueError(
+                        f"inappropriate _type ({mode}) in json_stats.log"
+                    )
 
-    # add labels, titles, etc 
-    axs[0].set_xlabel("Epochs")
-    axs[1].set_xlabel("Epochs")
-    axs[0].set_ylabel("Loss")
-    axs[1].set_ylabel("Accuracy")
-    axs[0].set_title("Loss over training")
-    axs[1].set_title("Accuracy over training")
+        # generate plot
+        fig, axs = plt.subplots(1, 2)
 
-    axs[0].legend()
-    axs[1].legend()
+        # plot losses
+        axs[0].plot(train_epochs, train_losses, "-o", label="train")
+        axs[0].plot(
+            val_epochs,
+            val_losses,"-o",
+            label="val"
+        )
 
-    plt.tight_layout()
+        # plot accuracies
+        axs[1].plot(train_epochs, train_accs, "-o",label="train")
+        axs[1].plot(
+            val_epochs,
+            val_accs,"-o",
+            label="val"
+        )
 
-    plt.savefig(save_path)
+        # add labels, titles, etc
+        axs[0].set_xlabel("Epochs")
+        axs[1].set_xlabel("Epochs")
+        axs[0].set_ylabel("Loss")
+        axs[1].set_ylabel("Accuracy")
+        axs[0].set_title("Loss over training")
+        axs[1].set_title("Accuracy over training")
+
+        axs[0].legend()
+        axs[1].legend()
+
+        plt.tight_layout()
+
+        plt.savefig(save_path)
+    except Exception as e:
+        logger.warning(f'Failed to plot train/val curves with Exception {e}')

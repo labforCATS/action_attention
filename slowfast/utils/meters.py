@@ -548,18 +548,13 @@ class TrainMeter(object):
             self.mb_top1_err.add_value(top1_err)
             self.mb_top5_err.add_value(top5_err)
             # Aggregate stats
-            self.num_top1_mis += top1_err * mb_size
-            self.num_top5_mis += top5_err * mb_size
-            assert (
-                isinstance(self.num_top1_mis, int)
-                or self.num_top1_mis.is_integer()
-            )
-            assert (
-                isinstance(self.num_top5_mis, int)
-                or self.num_top5_mis.is_integer()
-            )
-            self.num_top1_mis = int(self.num_top1_mis)
-            self.num_top5_mis = int(self.num_top5_mis)
+            self.num_top1_mis += round(top1_err * mb_size)
+            self.num_top5_mis += round(top5_err * mb_size)
+            # the top1 and top5 err should always be defined to be
+            # (num mistakes / batch size), thus we always expect num mistakes to
+            # be an int. the rounding is to handle float point errors during the
+            # earlier division. this is inefficient convoluted code but creates
+            # the minimal change to the existing codebase
 
     def log_iter_stats(self, cur_epoch, cur_iter):
         """
@@ -624,9 +619,13 @@ class TrainMeter(object):
             stats["top5_err"] = top5_err
             stats["loss"] = avg_loss
 
-            print("stats", stats)
-            print("type(avg_loss)", type(avg_loss))
-        logging.log_json_stats(stats, self.output_dir)
+        file_access_mode = "w" if cur_epoch == 0 else "a"
+
+        logging.log_json_stats(
+            stats,
+            file_access_mode=file_access_mode,
+            output_dir=self.output_dir,
+        )
 
 
 class ValMeter(object):
@@ -708,18 +707,13 @@ class ValMeter(object):
         self.loss_total += loss * mb_size
         self.num_samples += mb_size
 
-        self.num_top1_mis += top1_err * mb_size
-        self.num_top5_mis += top5_err * mb_size
-        assert (
-            isinstance(self.num_top1_mis, int)
-            or self.num_top1_mis.is_integer()
-        )
-        assert (
-            isinstance(self.num_top5_mis, int)
-            or self.num_top5_mis.is_integer()
-        )
-        self.num_top1_mis = int(self.num_top1_mis)
-        self.num_top5_mis = int(self.num_top5_mis)
+        self.num_top1_mis += round(top1_err * mb_size)
+        self.num_top5_mis += round(top5_err * mb_size)
+        # the top1 and top5 err should always be defined to be
+        # (num mistakes / batch size), thus we always expect num mistakes to
+        # be an int. the rounding is to handle float point errors during the
+        # earlier division. this is inefficient convoluted code but creates
+        # the minimal change to the existing codebase
 
     def update_predictions(self, preds, labels):
         """
@@ -759,7 +753,6 @@ class ValMeter(object):
         logging.log_json_stats(stats)
 
     def log_epoch_stats(self, cur_epoch):
-        # TODO: PICK UP HERE
         """
         Log the stats of the current epoch.
         Args:
@@ -792,7 +785,9 @@ class ValMeter(object):
             stats["min_top1_err"] = self.min_top1_err
             stats["min_top5_err"] = self.min_top5_err
 
-        logging.log_json_stats(stats, self.output_dir)
+        logging.log_json_stats(
+            stats, file_access_mode="a", output_dir=self.output_dir
+        )
 
 
 def get_map(preds, labels):
