@@ -239,8 +239,6 @@ def train_epoch(
             else:
                 # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
                 top1_err, top5_err = metrics.topk_errors(preds, labels, [1, 2])
-                print("top1_err", top1_err)  # THIS IS PERCENTAGE
-                print("top5_err", top5_err)
 
                 # Gather all the predictions across all the devices.
                 if cfg.NUM_GPUS > 1:
@@ -289,20 +287,7 @@ def train_epoch(
     # Log epoch stats.
     train_meter.log_epoch_stats(cur_epoch)
 
-    train_loss = (
-        train_meter.loss_total
-    )  # should we take the avg loss? i believe this is currently the cumulative loss for all samples
-    total_samples = len(train_loader.dataset)
-    n_wrong = train_meter.num_top1_mis
-    train_acc = (total_samples - n_wrong) / total_samples
-
-    print("train total_samples", total_samples)
-    print("train n_wrong", n_wrong)
-    print("train_acc", train_acc)
-    print("train_loss", train_loss)
-
     train_meter.reset()
-    return train_loss, train_acc
 
 
 @torch.no_grad()
@@ -497,20 +482,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
                 preds=all_preds, labels=all_labels, global_step=cur_epoch
             )
 
-    val_loss = (
-        val_meter.loss_total
-    )  # should we take the avg loss? i believe this is currently the cumulative loss for all samples
-    total_samples = len(val_loader.dataset)
-    n_wrong = val_meter.num_top1_mis
-    val_acc = (total_samples - n_wrong) / total_samples
-
-    print("val total_samples", total_samples)
-    print("val n_wrong", n_wrong)
-    print("val_acc", val_acc)
-    print("val_loss", val_loss)
-
     val_meter.reset()
-    return val_loss, val_acc
 
 
 def contrastive_forward(model, cfg, inputs, index, time, epoch_exact, scaler):
@@ -724,15 +696,6 @@ def train(cfg):
     else:
         writer = None
 
-    # track train and val losses and accuracies
-    train_losses = []
-    train_accs = []
-    val_losses = []
-    val_accs = []
-
-    # TODO: handle tracking train/val loss/acc if we are resuming training from
-    # the middle of some epochs
-
     # Perform the training loop.
     logger.info("Start epoch: {}".format(start_epoch + 1))
 
@@ -785,7 +748,7 @@ def train(cfg):
 
         # Train for one epoch.
         epoch_timer.epoch_tic()
-        train_loss, train_acc = train_epoch(
+        train_epoch(
             train_loader,
             model,
             optimizer,
@@ -796,8 +759,6 @@ def train(cfg):
             writer,
         )
         epoch_timer.epoch_toc()
-        train_losses.append(train_loss)
-        train_accs.append(train_acc)
 
         logger.info(
             f"Epoch {cur_epoch} takes {epoch_timer.last_epoch_time():.2f}s. Epochs "
@@ -852,7 +813,7 @@ def train(cfg):
             )
         # Evaluate the model on validation set.
         if is_eval_epoch:
-            val_loss, val_acc = eval_epoch(
+            eval_epoch(
                 val_loader,
                 model,
                 val_meter,
@@ -860,13 +821,9 @@ def train(cfg):
                 cfg,
                 writer,
             )
-            val_losses.append(val_loss)
-            val_accs.append(val_acc)
 
         # Update plot for train/val accuracy and loss curves
-        plot_train_val_curves(
-            train_losses, train_accs, val_losses, val_accs, cfg
-        )
+        plot_train_val_curves(cfg)
 
     if writer is not None:
         writer.close()

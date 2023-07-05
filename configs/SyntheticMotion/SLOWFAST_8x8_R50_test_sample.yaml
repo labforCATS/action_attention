@@ -1,12 +1,12 @@
 TRAIN:
-  ENABLE: True
+  ENABLE: False
   DATASET: SyntheticMotion
   BATCH_SIZE: 2
-  EVAL_PERIOD: 2
+  EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
-  RESUME_FROM_CHECKPOINT: True
-  # CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/output/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00055.pyth 
-  CHECKPOINT_TYPE: pytorch
+  RESUME_FROM_CHECKPOINT: False
+  # CHECKPOINT_FILE_PATH: 
+  # CHECKPOINT_TYPE: caffe2
   SAVE_INPUT_VIDEO: False
 
 TENSORBOARD:
@@ -62,7 +62,7 @@ BN:
 SOLVER:
   BASE_LR: 0.1
   LR_POLICY: cosine
-  MAX_EPOCH: 69
+  MAX_EPOCH: 48
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: 34.0
@@ -77,10 +77,11 @@ MODEL:
   DROPOUT_RATE: 0.5
   
 TEST:
-  ENABLE: False
+  ENABLE: True
   DATASET: SyntheticMotion
-  BATCH_SIZE: 3
-  SAVE_INPUT_VIDEO: True
+  BATCH_SIZE: 2
+  CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00050.pyth
+  SAVE_INPUT_VIDEO: False
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True

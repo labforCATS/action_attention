@@ -91,7 +91,7 @@ def get_logger(name):
     return logging.getLogger(name)
 
 
-def log_json_stats(stats, output_dir=None):
+def log_json_stats(stats, file_access_mode="a", output_dir=None):
     """
     Logs json stats.
     Args:
@@ -108,7 +108,9 @@ def log_json_stats(stats, output_dir=None):
         filename = os.path.join(output_dir, "json_stats.log")
         try:
             with pathmgr.open(
-                filename, "a", buffering=1024 if "://" in filename else -1
+                filename,
+                file_access_mode,
+                buffering=1024 if "://" in filename else -1,
             ) as f:
                 f.write("json_stats: {:s}\n".format(json_stats))
         except Exception:
