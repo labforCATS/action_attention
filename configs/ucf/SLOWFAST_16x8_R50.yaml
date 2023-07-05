@@ -4,7 +4,7 @@ TRAIN:
   BATCH_SIZE: 1
   EVAL_PERIOD: 2
   CHECKPOINT_PERIOD: 1
-  AUTO_RESUME: True
+  RESUME_FROM_CHECKPOINT: True
   CHECKPOINT_FILE_PATH: slowfast/SLOWFAST_16x8_R50.pkl # please download from the model zoo.
   # CHECKPOINT_FILE_PATH: slowfast/SLOWFAST_8x8_R50.pkl
   CHECKPOINT_TYPE: pytorch

@@ -1,23 +1,22 @@
 TRAIN:
-  ENABLE: False
+  ENABLE: True
   DATASET: SyntheticMotion
-  BATCH_SIZE: 10
-  EVAL_PERIOD: 10
+  BATCH_SIZE: 2
+  EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
-  AUTO_RESUME: True
-  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/action_attention/SLOWFAST_8x8_R50.pkl
-  CHECKPOINT_TYPE: caffe2
+  RESUME_FROM_CHECKPOINT: False
+  CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/output/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00002.pyth 
+  CHECKPOINT_TYPE: pytorch
   SAVE_INPUT_VIDEO: False
 
 TENSORBOARD:
-  ENABLE: True
+  ENABLE: False
   CLASS_NAMES_PATH: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/synthetic_motion_labels.json
   MODEL_VIS:
     ENABLE: True
     MODEL_WEIGHTS: False # Set to True to visualize model weights.
     ACTIVATIONS: False # Set to True to visualize feature maps.
     INPUT_VIDEO: False # Set to True to visualize the input video(s) for the corresponding feature maps.
-    # LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of layer names to visualize weights and activations for.
     GRAD_CAM:
       ENABLE: True
       LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of CNN layers to use for Grad-CAM visualization method.
@@ -26,7 +25,7 @@ TENSORBOARD:
       METHOD: grad_cam
 
 DATA:
-  PATH_TO_DATA_DIR: "/research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9"
+  PATH_TO_DATA_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9
   NUM_FRAMES: 32
   SAMPLING_RATE: 2
   TRAIN_JITTER_SCALES: [256, 320]
@@ -63,7 +62,7 @@ BN:
 SOLVER:
   BASE_LR: 0.1
   LR_POLICY: cosine
-  MAX_EPOCH: 48
+  MAX_EPOCH: 50
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: 34.0
@@ -71,21 +70,21 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 
 MODEL:
-  NUM_CLASSES: 4
+  NUM_CLASSES: 5
   ARCH: slowfast
   MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy
   DROPOUT_RATE: 0.5
   
 TEST:
-  ENABLE: True
+  ENABLE: False
   DATASET: SyntheticMotion
-  BATCH_SIZE: 2
-  SAVE_INPUT_VIDEO: False
+  BATCH_SIZE: 3
+  SAVE_INPUT_VIDEO: True
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/projects/hannah_sandbox/output/synthetic_vids/dataset_1000/ispy_0.1_9/output
+OUTPUT_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output

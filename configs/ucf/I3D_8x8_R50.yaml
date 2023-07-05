@@ -5,7 +5,7 @@ TRAIN:
   BATCH_SIZE: 1
   EVAL_PERIOD: 2
   CHECKPOINT_PERIOD: 1
-  AUTO_RESUME: True
+  RESUME_FROM_CHECKPOINT: True
   CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/action_attention/I3D_8x8_R50.pkl
   CHECKPOINT_TYPE: caffe2
   CHECKPOINT_EPOCH_RESET: True

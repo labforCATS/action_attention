@@ -8,10 +8,12 @@ import torch
 import os
 import cv2
 from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
 
 import slowfast.utils.logging as logging
 import slowfast.datasets.utils as data_utils
 from slowfast.datasets.utils import pack_pathway_output, tensor_normalize
+import pdb
 
 logger = logging.get_logger(__name__)
 
@@ -249,7 +251,9 @@ class GetWeightAndActivation:
             if hasattr(cur_layer, "weight"):
                 weights[layer] = cur_layer.weight.clone().detach()
             else:
-                logger.error("Layer {} does not have weight attribute.".format(layer))
+                logger.error(
+                    "Layer {} does not have weight attribute.".format(layer)
+                )
         return weights
 
 
@@ -335,7 +339,6 @@ def get_layer(model, layer_name):
     """
     layer_ls = layer_name.split("/")
     prev_module = model
-    # print(model)
     for layer in layer_ls:
         prev_module = prev_module._modules[layer]
 
@@ -377,7 +380,7 @@ class TaskInfo:
         self.action_preds = preds
 
 
-def save_inputs(data_loader, cfg, mode, save_video = False):
+def save_inputs(data_loader, cfg, mode, save_video=False):
     """
     Saves the frames of the inputs to the model as a .jpg
 
@@ -391,7 +394,7 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
         saves frames (and video, if applicable) to the output folder specified
         in config file
     """
-    if (mode != "train" and mode != "test" and mode != "val"):
+    if mode != "train" and mode != "test" and mode != "val":
         raise ValueError("mode must be 'train' or 'test' or 'val'")
     output_folder_path = os.path.join(cfg.OUTPUT_DIR, mode)
 
@@ -405,12 +408,18 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
         video_indices = np.empty(cfg.TRAIN.BATCH_SIZE)
     for batch, (inputs, labels, index, time, meta) in enumerate(data_loader):
         video_indices = index.numpy()
+
         # go through each image in the batch
         for i in range(len(labels)):
             video_index = video_indices[i]
+
             # make folders to store output images
-            slow_folder = os.path.join(output_folder_path, str(video_index), "slow")
-            fast_folder = os.path.join(output_folder_path, str(video_index), "fast")
+            slow_folder = os.path.join(
+                output_folder_path, f"{video_index:06d}", "slow"
+            )
+            fast_folder = os.path.join(
+                output_folder_path, f"{video_index:06d}", "fast"
+            )
             if not os.path.exists(slow_folder):
                 os.makedirs(slow_folder)
             if not os.path.exists(fast_folder):
@@ -432,16 +441,17 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
             num_slow_frame = curr_slow_tensor.size(dim=1)
             num_fast_frame = curr_fast_tensor.size(dim=1)
 
-            
             # save all slow frames as a jpg
             for slow_frame in range(num_slow_frame):
                 # move the tensor to cpu if needed
                 if curr_slow_tensor.device != torch.device("cpu"):
                     curr_slow_tensor = curr_slow_tensor.to("cpu")
                 # isolate the individual frames from the tensor
-                curr_slow_tensor_image = curr_slow_tensor[0, slow_frame, :, :, :].numpy() * 255
+                curr_slow_tensor_image = (
+                    curr_slow_tensor[0, slow_frame, :, :, :].numpy() * 255
+                )
                 one_based_slow_frame = slow_frame + 1
-                slow_name = f"{video_index:03d}_{one_based_slow_frame:06d}.jpg"
+                slow_name = f"{video_index:06d}_{one_based_slow_frame:06d}.jpg"
                 slow_name = os.path.join(slow_folder, slow_name)
                 cv2.imwrite(slow_name, curr_slow_tensor_image)
 
@@ -451,29 +461,97 @@ def save_inputs(data_loader, cfg, mode, save_video = False):
                 if curr_fast_tensor.device != torch.device("cpu"):
                     curr_fast_tensor = curr_fast_tensor.to("cpu")
                 # isolate the individual frames from the tensor
-                curr_fast_tensor_image = curr_fast_tensor[0, fast_frame, :, :, :].numpy() * 255
+                curr_fast_tensor_image = (
+                    curr_fast_tensor[0, fast_frame, :, :, :].numpy() * 255
+                )
                 one_based_fast_frame = fast_frame + 1
-                fast_name = f"{video_index:03d}_{one_based_fast_frame:06d}.jpg"
+                fast_name = f"{video_index:06d}_{one_based_fast_frame:06d}.jpg"
                 fast_name = os.path.join(fast_folder, fast_name)
                 cv2.imwrite(fast_name, curr_fast_tensor_image)
-    
-    # save the input frames as a video
-    if save_video:
-        for video_index in video_indices:
-            video_dir = os.path.join(cfg.OUTPUT_DIR, mode, str(video_index))
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
-            pathways = ["slow", "fast"]
-            for pathway in pathways:
-                video_name = os.path.join(video_dir, f"{pathway}_{video_index:06d}.mp4")
-                if mode == "test":
-                    video = cv2.VideoWriter(video_name, fourcc, 25, (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE))
-                else:
-                    video = cv2.VideoWriter(video_name, fourcc, 25, (cfg.DATA.TRAIN_CROP_SIZE, cfg.DATA.TRAIN_CROP_SIZE))
-                pathway_dir = os.path.join(video_dir, pathway)
-                for image_path in os.listdir(pathway_dir):
-                    if image_path.endswith(".jpg"):
-                        image = cv2.imread(image_path)
-                        video.write(image)
-                cv2.destroyAllWindows()
-                video.release()
+        # save the input frames as a video
+        if save_video:
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            for video_index in video_indices:
+                video_dir = os.path.join(
+                    cfg.OUTPUT_DIR, mode, str(video_index)
+                )
+
+                pathways = ["slow", "fast"]
+                for pathway in pathways:
+                    video_name = os.path.join(
+                        video_dir, f"{pathway}_{video_index:06d}.mp4"
+                    )
+                    if mode == "test":
+                        video = cv2.VideoWriter(
+                            video_name,
+                            fourcc,
+                            25,
+                            (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE),
+                        )
+                    else:
+                        video = cv2.VideoWriter(
+                            video_name,
+                            fourcc,
+                            25,
+                            (
+                                cfg.DATA.TRAIN_CROP_SIZE,
+                                cfg.DATA.TRAIN_CROP_SIZE,
+                            ),
+                        )
+                    pathway_dir = os.path.join(video_dir, pathway)
+                    for fname in os.listdir(pathway_dir):
+                        if fname.endswith(".jpg"):
+                            image_path = os.path.join(pathway_dir, fname)
+                            image = cv2.imread(image_path)
+                            video.write(image)
+                    cv2.destroyAllWindows()
+                    video.release()
+
+
+def plot_train_val_curves(train_losses, train_accs, val_losses, val_accs, cfg):
+    """Plots the training and validation accuracy and loss over the epochs.
+
+    The plots are saved to the configured outputs directory and will be
+    overridden and updated each epoch.
+
+    TODO: eventually move this to tensorboard for better interface?
+
+    Args:
+
+    Output:
+    """
+    save_path = os.path.join(cfg.OUTPUT_DIR, "train_val_curves.jpg")
+
+    fig, axs = plt.subplots(1, 2)
+
+    # plot losses
+    axs[0].plot(np.arange(len(train_losses)), train_losses, label="train")
+    axs[0].plot(
+        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_losses)),
+        val_losses,
+        label="val",
+    )
+
+    # plot accuracies
+    axs[1].plot(np.arange(len(train_accs)), train_accs, label="train")
+    axs[1].plot(
+        cfg.TRAIN.EVAL_PERIOD * np.arange(len(val_accs)),
+        val_accs,
+        label="val",
+    )
+
+    # add labels, titles, etc 
+    axs[0].set_xlabel("Epochs")
+    axs[1].set_xlabel("Epochs")
+    axs[0].set_ylabel("Loss")
+    axs[1].set_ylabel("Accuracy")
+    axs[0].set_title("Loss over training")
+    axs[1].set_title("Accuracy over training")
+
+    axs[0].legend()
+    axs[1].legend()
+
+    plt.tight_layout()
+
+    plt.savefig(save_path)

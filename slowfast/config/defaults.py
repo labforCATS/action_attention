@@ -143,7 +143,7 @@ _C.TRAIN.EVAL_PERIOD = 10
 _C.TRAIN.CHECKPOINT_PERIOD = 10
 
 # Resume training from the latest checkpoint in the output directory.
-_C.TRAIN.AUTO_RESUME = True
+_C.TRAIN.RESUME_FROM_CHECKPOINT = True
 
 # Path to the checkpoint to load the initial weight.
 _C.TRAIN.CHECKPOINT_FILE_PATH = ""
