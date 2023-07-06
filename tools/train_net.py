@@ -666,9 +666,8 @@ def train(cfg):
         else None
     )
 
-    # TODO: TURN BACK ON AFTER ALLOWING SAVING ONLY A SUBSET
-    # save_inputs(train_loader, cfg, "train", cfg.TRAIN.SAVE_INPUT_VIDEO)
-    # save_inputs(val_loader, cfg, "val", cfg.TRAIN.SAVE_INPUT_VIDEO)
+    save_inputs(train_loader, cfg, "train")
+    save_inputs(val_loader, cfg, "val")
 
     if (
         cfg.TASK == "ssl"

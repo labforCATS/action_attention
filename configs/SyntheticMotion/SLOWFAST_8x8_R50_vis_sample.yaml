@@ -7,7 +7,6 @@ TRAIN:
   RESUME_FROM_CHECKPOINT: False
   # CHECKPOINT_FILE_PATH: 
   # CHECKPOINT_TYPE: caffe2
-  SAVE_INPUT_VIDEO: False
 
 TENSORBOARD:
   ENABLE: True
@@ -81,7 +80,6 @@ TEST:
   DATASET: SyntheticMotion
   BATCH_SIZE: 2
   CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00050.pyth
-  SAVE_INPUT_VIDEO: False
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True

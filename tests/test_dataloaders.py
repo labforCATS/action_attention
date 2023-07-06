@@ -38,10 +38,7 @@ def save_dataloader_samples(cfg, n_batches=1):
     logging.setup_logging(cfg.OUTPUT_DIR)
 
     # create dataloader, load data
-    # print("pre construction: test")
     train_loader = loader.construct_loader(cfg, "train")
-    # train_loader = loader.construct_loader(cfg, "train")
-    # print("post construction")
     loader.shuffle_dataset(train_loader, cur_epoch=0)
 
     # initialize video writer
@@ -53,16 +50,9 @@ def save_dataloader_samples(cfg, n_batches=1):
         os.makedirs(video_dir)
 
     # get some videos from the dataloader
-    # print("we not here")
     for batch, (inputs, labels, index, time, meta) in enumerate(train_loader):
-        # print("we here")
         if batch >= n_batches:
             break
-
-        # it seems like the inputs contains 2 channels but it's unclear where
-        # it's coming from? because the particular sampling/channel format
-        # should be determined by the model architecture, but the dataloader
-        # constructor doesn't seem to be affected by that?
 
         # inputs is a list containing 2 channels, each with shape BCTHW
         # permute input from BCTHW to BTHWC, then undo normalization transform

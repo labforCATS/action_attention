@@ -15,6 +15,7 @@ import json
 import slowfast.utils.logging as logging
 import slowfast.datasets.utils as data_utils
 from slowfast.datasets.utils import pack_pathway_output, tensor_normalize
+from slowfast.datasets import loader
 
 logger = logging.get_logger(__name__)
 
@@ -381,133 +382,145 @@ class TaskInfo:
         self.action_preds = preds
 
 
-def save_inputs(data_loader, cfg, mode, save_video=False):
+def save_inputs(data_loader, cfg, mode):
     """
-    Saves the frames of the inputs to the model as a .jpg
+    Saves the frames and/or videos of the inputs to the model as a .jpg/.mp4
 
     Inputs:
         data_loader: data loader for the dataset
         cfg (CfgNode): configs. Details can be found in
             slowfast/config/defaults.py
         mode(string): a value of either "test", "train", or "val"
-        save_video (boolean): whether to save model inputs as a video
     Outputs:
-        saves frames (and video, if applicable) to the output folder specified
+        saves frames and/or videos to the output folder specified
         in config file
     """
+    if not (
+        cfg.DATA_LOADER.INSPECT.SAVE_FRAMES
+        or cfg.DATA_LOADER.INSPECT.SAVE_VIDEO
+    ):
+        return
     if mode != "train" and mode != "test" and mode != "val":
         raise ValueError("mode must be 'train' or 'test' or 'val'")
-    output_folder_path = os.path.join(cfg.OUTPUT_DIR, mode)
+
+    logger.info(f"saving inputs for {mode} mode")
+
+    output_folder_path = os.path.join(cfg.OUTPUT_DIR, f"{mode}_loader_samples")
 
     if not os.path.exists(output_folder_path):
         os.makedirs(output_folder_path)
 
+    if cfg.DATA_LOADER.INSPECT.SHUFFLE and mode != "val":
+        # the val_loader has a SequentialSampler which is not supported by
+        # loader.shuffle_dataset
+        loader.shuffle_dataset(data_loader, 0)
+
+    vid_count = 0
+
     # go through each batch passed to the model
-    if mode == "test":
-        video_indices = np.empty(cfg.TEST.BATCH_SIZE)
-    else:
-        video_indices = np.empty(cfg.TRAIN.BATCH_SIZE)
     for batch, (inputs, labels, index, time, meta) in enumerate(data_loader):
+        logger.info(f"vid_count {vid_count}")
+        if vid_count >= cfg.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT:
+            break
+            # otherwise continue, and break the loop over individual videos if needed
+
         video_indices = index.numpy()
 
-        # go through each image in the batch
+        # go through each video in the batch
         for i in range(len(labels)):
+            logger.info(f"vid_count {vid_count}")
+            logger.info(f"i {i}")
+            if vid_count >= cfg.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT:
+                logger.info("breaking")
+                break
+            vid_count += 1
+
             video_index = video_indices[i]
+            logger.info(f"video_index {video_index}")
 
-            # make folders to store output images
-            slow_folder = os.path.join(
-                output_folder_path, f"{video_index:06d}", "slow"
-            )
-            fast_folder = os.path.join(
-                output_folder_path, f"{video_index:06d}", "fast"
-            )
-            if not os.path.exists(slow_folder):
-                os.makedirs(slow_folder)
-            if not os.path.exists(fast_folder):
-                os.makedirs(fast_folder)
+            pathways = ["slow", "fast"]
+            for pathway_idx, pathway in enumerate(pathways):
+                logger.info(f"pathway {pathway}")
+                if cfg.DATA_LOADER.INSPECT.SAVE_FRAMES:
+                    # TODO: thereotically could move this down
+                    # make folders to store output images
+                    pathway_frames_folder = os.path.join(
+                        output_folder_path,
+                        "frames",
+                        f"{video_index:06d}",
+                        pathway,
+                    )
+                    if not os.path.exists(pathway_frames_folder):
+                        os.makedirs(pathway_frames_folder)
 
-            # isolate the current slow and fast pathways
-            curr_slow_tensor = inputs[0][i, :, :, :, :]
-            curr_slow_tensor = torch.unsqueeze(curr_slow_tensor, dim=0)
-            curr_fast_tensor = inputs[1][i, :, :, :, :]
-            curr_fast_tensor = torch.unsqueeze(curr_fast_tensor, dim=0)
-            # revert tensor normalization
-            curr_slow_tensor = curr_slow_tensor.permute(0, 2, 3, 4, 1)
-            curr_slow_tensor = data_utils.revert_tensor_normalize(
-                curr_slow_tensor, cfg.DATA.MEAN, cfg.DATA.STD
-            )
-            curr_fast_tensor = curr_fast_tensor.permute(0, 2, 3, 4, 1)
-            curr_fast_tensor = data_utils.revert_tensor_normalize(
-                curr_fast_tensor, cfg.DATA.MEAN, cfg.DATA.STD
-            )
-
-            num_slow_frame = curr_slow_tensor.size(dim=1)
-            num_fast_frame = curr_fast_tensor.size(dim=1)
-
-            # save all slow frames as a jpg
-            for slow_frame in range(num_slow_frame):
-                # move the tensor to cpu if needed
-                if curr_slow_tensor.device != torch.device("cpu"):
-                    curr_slow_tensor = curr_slow_tensor.to("cpu")
-                # isolate the individual frames from the tensor
-                curr_slow_tensor_image = (
-                    curr_slow_tensor[0, slow_frame, :, :, :].numpy() * 255
-                )
-                one_based_slow_frame = slow_frame + 1
-                slow_name = f"{video_index:06d}_{one_based_slow_frame:06d}.jpg"
-                slow_name = os.path.join(slow_folder, slow_name)
-                cv2.imwrite(slow_name, curr_slow_tensor_image)
-
-            # save all fast frames as a jpg
-            for fast_frame in range(num_fast_frame):
-                # move the tensor to cpu if needed
-                if curr_fast_tensor.device != torch.device("cpu"):
-                    curr_fast_tensor = curr_fast_tensor.to("cpu")
-                # isolate the individual frames from the tensor
-                curr_fast_tensor_image = (
-                    curr_fast_tensor[0, fast_frame, :, :, :].numpy() * 255
-                )
-                one_based_fast_frame = fast_frame + 1
-                fast_name = f"{video_index:06d}_{one_based_fast_frame:06d}.jpg"
-                fast_name = os.path.join(fast_folder, fast_name)
-                cv2.imwrite(fast_name, curr_fast_tensor_image)
-
-        # save the input frames as a video
-        if save_video:
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            for video_index in video_indices:
-                video_dir = os.path.join(
-                    cfg.OUTPUT_DIR, mode, str(video_index)
+                # isolate the pathway data
+                pathway_tensor = inputs[pathway_idx][i, :, :, :, :]
+                pathway_tensor = torch.unsqueeze(pathway_tensor, dim=0)
+                # revert tensor normalization
+                # permute from (B, C, T, H, W) to (B, T, H, W, C)
+                pathway_tensor = pathway_tensor.permute(0, 2, 3, 4, 1)
+                pathway_tensor = data_utils.revert_tensor_normalize(
+                    pathway_tensor, cfg.DATA.MEAN, cfg.DATA.STD
                 )
 
-                pathways = ["slow", "fast"]
-                for pathway in pathways:
+                num_frames = pathway_tensor.size(dim=1)
+
+                # initialize variables for saving the video
+                if cfg.DATA_LOADER.INSPECT.SAVE_VIDEO:
+                    video_dir = os.path.join(
+                        output_folder_path, "videos", f"{video_index:06d}"
+                    )
+                    if not os.path.isdir(video_dir):
+                        os.makedirs(video_dir)
                     video_name = os.path.join(
                         video_dir, f"{pathway}_{video_index:06d}.mp4"
                     )
-                    if mode == "test":
-                        video = cv2.VideoWriter(
-                            video_name,
-                            fourcc,
-                            25,
-                            (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE),
+                    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                    crop_size = (
+                        (
+                            cfg.DATA.TEST_CROP_SIZE,
+                            cfg.DATA.TEST_CROP_SIZE,
                         )
-                    else:
-                        video = cv2.VideoWriter(
-                            video_name,
-                            fourcc,
-                            25,
-                            (
-                                cfg.DATA.TRAIN_CROP_SIZE,
-                                cfg.DATA.TRAIN_CROP_SIZE,
-                            ),
+                        if mode == "test"
+                        else (
+                            cfg.DATA.TRAIN_CROP_SIZE,
+                            cfg.DATA.TRAIN_CROP_SIZE,
                         )
-                    pathway_dir = os.path.join(video_dir, pathway)
-                    for fname in os.listdir(pathway_dir):
-                        if fname.endswith(".jpg"):
-                            image_path = os.path.join(pathway_dir, fname)
-                            image = cv2.imread(image_path)
-                            video.write(image)
+                    )
+                    video = cv2.VideoWriter(
+                        video_name,
+                        fourcc,
+                        25,
+                        crop_size,
+                    )
+
+                # iterate over frames
+                for frame in range(num_frames):
+                    # move the tensor to cpu if needed
+                    if pathway_tensor.device != torch.device("cpu"):
+                        pathway_tensor = pathway_tensor.to("cpu")
+                    # isolate the individual frames from the tensor (B, T, H, W, C)
+                    pathway_np_image = (
+                        pathway_tensor[0, frame, :, :, :].numpy() * 255
+                    )
+
+                    # save frame, if applicable
+                    if cfg.DATA_LOADER.INSPECT.SAVE_FRAMES:
+                        one_based_frame = frame + 1
+                        frame_fname = (
+                            f"{video_index:06d}_{one_based_frame:06d}.jpg"
+                        )
+                        frame_path = os.path.join(
+                            pathway_frames_folder, frame_fname
+                        )
+                        logger.info(f"frame_path {frame_path}")
+                        cv2.imwrite(frame_path, pathway_np_image)
+
+                    # save to videowriter, if applicable
+                    if cfg.DATA_LOADER.INSPECT.SAVE_VIDEO:
+                        video.write(pathway_np_image.astype("uint8"))
+
+                if cfg.DATA_LOADER.INSPECT.SAVE_VIDEO:
                     cv2.destroyAllWindows()
                     video.release()
 
@@ -557,19 +570,11 @@ def plot_train_val_curves(cfg):
 
         # plot losses
         axs[0].plot(train_epochs, train_losses, "-o", label="train")
-        axs[0].plot(
-            val_epochs,
-            val_losses,"-o",
-            label="val"
-        )
+        axs[0].plot(val_epochs, val_losses, "-o", label="val")
 
         # plot accuracies
-        axs[1].plot(train_epochs, train_accs, "-o",label="train")
-        axs[1].plot(
-            val_epochs,
-            val_accs,"-o",
-            label="val"
-        )
+        axs[1].plot(train_epochs, train_accs, "-o", label="train")
+        axs[1].plot(val_epochs, val_accs, "-o", label="val")
 
         # add labels, titles, etc
         axs[0].set_xlabel("Epochs")
@@ -586,4 +591,4 @@ def plot_train_val_curves(cfg):
 
         plt.savefig(save_path)
     except Exception as e:
-        logger.warning(f'Failed to plot train/val curves with Exception {e}')
+        logger.warning(f"Failed to plot train/val curves with Exception {e}")
