@@ -648,6 +648,7 @@ class ValMeter(object):
         self.mb_top1_err = ScalarMeter(cfg.LOG_PERIOD)
         self.mb_top5_err = ScalarMeter(cfg.LOG_PERIOD)
         self.loss_total = 0.0
+        self.loss = ScalarMeter(cfg.LOG_PERIOD)
         # Min errors (over the full val set).
         self.min_top1_err = 100.0
         self.min_top5_err = 100.0
@@ -659,6 +660,8 @@ class ValMeter(object):
         self.all_labels = []
         self.output_dir = cfg.OUTPUT_DIR
 
+
+
     def reset(self):
         """
         Reset the Meter.
@@ -669,6 +672,7 @@ class ValMeter(object):
         self.mb_top1_err.reset()
         self.mb_top5_err.reset()
         self.loss_total = 0.0
+        self.loss.reset()
         self.num_top1_mis = 0
         self.num_top5_mis = 0
         self.num_samples = 0
@@ -705,6 +709,7 @@ class ValMeter(object):
         self.mb_top1_err.add_value(top1_err)
         self.mb_top5_err.add_value(top5_err)
         self.loss_total += loss * mb_size
+        self.loss.add_value(loss)
         self.num_samples += mb_size
 
         self.num_top1_mis += round(top1_err * mb_size)
@@ -746,8 +751,11 @@ class ValMeter(object):
             "time_diff": self.iter_timer.seconds(),
             "eta": eta,
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
+            "loss": self.loss.get_win_median()
         }
         if not self._cfg.DATA.MULTI_LABEL:
+            avg_loss = self.loss_total / self.num_samples
+            stats["loss"] = avg_loss
             stats["top1_err"] = self.mb_top1_err.get_win_median()
             stats["top5_err"] = self.mb_top5_err.get_win_median()
         logging.log_json_stats(stats)
