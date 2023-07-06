@@ -732,9 +732,15 @@ def train(cfg):
                     last_checkpoint = cu.get_last_checkpoint(
                         cfg.OUTPUT_DIR, task=cfg.TASK
                     )
+                    print("line 767")
+                    print("\tlast checkpoint path:", last_checkpoint)
+                    # pdb.set_trace()
                     assert "{:05d}.pyth".format(cur_epoch) in last_checkpoint
                 else:
                     last_checkpoint = cfg.TRAIN.CHECKPOINT_FILE_PATH
+                    print("line 772")
+                    print("\tlast checkpoint path:", last_checkpoint)
+                    # pdb.set_trace()
                 logger.info("Load from {}".format(last_checkpoint))
                 cu.load_checkpoint(
                     last_checkpoint, model, cfg.NUM_GPUS > 1, optimizer
@@ -785,6 +791,12 @@ def train(cfg):
             cfg, cur_epoch, None if multigrid is None else multigrid.schedule
         )
 
+        print("it do be an epoch of significance my dudes")
+        print("\tis checkpoint epoch:", is_checkp_epoch)
+        print("\tis eval epoch:", is_eval_epoch)
+        print("\tBN use precise stats:", cfg.BN.USE_PRECISE_STATS)
+        print("\tlen(get_bn_modules(model)) > 0", len(get_bn_modules(model)) > 0)
+        # pdb.set_trace()
         # Compute precise BN stats.
         if (
             (is_checkp_epoch or is_eval_epoch)
