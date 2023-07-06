@@ -214,7 +214,6 @@ def plot_heatmap(
         os.makedirs(fdir)
 
     fig.write_html(fpath)
-    logger.info(f"heatmap volume generated and saved {datetime.now() - start}")
 
 
 def plot_components(volume, output_dir, thresh=0.0, t_scale=1.0, s_scale=1.0):
@@ -262,6 +261,7 @@ def plot_all_heatmaps(
     thresh=0.2,
     t_scale=1.0,
     s_scale=1.0,
+    plot_indiv_components=True
 ):
     """Plots and saves a set of 3D heatmaps for all videos in a directory.
 
@@ -283,6 +283,8 @@ def plot_all_heatmaps(
             < 1.0 to downsample, > 1.0 to upsample
         s_scale (float): factor for rescaling the spatial dimensions.
             < 1.0 to downsample, > 1.0 to upsample
+        plot_indiv_components (bool): whether or not to also plot individual
+            3d components
 
         Example directory of heatmaps:
             |-heatmaps/
@@ -338,13 +340,14 @@ def plot_all_heatmaps(
                     slider=True,
                 )
 
-                plot_components(
-                    img_stack,
-                    output_dir=output_dir,
-                    thresh=thresh,
-                    t_scale=t_scale,
-                    s_scale=s_scale,
-                )
+                if plot_indiv_components:
+                    plot_components(
+                        img_stack,
+                        output_dir=output_dir,
+                        thresh=thresh,
+                        t_scale=t_scale,
+                        s_scale=s_scale,
+                    )
 
 
 def heatmap_stats(volume, thresh=0.2):
@@ -536,24 +539,4 @@ def generate_stats(component_volume):
         temporal_mean,
         temporal_median,
         temporal_mode,
-    )
-
-
-if __name__ == "__main__":
-    heatmaps_root_dir = "/research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/grad_cam/heatmaps/grad_cam/"
-    output_root_dir = "/research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/grad_cam/heatmaps/grad_cam_volumes/"
-    model_arch = "slowfast"
-    t_scale = 0.25
-    s_scale = 1 / 8
-
-    print("plotting all heatmaps")
-
-    plot_all_heatmaps(
-        heatmaps_root_dir=heatmaps_root_dir,
-        output_root_dir=output_root_dir,
-        model_arch=model_arch,
-        surface_count=8,
-        thresh=0.2,
-        t_scale=t_scale,
-        s_scale=s_scale,
     )

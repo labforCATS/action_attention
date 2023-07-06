@@ -410,16 +410,15 @@ def save_inputs(data_loader, cfg, mode):
     if not os.path.exists(output_folder_path):
         os.makedirs(output_folder_path)
 
-    if cfg.DATA_LOADER.INSPECT.SHUFFLE and mode != "val":
-        # the val_loader has a SequentialSampler which is not supported by
-        # loader.shuffle_dataset
+    if cfg.DATA_LOADER.INSPECT.SHUFFLE and mode == "train":
+        # the val and train loaders have a SequentialSampler which is not
+        # supported by loader.shuffle_dataset
         loader.shuffle_dataset(data_loader, 0)
 
     vid_count = 0
 
     # go through each batch passed to the model
     for batch, (inputs, labels, index, time, meta) in enumerate(data_loader):
-        logger.info(f"vid_count {vid_count}")
         if vid_count >= cfg.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT:
             break
             # otherwise continue, and break the loop over individual videos if needed
@@ -428,19 +427,14 @@ def save_inputs(data_loader, cfg, mode):
 
         # go through each video in the batch
         for i in range(len(labels)):
-            logger.info(f"vid_count {vid_count}")
-            logger.info(f"i {i}")
             if vid_count >= cfg.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT:
-                logger.info("breaking")
                 break
             vid_count += 1
 
             video_index = video_indices[i]
-            logger.info(f"video_index {video_index}")
 
             pathways = ["slow", "fast"]
             for pathway_idx, pathway in enumerate(pathways):
-                logger.info(f"pathway {pathway}")
                 if cfg.DATA_LOADER.INSPECT.SAVE_FRAMES:
                     # TODO: thereotically could move this down
                     # make folders to store output images
@@ -513,7 +507,6 @@ def save_inputs(data_loader, cfg, mode):
                         frame_path = os.path.join(
                             pathway_frames_folder, frame_fname
                         )
-                        logger.info(f"frame_path {frame_path}")
                         cv2.imwrite(frame_path, pathway_np_image)
 
                     # save to videowriter, if applicable
@@ -571,10 +564,12 @@ def plot_train_val_curves(cfg):
         # plot losses
         axs[0].plot(train_epochs, train_losses, "-o", label="train")
         axs[0].plot(val_epochs, val_losses, "-o", label="val")
+        axs[0].set_ylim(bottom=0)
 
         # plot accuracies
         axs[1].plot(train_epochs, train_accs, "-o", label="train")
         axs[1].plot(val_epochs, val_accs, "-o", label="val")
+        axs[0].set_ylim(top=1)
 
         # add labels, titles, etc
         axs[0].set_xlabel("Epochs")

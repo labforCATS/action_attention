@@ -8,6 +8,10 @@ from slowfast.visualization.weight_calcs import get_model_weights
 
 import slowfast.datasets.utils as data_utils
 from slowfast.visualization.utils import get_layer
+from slowfast.utils.connected_components_utils import (
+    plot_heatmap,
+    load_heatmaps,
+)
 
 import numpy
 import sys
@@ -106,11 +110,9 @@ class GradCAM:
 
         self.model.zero_grad()
         # local_score = score.cpu()
-        # print("Initial score: ", local_score)
         score = torch.sum(score)
         # score = score * 0.9
         # local_score = score.cpu()
-        # print("Score after sum: ", local_score)
         score.backward()
         localization_maps = []
         for i, inp in enumerate(inputs):
@@ -174,14 +176,35 @@ class GradCAM:
         """
         alpha = 0.5
         result_ls = []
+
+        # retrieve heatmaps
         localization_maps, preds = self._calculate_localization_map(
             inputs, labels=labels, method=self.method
         )
 
-        heatmap_path = os.path.join(output_dir, "heatmaps")
+        # save heatmaps
+        heatmaps_frames_root_dir = os.path.join(
+            output_dir,
+            "heatmaps",
+            cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            "frames",
+        )
+        heatmap_volume_root_dir = os.path.join(
+            cfg.OUTPUT_DIR,
+            f"heatmaps/{cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD}/3d_volumes",
+        )
 
         # iterate over channels (e.g. slow and fast)
-        for i, localization_map in enumerate(localization_maps):
+        for channel_idx, localization_map in enumerate(localization_maps):
+            if cfg.MODEL.ARCH == "slowfast":
+                channel = "slow" if channel_idx == 0 else "fast"
+            else:
+                # since other visualization architectures don't necessarily
+                # only have two input pathways, you have to add logic for it
+                raise NotImplementedError(
+                    "make subfolders for each pathway and put frames in correct subfolder for the specific visualization method"
+                )
+
             # Convert (B, 1, T, H, W) to (B, T, H, W)
             localization_map = localization_map.squeeze(dim=1)
             if localization_map.device != torch.device("cpu"):
@@ -196,12 +219,8 @@ class GradCAM:
             # iterate over videos in batch
             for v, vid_idx in enumerate(video_indices.numpy()):
                 map_to_save = localization_map.numpy()[v]
-
-                # video_indices = video_idx.numpy()
                 visualization_path = os.path.join(
-                    heatmap_path,
-                    cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
-                    str(vid_idx),
+                    heatmaps_frames_root_dir, f"{vid_idx:06d}"
                 )
 
                 # iterate over frames and stitch them into the video
@@ -209,52 +228,55 @@ class GradCAM:
                     frame_map = map_to_save[frame_idx] * 255
 
                     one_based_frame_idx = frame_idx + 1
-                    frame_name = f"{video_indices[i]:03d}_{one_based_frame_idx:06d}.jpg"
+                    frame_name = f"{vid_idx:06d}_{one_based_frame_idx:06d}.jpg"
                     name = os.path.join(visualization_path, frame_name)
 
                     if cfg.MODEL.ARCH == "slowfast":
-                        if i == 0:
-                            slow_folder = os.path.join(visualization_path, "slow")
-                            if not os.path.exists(slow_folder):
-                                os.makedirs(slow_folder)
-                            name = os.path.join(slow_folder, frame_name)
-                        else:
-                            fast_folder = os.path.join(visualization_path, "fast")
-                            if not os.path.exists(fast_folder):
-                                os.makedirs(fast_folder)
-                            name = os.path.join(fast_folder, frame_name)
+                        channel_folder = os.path.join(visualization_path, channel)
+                        name = os.path.join(channel_folder, frame_name)
+                        if not os.path.exists(channel_folder):
+                            os.makedirs(channel_folder)
                     else:
                         # since other visualization architectures don't necessarily
                         # only have two input pathways, you have to add logic for it
                         raise NotImplementedError(
                             "make subfolders for each pathway and put frames in correct subfolder for the specific visualization method"
                         )
+
                     cv2.imwrite(name, frame_map)
 
-            loc_map = localization_map[i, :, :, :]
+                # generate 3d heatmap volumes for the video
+                t_scale = 0.25
+                s_scale = 1 / 8
+                img_stack = load_heatmaps(
+                    channel_folder, t_scale=t_scale, s_scale=s_scale
+                )
+                heatmap_fname = os.path.join(
+                    heatmap_volume_root_dir,
+                    f"{vid_idx:06d}/{channel}_{vid_idx:06d}.html",
+                )
+                plot_heatmap(
+                    volume=img_stack,
+                    fpath=heatmap_fname,
+                    surface_count=8,
+                    t_scale=t_scale,
+                    s_scale=s_scale,
+                    slider=True,
+                )
+
+            # prepare the results to be returned
+            loc_map = localization_map[channel_idx, :, :, :]
             loc_map = torch.unsqueeze(loc_map, dim=0)
             heatmap = self.colormap(loc_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
 
             # Permute input from (B, C, T, H, W) to (B, T, H, W, C)
-            curr_inp = inputs[i].permute(0, 2, 3, 4, 1)
+            curr_inp = inputs[channel_idx].permute(0, 2, 3, 4, 1)
             if curr_inp.device != torch.device("cpu"):
                 curr_inp = curr_inp.cpu()
             curr_inp = data_utils.revert_tensor_normalize(
                 curr_inp, self.data_mean, self.data_std
             )
-
-            # inp_to_save = curr_inp.numpy()[0]
-
-            folder = os.path.join(output_dir, "inputs")
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            vis_method_folder = os.path.join(
-                folder,
-                cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,  # str(dataset)
-            )
-            if not os.path.exists(vis_method_folder):
-                os.makedirs(vis_method_folder)
 
             heatmap = torch.from_numpy(heatmap)
             curr_inp = alpha * heatmap + (1 - alpha) * curr_inp

@@ -14,6 +14,7 @@ import slowfast.utils.logging as logging
 import slowfast.utils.misc as misc
 import slowfast.visualization.tensorboard_vis as tb
 from slowfast.datasets import loader
+from slowfast.visualization.utils import save_inputs
 from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
 from slowfast.visualization.prediction_vis import WrongPredictionVis
@@ -151,10 +152,7 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                     )
                 )
                 inputs, preds = gradcam(
-                    os.path.join(
-                        cfg.OUTPUT_DIR,
-                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
-                    ),
+                    output_dir=cfg.OUTPUT_DIR,
                     inputs=inputs,
                     video_indices=video_indices,
                     cfg=cfg,
@@ -343,6 +341,10 @@ def visualize(cfg):
 
         # Create video testing loaders.
         vis_loader = loader.construct_loader(cfg, "test")
+        if not cfg.TEST.ENABLE:
+            # save dataloader samples if we haven't already done so in the
+            # train pipeline
+            save_inputs(vis_loader, cfg, "test")
 
         if cfg.DETECTION.ENABLE:
             assert cfg.NUM_GPUS == cfg.TEST.BATCH_SIZE or cfg.NUM_GPUS == 0
