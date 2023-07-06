@@ -53,9 +53,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
     for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(
         test_loader
     ):
-        if cfg.TEST.SAVE_INPUT_VIDEO:
-            save_inputs(test_loader, cfg, "test")
-
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
             if isinstance(inputs, (list,)):
@@ -231,6 +228,8 @@ def test(cfg):
 
     # Create video testing loaders.
     test_loader = loader.construct_loader(cfg, "test")
+    save_inputs(test_loader, cfg, "test")
+
     logger.info("Testing model for {} iterations".format(len(test_loader)))
 
     if cfg.DETECTION.ENABLE:

@@ -1087,15 +1087,22 @@ _C.DEMO.COMMON_CLASS_NAMES = [
 # video will be played `_C.DEMO.SLOWMO` times slower than usual speed.
 _C.DEMO.SLOWMO = 1
 
-# (added 6/5): whether to save input video to model
-_C.TRAIN.SAVE_INPUT_VIDEO = False
-_C.TEST.SAVE_INPUT_VIDEO = False
-
 # (added 6/5): directory to save inputs right before they get passed in
 # to the model
 _C.VIS_MODEL_INPUT_DIR = (
     "/research/cwloka/projects/nikki_sandbox/action_attention/vis_model_input"
 )
+
+# (added 7/5):
+_C.DATA_LOADER.INSPECT = CfgNode()
+# whether to save sampled videos as frames
+_C.DATA_LOADER.INSPECT.SAVE_FRAMES: False
+# whether to save sampled videos as videos
+_C.DATA_LOADER.INSPECT.SAVE_VIDEO: False
+# how many sampled videos from a dataloader to save
+_C.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT: 0
+# whether to shuffle the dataloader before iterating over it
+_C.DATA_LOADER.INSPECT.SHUFFLE: True
 
 
 # Add custom config with default values.

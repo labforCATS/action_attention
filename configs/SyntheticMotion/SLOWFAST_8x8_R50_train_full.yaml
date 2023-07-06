@@ -7,8 +7,6 @@ TRAIN:
   RESUME_FROM_CHECKPOINT: False
   CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/output/synthetic_vids/dataset_1000/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00002.pyth 
   CHECKPOINT_TYPE: pytorch
-  SAVE_INPUT_VIDEO: False
-  SAVE_INPUT_BATCH: 1
 
 TENSORBOARD:
   ENABLE: False
@@ -28,7 +26,7 @@ TENSORBOARD:
 DATA:
   PATH_TO_DATA_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000/ispy_0.1_9
   NUM_FRAMES: 32
-  SAMPLING_RATE: 2
+  # SAMPLING_RATE: 2
   TRAIN_JITTER_SCALES: [256, 320]
   TRAIN_CROP_SIZE: 224
   TEST_CROP_SIZE: 256
@@ -81,8 +79,6 @@ TEST:
   ENABLE: False
   DATASET: SyntheticMotion
   BATCH_SIZE: 3
-  SAVE_INPUT_VIDEO: False
-  SAVE_INPUT_BATCH: 1
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True
