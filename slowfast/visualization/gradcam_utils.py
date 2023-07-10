@@ -224,6 +224,7 @@ class GradCAM:
                 )
 
                 # iterate over frames and stitch them into the video
+                
                 for frame_idx in range(len(map_to_save)):
                     frame_map = map_to_save[frame_idx] * 255
 
@@ -243,6 +244,7 @@ class GradCAM:
                             "make subfolders for each pathway and put frames in correct subfolder for the specific visualization method"
                         )
 
+                    
                     cv2.imwrite(name, frame_map)
 
                 # generate 3d heatmap volumes for the video
@@ -265,7 +267,11 @@ class GradCAM:
                 )
 
             # prepare the results to be returned
-            loc_map = localization_map[channel_idx, :, :, :]
+            # print(localization_map.shape)
+            loc_map = localization_map[0, :, :, :]
+            # print(loc_map.shape)
+            # pdb.set_trace()
+            # loc_map = localization_map[channel_idx, :, :, :]
             loc_map = torch.unsqueeze(loc_map, dim=0)
             heatmap = self.colormap(loc_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
@@ -280,8 +286,11 @@ class GradCAM:
 
             heatmap = torch.from_numpy(heatmap)
             curr_inp = alpha * heatmap + (1 - alpha) * curr_inp
+            
             # Permute inp to (B, T, C, H, W)
+            # TODO: turn curr_inp into a numpy array, add frame to video writer
             curr_inp = curr_inp.permute(0, 1, 4, 2, 3)
+
             result_ls.append(curr_inp)
 
         return result_ls, preds
