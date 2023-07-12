@@ -84,7 +84,7 @@ class GradCAM:
         for layer_name in self.target_layers:
             self._register_single_hook(layer_name=layer_name)
 
-    def _calculate_localization_map(self, inputs, labels=None, method="grad_cam"):
+    def _calculate_localization_map(self, inputs, labels=None):
         """
         Calculate localization map for all inputs with Grad-CAM.
         Args:
@@ -101,6 +101,7 @@ class GradCAM:
         input_clone = [inp.clone() for inp in inputs]
         preds = self.model(input_clone)
 
+        # compute 'score' (aka the loss after softmax)
         if labels is None:
             score = torch.max(preds, dim=-1)[0]
         else:
@@ -109,11 +110,13 @@ class GradCAM:
             score = torch.gather(preds, dim=1, index=labels)
 
         self.model.zero_grad()
-        # local_score = score.cpu()
+
+        # sum the loss for the entire batch
         score = torch.sum(score)
-        # score = score * 0.9
-        # local_score = score.cpu()
-        score.backward()
+
+        score.backward()  # Computes the gradient of current tensor w.r.t. graph leaves
+        # Note that gradients can be implicitly created only for scalar outputs
+
         localization_maps = []
         for i, inp in enumerate(inputs):
             _, _, T, H, W = inp.size()
@@ -123,13 +126,15 @@ class GradCAM:
             B, C, Tg, _, _ = gradients.size()
 
             weights = get_model_weights(
-                inputs,
-                gradients.view(B, C, Tg, -1),
-                activations.view(B, C, Tg, -1),
+                inputs=inputs,
+                grads=gradients.view(B, C, Tg, -1),
+                activations=activations.view(B, C, Tg, -1),
                 method=self.method,
             )
             weights = weights.view(B, C, Tg, 1, 1)
-            localization_map = torch.sum(weights * activations, dim=1, keepdim=True)
+            localization_map = torch.sum(
+                weights * activations, dim=1, keepdim=True
+            )
             localization_map = F.relu(localization_map)
             localization_map = F.interpolate(
                 localization_map,
@@ -138,8 +143,12 @@ class GradCAM:
                 align_corners=False,
             )
             localization_map_min, localization_map_max = (
-                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
-                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[0],
+                torch.min(localization_map.view(B, -1), dim=-1, keepdim=True)[
+                    0
+                ],
+                torch.max(localization_map.view(B, -1), dim=-1, keepdim=True)[
+                    0
+                ],
             )
             localization_map_min = torch.reshape(
                 localization_map_min, shape=(B, 1, 1, 1, 1)
@@ -157,7 +166,9 @@ class GradCAM:
 
         return localization_maps, preds
 
-    def __call__(self, output_dir, inputs, video_indices, cfg, labels=None, alpha=0.5):
+    def __call__(
+        self, output_dir, inputs, video_indices, cfg, labels=None, alpha=0.5
+    ):
         """
         Visualize the localization maps on their corresponding inputs as heatmap,
         using Grad-CAM.
@@ -166,7 +177,9 @@ class GradCAM:
         Args:
             inputs (list of tensor(s)): the input clips.
             video_idx (tensor): index for the current input clip
-            labels (Optional[tensor]): labels of the current input clips.
+            labels (Optional[tensor]): labels of the current input clips. If
+                provided, gradcam will operate using the true labels; if None,
+                gradcam will operate using predicted labels
             cfg (CfgNode): configs. Details can be found in
                 slowfast/config/defaults.py
             alpha (float): transparency level of the heatmap, in the range [0, 1].
@@ -179,7 +192,7 @@ class GradCAM:
 
         # retrieve heatmaps
         localization_maps, preds = self._calculate_localization_map(
-            inputs, labels=labels, method=self.method
+            inputs, labels=labels
         )
 
         # save heatmaps
@@ -253,9 +266,7 @@ class GradCAM:
             curr_inp = alpha * heatmap + (1 - alpha) * curr_inp
 
             # Permute inp to (B, T, C, H, W)
-            # TODO: turn curr_inp into a numpy array, add frame to video writer
             curr_inp = curr_inp.permute(0, 1, 4, 2, 3)
-            # print(curr_inp.shape)
 
             result_ls.append(curr_inp)
 
