@@ -79,6 +79,7 @@ def run_visualization(vis_loader, model, cfg, writer=None):
         writer.plot_weights_and_activations(
             layer_weights, tag="Layer Weights/", heat_map=False
         )
+        logger.info("Finish drawing weights.")
 
     video_vis = VideoVisualizer(
         cfg.MODEL.NUM_CLASSES,
@@ -95,8 +96,6 @@ def run_visualization(vis_loader, model, cfg, writer=None):
         grad_cam_layer_ls = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST
 
     if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
-        target = [get_layer(model, layer) for layer in grad_cam_layer_ls]
-        # target = [getattr(getattr(model, layer.split('/')[0]), layer.split('/')[1]) for layer in grad_cam_layer_ls]
         gradcam = GradCAM(
             model,
             target_layers=grad_cam_layer_ls,
@@ -106,7 +105,6 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             colormap=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP,
         )
 
-    logger.info("Finish drawing weights.")
     global_idx = -1
 
     count = 1
@@ -145,18 +143,12 @@ def run_visualization(vis_loader, model, cfg, writer=None):
                 )
 
             else:
-                print(
-                    os.path.join(
-                        cfg.OUTPUT_DIR,
-                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
-                    )
-                )
                 inputs, preds = gradcam(
                     output_dir=cfg.OUTPUT_DIR,
                     inputs=inputs,
                     video_indices=video_indices,
                     cfg=cfg,
-                    labels=labels,
+                    labels=None,
                 )
 
         if cfg.NUM_GPUS:
