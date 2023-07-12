@@ -194,6 +194,27 @@ class GradCAM:
             f"heatmaps/{cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD}/3d_volumes",
         )
 
+        # heatmap frame overlay root directory
+        heatmap_overlay_frames_root_dir = os.path.join(
+            output_dir,
+            "heatmaps",
+            cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            "heatmap_overlay",
+            "frames"
+        )
+
+        # heatmap overlay video root directory
+        heatmap_overlay_video_root_dir = os.path.join(
+            output_dir,
+            "heatmaps",
+            cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            "heatmap_overlay",
+            "videos",
+        )
+        
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        crop_size = (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE)
+
         # iterate over channels (e.g. slow and fast)
         for channel_idx, localization_map in enumerate(localization_maps):
             if cfg.MODEL.ARCH == "slowfast":
@@ -216,27 +237,79 @@ class GradCAM:
                     if j.any() != 0:
                         count += 1
 
+
+            heatmap = self.colormap(localization_map.numpy())
+            heatmap = heatmap[:, :, :, :, :3]
+
+            # Permute input from (B, C, T, H, W) to (B, T, H, W, C)
+            curr_inp = inputs[channel_idx].permute(0, 2, 3, 4, 1)
+            if curr_inp.device != torch.device("cpu"):
+                curr_inp = curr_inp.cpu()
+            curr_inp = data_utils.revert_tensor_normalize(
+                curr_inp, self.data_mean, self.data_std
+            )
+
+            heatmap = torch.from_numpy(heatmap)
+            curr_inp = alpha * heatmap + (1 - alpha) * curr_inp
+
+            # Permute inp to (B, T, C, H, W)
+            # TODO: turn curr_inp into a numpy array, add frame to video writer
+            curr_inp = curr_inp.permute(0, 1, 4, 2, 3)
+            # print(curr_inp.shape)
+
+            result_ls.append(curr_inp)
+
             # iterate over videos in batch
             for v, vid_idx in enumerate(video_indices.numpy()):
+                
+                # heatmap to save
                 map_to_save = localization_map.numpy()[v]
+
+                # heatmap overlay to save
+                overlay_to_save = curr_inp[v,:,:,:,:]
+
+                # paths for heatmap frames and overlaid frames, respectively
                 visualization_path = os.path.join(
                     heatmaps_frames_root_dir, f"{vid_idx:06d}"
                 )
-
-                # iterate over frames and stitch them into the video
+                overlay_path = os.path.join(heatmap_overlay_frames_root_dir, f"{vid_idx:06d}")
                 
+                # initialize video writer for saving overlaid heatmap video
+                video_path = os.path.join(
+                    heatmap_overlay_video_root_dir,
+                    f"{vid_idx:06d}"
+                    )
+                if not os.path.exists(video_path):
+                    os.makedirs(video_path)
+                video_name = os.path.join(video_path, f"{channel}_{vid_idx:06d}.mp4")
+                overlay_video = cv2.VideoWriter(video_name, fourcc, 25, crop_size)
+                
+                # iterate over frames in video
                 for frame_idx in range(len(map_to_save)):
                     frame_map = map_to_save[frame_idx] * 255
+                    overlay_map = overlay_to_save[frame_idx,:,:,:].permute(1, 2, 0).numpy()*255
+                    
+                    overlay_video.write(numpy.uint8(overlay_map))
 
                     one_based_frame_idx = frame_idx + 1
-                    frame_name = f"{vid_idx:06d}_{one_based_frame_idx:06d}.jpg"
-                    name = os.path.join(visualization_path, frame_name)
+                    frame_name = f"{vid_idx.item():06d}_{one_based_frame_idx:06d}.jpg"
+                    
+                    frame_path = os.path.join(visualization_path, frame_name)
+                    overlay_frame_tag = f"{vid_idx:06d}_{one_based_frame_idx:06d}.jpg"
+                    overlay_frame_name = os.path.join(overlay_path, overlay_frame_tag)
 
                     if cfg.MODEL.ARCH == "slowfast":
+                        # heatmap channel folder
                         channel_folder = os.path.join(visualization_path, channel)
-                        name = os.path.join(channel_folder, frame_name)
+                        frame_path = os.path.join(channel_folder, frame_name)
+
+                        # overlay channel folder
+                        overlay_channel_folder = os.path.join(overlay_path, channel)
+                        overlay_frame_name = os.path.join(overlay_channel_folder, overlay_frame_tag)
                         if not os.path.exists(channel_folder):
                             os.makedirs(channel_folder)
+                        if not os.path.exists(overlay_channel_folder):
+                            os.makedirs(overlay_channel_folder)
                     else:
                         # since other visualization architectures don't necessarily
                         # only have two input pathways, you have to add logic for it
@@ -245,7 +318,10 @@ class GradCAM:
                         )
 
                     
-                    cv2.imwrite(name, frame_map)
+                    cv2.imwrite(frame_path, frame_map)
+                    cv2.imwrite(overlay_frame_name, overlay_map)
+                cv2.destroyAllWindows()
+                overlay_video.release()
 
                 # generate 3d heatmap volumes for the video
                 t_scale = 0.25
@@ -265,32 +341,5 @@ class GradCAM:
                     s_scale=s_scale,
                     slider=True,
                 )
-
-            # prepare the results to be returned
-            # print(localization_map.shape)
-            loc_map = localization_map[0, :, :, :]
-            # print(loc_map.shape)
-            # pdb.set_trace()
-            # loc_map = localization_map[channel_idx, :, :, :]
-            loc_map = torch.unsqueeze(loc_map, dim=0)
-            heatmap = self.colormap(loc_map.numpy())
-            heatmap = heatmap[:, :, :, :, :3]
-
-            # Permute input from (B, C, T, H, W) to (B, T, H, W, C)
-            curr_inp = inputs[channel_idx].permute(0, 2, 3, 4, 1)
-            if curr_inp.device != torch.device("cpu"):
-                curr_inp = curr_inp.cpu()
-            curr_inp = data_utils.revert_tensor_normalize(
-                curr_inp, self.data_mean, self.data_std
-            )
-
-            heatmap = torch.from_numpy(heatmap)
-            curr_inp = alpha * heatmap + (1 - alpha) * curr_inp
-            
-            # Permute inp to (B, T, C, H, W)
-            # TODO: turn curr_inp into a numpy array, add frame to video writer
-            curr_inp = curr_inp.permute(0, 1, 4, 2, 3)
-
-            result_ls.append(curr_inp)
 
         return result_ls, preds
