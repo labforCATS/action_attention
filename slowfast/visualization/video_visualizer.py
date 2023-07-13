@@ -36,7 +36,9 @@ def _create_text_labels(classes, scores, class_names, ground_truth=False):
         labels = ["[{}] {}".format("GT", label) for label in labels]
     elif scores is not None:
         assert len(classes) == len(scores)
-        labels = ["[{:.2f}] {}".format(s, label) for s, label in zip(scores, labels)]
+        labels = [
+            "[{:.2f}] {}".format(s, label) for s, label in zip(scores, labels)
+        ]
     return labels
 
 
@@ -321,7 +323,9 @@ class ImgVisualizer(Visualizer):
         # num_text_top = dist_to_top // textbox_width
 
         # To fix deprecation warning
-        num_text_top = torch.div(dist_to_top, textbox_width, rounding_mode="floor")
+        num_text_top = torch.div(
+            dist_to_top, textbox_width, rounding_mode="floor"
+        )
 
         if isinstance(num_text_top, torch.Tensor):
             num_text_top = int(num_text_top.item())
@@ -379,10 +383,11 @@ class VideoVisualizer:
                 This is used for choosing predictions for visualization.
 
         """
-        assert mode in ["top-k", "thres"], "Mode {} is not supported.".format(mode)
+        assert mode in ["top-k", "thres"], "Mode {} is not supported.".format(
+            mode
+        )
         self.mode = mode
         self.num_classes = num_classes
-        print("THIS IS CLASS NAMES PATH: ", class_names_path)
         self.class_names, _, _ = get_class_names(class_names_path, None, None)
         self.top_k = top_k
         self.thres = thres
@@ -465,7 +470,9 @@ class VideoVisualizer:
                 )
             )
         frame_visualizer = ImgVisualizer(frame, meta=None)
-        font_size = min(max(np.sqrt(frame.shape[0] * frame.shape[1]) // 35, 5), 9)
+        font_size = min(
+            max(np.sqrt(frame.shape[0] * frame.shape[1]) // 35, 5), 9
+        )
         top_corner = not ground_truth
         if bboxes is not None:
             assert len(preds) == len(
@@ -668,6 +675,8 @@ class VideoVisualizer:
         else:
             common_class_ids = list(range(self.num_classes))
 
-        thres_array = np.full(shape=(self.num_classes,), fill_value=self.lower_thres)
+        thres_array = np.full(
+            shape=(self.num_classes,), fill_value=self.lower_thres
+        )
         thres_array[common_class_ids] = self.thres
         self.thres = torch.from_numpy(thres_array)

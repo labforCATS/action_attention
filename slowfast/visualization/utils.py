@@ -569,7 +569,7 @@ def plot_train_val_curves(cfg):
         # plot accuracies
         axs[1].plot(train_epochs, train_accs, "-o", label="train")
         axs[1].plot(val_epochs, val_accs, "-o", label="val")
-        axs[0].set_ylim(top=1)
+        axs[1].set_ylim(top=1)
 
         # add labels, titles, etc
         axs[0].set_xlabel("Epochs")

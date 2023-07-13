@@ -237,8 +237,7 @@ def train_epoch(
                     [loss] = du.all_reduce([loss])
                 loss = loss.item()
             else:
-                # TODO: CHANGE BACK TO 5 ONCE WE GET ENOUGH CLASSES
-                top1_err, top5_err = metrics.topk_errors(preds, labels, [1, 2])
+                top1_err, top5_err = metrics.topk_errors(preds, labels, [1, 5])
 
                 # Gather all the predictions across all the devices.
                 if cfg.NUM_GPUS > 1:
@@ -394,8 +393,7 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
                     preds, labels = du.all_gather([preds, labels])
             else:
                 # Compute the errors.
-                top1_err, top5_err = metrics.topk_errors(preds, labels, (1, 2))
-                # TODO: CHANGE ks BACK TO 5 ONCE WE GET ENOUGH CLASSES
+                top1_err, top5_err = metrics.topk_errors(preds, labels, (1, 5))
                 if cfg.NUM_GPUS > 1:
                     top1_err, top5_err = du.all_reduce([top1_err, top5_err])
 
@@ -791,12 +789,6 @@ def train(cfg):
             cfg, cur_epoch, None if multigrid is None else multigrid.schedule
         )
 
-        print("it do be an epoch of significance my dudes")
-        print("\tis checkpoint epoch:", is_checkp_epoch)
-        print("\tis eval epoch:", is_eval_epoch)
-        print("\tBN use precise stats:", cfg.BN.USE_PRECISE_STATS)
-        print("\tlen(get_bn_modules(model)) > 0", len(get_bn_modules(model)) > 0)
-        # pdb.set_trace()
         # Compute precise BN stats.
         if (
             (is_checkp_epoch or is_eval_epoch)

@@ -267,13 +267,13 @@ def test(cfg):
     if writer is not None:
         writer.close()
     result_string = (
-        "_a{}{}{} Top1 Acc: {} Top2 Acc: {} MEM: {:.2f} dataset: {}{}"  # TODO: change back to top5
+        "_a{}{}{} Top1 Acc: {} Top5 Acc: {} MEM: {:.2f} dataset: {}{}"
         "".format(
             out_str_prefix,
             cfg.TEST.DATASET[0],
             test_meter.stats["top1_acc"],
             test_meter.stats["top1_acc"],
-            test_meter.stats["top2_acc"],
+            test_meter.stats["top5_acc"],
             misc.gpu_mem_usage(),
             cfg.TEST.DATASET[0],
             cfg.MODEL.NUM_CLASSES,

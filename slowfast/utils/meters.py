@@ -378,9 +378,7 @@ class TestMeter(object):
         self.data_timer.pause()
         self.net_timer.reset()
 
-    def finalize_metrics(self, ks=(1, 2)):
-        # TODO: CHANGE DEFAULT ks BACK TO (1,5) ONCE WE GENERATE MORE THAN 5
-        # MOTION CLASSES
+    def finalize_metrics(self, ks=(1, 5)):
         """
         Calculate and log the final ensembled metrics.
         ks (tuple): list of top-k values for topk_accuracies. For example,
@@ -660,8 +658,6 @@ class ValMeter(object):
         self.all_labels = []
         self.output_dir = cfg.OUTPUT_DIR
 
-
-
     def reset(self):
         """
         Reset the Meter.
@@ -751,7 +747,7 @@ class ValMeter(object):
             "time_diff": self.iter_timer.seconds(),
             "eta": eta,
             "gpu_mem": "{:.2f}G".format(misc.gpu_mem_usage()),
-            "loss": self.loss.get_win_median()
+            "loss": self.loss.get_win_median(),
         }
         if not self._cfg.DATA.MULTI_LABEL:
             avg_loss = self.loss_total / self.num_samples
