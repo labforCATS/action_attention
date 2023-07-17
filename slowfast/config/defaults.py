@@ -1104,6 +1104,10 @@ _C.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT: 0
 # whether to shuffle the dataloader before iterating over it
 _C.DATA_LOADER.INSPECT.SHUFFLE: True
 
+# (added 7/13):
+# whether to save the heatmaps overlaid on inputs as a video
+_C.DATA_LOADER.INSPECT.SAVE_OVERLAY_VIDEO: False
+
 
 # Add custom config with default values.
 custom_config.add_custom_config(_C)

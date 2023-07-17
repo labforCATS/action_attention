@@ -224,6 +224,8 @@ class GradCAM:
             "heatmap_overlay",
             "videos",
         )
+        save_vid_overlay = cfg.DATA_LOADER.INSPECT.SAVE_OVERLAY_VIDEO
+        
         
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         crop_size = (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE)
@@ -292,15 +294,17 @@ class GradCAM:
                     )
                 if not os.path.exists(video_path):
                     os.makedirs(video_path)
-                video_name = os.path.join(video_path, f"{channel}_{vid_idx:06d}.mp4")
-                overlay_video = cv2.VideoWriter(video_name, fourcc, 25, crop_size)
+                
+                if save_vid_overlay:
+                    video_name = os.path.join(video_path, f"{channel}_{vid_idx:06d}.mp4")
+                    overlay_video = cv2.VideoWriter(video_name, fourcc, 25, crop_size)
                 
                 # iterate over frames in video
                 for frame_idx in range(len(map_to_save)):
                     frame_map = map_to_save[frame_idx] * 255
                     overlay_map = overlay_to_save[frame_idx,:,:,:].permute(1, 2, 0).numpy()*255
-                    
-                    overlay_video.write(numpy.uint8(overlay_map))
+                    if save_vid_overlay:
+                        overlay_video.write(numpy.uint8(overlay_map))
 
                     one_based_frame_idx = frame_idx + 1
                     frame_name = f"{vid_idx.item():06d}_{one_based_frame_idx:06d}.jpg"
@@ -313,14 +317,14 @@ class GradCAM:
                         # heatmap channel folder
                         channel_folder = os.path.join(visualization_path, channel)
                         frame_path = os.path.join(channel_folder, frame_name)
-
-                        # overlay channel folder
-                        overlay_channel_folder = os.path.join(overlay_path, channel)
-                        overlay_frame_name = os.path.join(overlay_channel_folder, overlay_frame_tag)
                         if not os.path.exists(channel_folder):
                             os.makedirs(channel_folder)
-                        if not os.path.exists(overlay_channel_folder):
-                            os.makedirs(overlay_channel_folder)
+                        
+                        if save_vid_overlay:
+                            overlay_channel_folder = os.path.join(overlay_path, channel)
+                            overlay_frame_name = os.path.join(overlay_channel_folder, overlay_frame_tag)
+                            if not os.path.exists(overlay_channel_folder):
+                                os.makedirs(overlay_channel_folder)
                     else:
                         # since other visualization architectures don't necessarily
                         # only have two input pathways, you have to add logic for it
@@ -330,9 +334,11 @@ class GradCAM:
 
                     
                     cv2.imwrite(frame_path, frame_map)
-                    cv2.imwrite(overlay_frame_name, overlay_map)
-                cv2.destroyAllWindows()
-                overlay_video.release()
+                    if save_vid_overlay:
+                        cv2.imwrite(overlay_frame_name, overlay_map)
+                if save_vid_overlay:
+                    cv2.destroyAllWindows()
+                    overlay_video.release()
 
                 # generate 3d heatmap volumes for the video
                 t_scale = 0.25
