@@ -988,6 +988,9 @@ _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL = False
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD = "grad_cam"
 # Colormap to for text boxes and bounding boxes colors
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP = "viridis"
+# (added 7/17): whether to compute gradients with respect to post-softmax score.
+# If True, gradient is wrt post-softmax; if False, gradient is wrt pre-softmax.
+_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX = True
 
 # Config for visualization for wrong prediction visualization.
 # _C.TENSORBOARD.ENABLE must be True.
@@ -1087,14 +1090,13 @@ _C.DEMO.COMMON_CLASS_NAMES = [
 # video will be played `_C.DEMO.SLOWMO` times slower than usual speed.
 _C.DEMO.SLOWMO = 1
 
-# (added 6/5): directory to save inputs right before they get passed in
-# to the model
-_C.VIS_MODEL_INPUT_DIR = (
-    "/research/cwloka/projects/nikki_sandbox/action_attention/vis_model_input"
-)
-
+# -----------------------------------------------------------------------------
+# Options for saving dataloader outputs
+# -----------------------------------------------------------------------------
 # (added 7/5):
 _C.DATA_LOADER.INSPECT = CfgNode()
+
+# TODO: figure out why these default values aren't working
 # whether to save sampled videos as frames
 _C.DATA_LOADER.INSPECT.SAVE_FRAMES: False
 # whether to save sampled videos as videos

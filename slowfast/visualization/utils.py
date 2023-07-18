@@ -16,6 +16,7 @@ import slowfast.utils.logging as logging
 import slowfast.datasets.utils as data_utils
 from slowfast.datasets.utils import pack_pathway_output, tensor_normalize
 from slowfast.datasets import loader
+from slowfast.utils.misc import rsetattr
 
 logger = logging.get_logger(__name__)
 
@@ -345,6 +346,21 @@ def get_layer(model, layer_name):
         prev_module = prev_module._modules[layer]
 
     return prev_module
+
+
+def replace_layer(model, layer_name, replacement_layer):
+    """Replaces a layer of a model.
+
+    Args:
+        model: a model
+        layer_name (str): layer of the
+
+    Returns:
+        model with a replaced layer
+    """
+    layer_attr_name = layer_name.replace("/", ".")
+    rsetattr(model, layer_attr_name, replacement_layer)
+    return model
 
 
 class TaskInfo:

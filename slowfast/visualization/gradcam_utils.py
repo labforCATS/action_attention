@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-import matplotlib.pyplot as plt
-import torch
-import torch.nn.functional as F
 from slowfast.visualization.weight_calcs import get_model_weights
-
+import slowfast.utils.logging as logging
 import slowfast.datasets.utils as data_utils
-from slowfast.visualization.utils import get_layer
+from slowfast.visualization.utils import get_layer, replace_layer
 from slowfast.utils.connected_components_utils import (
     plot_heatmap,
     load_heatmaps,
 )
 
+import matplotlib.pyplot as plt
+import torch
+import torch.nn.functional as F
 import numpy
 import sys
 import cv2
 import os
 import pdb
+import copy
+
+logger = logging.get_logger(__name__)
 
 
 class GradCAM:
@@ -34,6 +37,8 @@ class GradCAM:
         data_mean,
         data_std,
         method,
+        cfg,
+        post_softmax=False,
         colormap="viridis",
     ):
         """
@@ -43,12 +48,27 @@ class GradCAM:
                 gradients and feature maps from for creating localization maps.
             data_mean (tensor or list): mean value to add to input videos.
             data_std (tensor or list): std to multiply for input videos.
+            post_softmax (bool): whether to compute gradients with respect to
+                post-softmax score. If True, gradient is wrt post-softmax; if
+                False, gradient is wrt pre-softmax.
             colormap (Optional[str]): matplotlib colormap used to create heatmap.
                 See https://matplotlib.org/3.3.0/tutorials/colors/colormaps.html
         """
         self.model = model
         # Run in eval mode.
         self.model.eval()
+
+        self.post_softmax = post_softmax
+        if not post_softmax:
+            # create copy of model without softmax for gradient computations
+            model_copy = copy.deepcopy(self.model)
+            self.model_without_softmax = replace_layer(
+                model=model_copy,
+                layer_name=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.SOFTMAX_LAYER,
+                replacement_layer=torch.nn.Identity(),
+            )
+            self.model_without_softmax.eval()
+
         self.target_layers = target_layers
 
         self.gradients = {}
@@ -57,32 +77,47 @@ class GradCAM:
         self.colormap = plt.get_cmap(colormap)
         self.data_mean = data_mean
         self.data_std = data_std
-        self._register_hooks()
 
-    def _register_single_hook(self, layer_name):
-        """
-        Register forward and backward hook to a layer, given layer_name,
-        to obtain gradients and activations.
+        if post_softmax:
+            self._register_hooks(self.model)
+        else:
+            self._register_hooks(self.model_without_softmax)
+
+    def _register_single_hook(self, model, layer_name):
+        """Register forward and backward hook to a layer in a model to obtain
+        gradients and activations.
+
         Args:
+            model: model to which the hook is registered.
             layer_name (str): name of the layer.
         """
 
         def get_gradients(module, grad_input, grad_output):
+            """Create a hook that will be called every time the gradients with
+            respect to a module are computed.
+            """
             self.gradients[layer_name] = grad_output[0].detach()
 
         def get_activations(module, input, output):
+            """Create a hook that will be called every time after forward() has
+            computed an output.
+
+            The input contains only the positional arguments given to the module
+            """
             self.activations[layer_name] = output.clone().detach()
 
-        target_layer = get_layer(self.model, layer_name=layer_name)
+        target_layer = get_layer(model, layer_name=layer_name)
         target_layer.register_forward_hook(get_activations)
         target_layer.register_full_backward_hook(get_gradients)
 
-    def _register_hooks(self):
-        """
-        Register hooks to layers in `self.target_layers`.
+    def _register_hooks(self, model):
+        """Register hooks to layers in `self.target_layers`.
+
+        Args:
+            model: model to which the hooks are registered.
         """
         for layer_name in self.target_layers:
-            self._register_single_hook(layer_name=layer_name)
+            self._register_single_hook(model=model, layer_name=layer_name)
 
     def _calculate_localization_map(self, inputs, labels=None):
         """
@@ -101,18 +136,27 @@ class GradCAM:
         input_clone = [inp.clone() for inp in inputs]
         preds = self.model(input_clone)
 
-        # compute 'score' (aka the loss after softmax)
-        if labels is None:
-            score = torch.max(preds, dim=-1)[0]
+        # get scores for all classes
+        if self.post_softmax:
+            # compute score after softmax
+            scores_for_all_classes = preds
         else:
+            # compute score before softmax
+            scores_for_all_classes = self.model_without_softmax(input_clone)
+
+        # get score for single class
+        if labels is None:  # get score for top predicted class
+            score = torch.max(scores_for_all_classes, dim=-1)[0]
+        else:  # get score for true class
             if labels.ndim == 1:
                 labels = labels.unsqueeze(-1)
-            score = torch.gather(preds, dim=1, index=labels)
+            score = torch.gather(scores_for_all_classes, dim=1, index=labels)
 
         self.model.zero_grad()
 
-        # sum the loss for the entire batch
-        score = torch.sum(score)
+        score = torch.sum(
+            score
+        )  # TODO: if we take the sum doesn't the gradient change?
 
         score.backward()  # Computes the gradient of current tensor w.r.t. graph leaves
         # Note that gradients can be implicitly created only for scalar outputs
@@ -192,41 +236,38 @@ class GradCAM:
 
         # retrieve heatmaps
         localization_maps, preds = self._calculate_localization_map(
-            inputs, labels=labels
+            inputs,
+            labels=labels,
         )
 
         # save heatmaps
-        heatmaps_frames_root_dir = os.path.join(
+        heatmaps_root_dir = os.path.join(
             output_dir,
             "heatmaps",
             cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            "post_softmax"
+            if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
+            else "pre_softmax",
+        )
+        heatmaps_frames_root_dir = os.path.join(
+            heatmaps_root_dir,
             "frames",
         )
-        heatmap_volume_root_dir = os.path.join(
-            cfg.OUTPUT_DIR,
-            f"heatmaps/{cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD}/3d_volumes",
-        )
-
+        heatmap_volume_root_dir = os.path.join(heatmaps_root_dir, "3d_volumes")
         # heatmap frame overlay root directory
         heatmap_overlay_frames_root_dir = os.path.join(
-            output_dir,
-            "heatmaps",
-            cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            heatmaps_root_dir,
             "heatmap_overlay",
-            "frames"
+            "frames",
         )
-
         # heatmap overlay video root directory
         heatmap_overlay_video_root_dir = os.path.join(
-            output_dir,
-            "heatmaps",
-            cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            heatmaps_root_dir,
             "heatmap_overlay",
             "videos",
         )
         save_vid_overlay = cfg.DATA_LOADER.INSPECT.SAVE_OVERLAY_VIDEO
-        
-        
+
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         crop_size = (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE)
 
@@ -252,7 +293,6 @@ class GradCAM:
                     if j.any() != 0:
                         count += 1
 
-
             heatmap = self.colormap(localization_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
 
@@ -274,55 +314,76 @@ class GradCAM:
 
             # iterate over videos in batch
             for v, vid_idx in enumerate(video_indices.numpy()):
-                
                 # heatmap to save
                 map_to_save = localization_map.numpy()[v]
 
                 # heatmap overlay to save
-                overlay_to_save = curr_inp[v,:,:,:,:]
+                overlay_to_save = curr_inp[v, :, :, :, :]
 
                 # paths for heatmap frames and overlaid frames, respectively
                 visualization_path = os.path.join(
                     heatmaps_frames_root_dir, f"{vid_idx:06d}"
                 )
-                overlay_path = os.path.join(heatmap_overlay_frames_root_dir, f"{vid_idx:06d}")
-                
+                overlay_path = os.path.join(
+                    heatmap_overlay_frames_root_dir, f"{vid_idx:06d}"
+                )
+
                 # initialize video writer for saving overlaid heatmap video
                 video_path = os.path.join(
-                    heatmap_overlay_video_root_dir,
-                    f"{vid_idx:06d}"
-                    )
+                    heatmap_overlay_video_root_dir, f"{vid_idx:06d}"
+                )
                 if not os.path.exists(video_path):
                     os.makedirs(video_path)
-                
+
                 if save_vid_overlay:
-                    video_name = os.path.join(video_path, f"{channel}_{vid_idx:06d}.mp4")
-                    overlay_video = cv2.VideoWriter(video_name, fourcc, 25, crop_size)
-                
+                    video_name = os.path.join(
+                        video_path, f"{channel}_{vid_idx:06d}.mp4"
+                    )
+                    overlay_video = cv2.VideoWriter(
+                        video_name, fourcc, 25, crop_size
+                    )
+
                 # iterate over frames in video
                 for frame_idx in range(len(map_to_save)):
                     frame_map = map_to_save[frame_idx] * 255
-                    overlay_map = overlay_to_save[frame_idx,:,:,:].permute(1, 2, 0).numpy()*255
+                    overlay_map = (
+                        overlay_to_save[frame_idx, :, :, :]
+                        .permute(1, 2, 0)
+                        .numpy()
+                        * 255
+                    )
                     if save_vid_overlay:
                         overlay_video.write(numpy.uint8(overlay_map))
 
                     one_based_frame_idx = frame_idx + 1
-                    frame_name = f"{vid_idx.item():06d}_{one_based_frame_idx:06d}.jpg"
-                    
+                    frame_name = (
+                        f"{vid_idx.item():06d}_{one_based_frame_idx:06d}.jpg"
+                    )
+
                     frame_path = os.path.join(visualization_path, frame_name)
-                    overlay_frame_tag = f"{vid_idx:06d}_{one_based_frame_idx:06d}.jpg"
-                    overlay_frame_name = os.path.join(overlay_path, overlay_frame_tag)
+                    overlay_frame_tag = (
+                        f"{vid_idx:06d}_{one_based_frame_idx:06d}.jpg"
+                    )
+                    overlay_frame_name = os.path.join(
+                        overlay_path, overlay_frame_tag
+                    )
 
                     if cfg.MODEL.ARCH == "slowfast":
                         # heatmap channel folder
-                        channel_folder = os.path.join(visualization_path, channel)
+                        channel_folder = os.path.join(
+                            visualization_path, channel
+                        )
                         frame_path = os.path.join(channel_folder, frame_name)
                         if not os.path.exists(channel_folder):
                             os.makedirs(channel_folder)
-                        
+
                         if save_vid_overlay:
-                            overlay_channel_folder = os.path.join(overlay_path, channel)
-                            overlay_frame_name = os.path.join(overlay_channel_folder, overlay_frame_tag)
+                            overlay_channel_folder = os.path.join(
+                                overlay_path, channel
+                            )
+                            overlay_frame_name = os.path.join(
+                                overlay_channel_folder, overlay_frame_tag
+                            )
                             if not os.path.exists(overlay_channel_folder):
                                 os.makedirs(overlay_channel_folder)
                     else:
@@ -332,7 +393,6 @@ class GradCAM:
                             "make subfolders for each pathway and put frames in correct subfolder for the specific visualization method"
                         )
 
-                    
                     cv2.imwrite(frame_path, frame_map)
                     if save_vid_overlay:
                         cv2.imwrite(overlay_frame_name, overlay_map)
