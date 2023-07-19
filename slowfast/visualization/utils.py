@@ -416,25 +416,34 @@ def save_inputs(data_loader, cfg, mode):
         loader.shuffle_dataset(data_loader, 0)
 
     vid_count = 0
+    
+    if cfg.MODEL.ARCH == "slowfast":
+        pathways = ["slow", "fast"]
+    elif cfg.MODEL.ARCH == "i3d":
+        pathways = ["rgb"]
 
     # go through each batch passed to the model
     for batch, (inputs, labels, index, time, meta) in enumerate(data_loader):
+        print(len(inputs))
+        print(inputs[0].shape)
+        print(len(labels))
+        pdb.set_trace()
         if vid_count >= cfg.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT:
             break
             # otherwise continue, and break the loop over individual videos if needed
-
         video_indices = index.numpy()
 
         # go through each video in the batch
+        
         for i in range(len(labels)):
             if vid_count >= cfg.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT:
                 break
             vid_count += 1
 
             video_index = video_indices[i]
-
-            pathways = ["slow", "fast"]
+            
             for pathway_idx, pathway in enumerate(pathways):
+                print(pathway_idx)
                 if cfg.DATA_LOADER.INSPECT.SAVE_FRAMES:
                     # TODO: thereotically could move this down
                     # make folders to store output images
@@ -495,7 +504,7 @@ def save_inputs(data_loader, cfg, mode):
                         pathway_tensor = pathway_tensor.to("cpu")
                     # isolate the individual frames from the tensor (B, T, H, W, C)
                     pathway_np_image = (
-                        pathway_tensor[0, frame, :, :, :].numpy() * 255
+                        pathway_tensor[batch, frame, :, :, :].numpy() * 255
                     )
 
                     # save frame, if applicable
