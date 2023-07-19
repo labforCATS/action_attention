@@ -33,24 +33,6 @@ from slowfast.visualization.gradcam_utils import GradCAM
 logger = logging.get_logger(__name__)
 
 
-def get_layer(model, layer_name):
-    """
-    Return the targeted layer (nn.Module Object) given a hierarchical layer name,
-    separated by /.
-    Args:
-        model (model): model to get layers from.
-        layer_name (str): name of the layer.
-    Returns:
-        prev_module (nn.Module): the layer from the model with `layer_name` name.
-    """
-    layer_ls = layer_name.split("/")
-    prev_module = model
-    for layer in layer_ls:
-        prev_module = prev_module._modules[layer]
-
-    return prev_module
-
-
 def run_visualization(vis_loader, model, cfg, writer=None):
     """
     Run model visualization (weights, activations and model inputs) and visualize
@@ -102,6 +84,8 @@ def run_visualization(vis_loader, model, cfg, writer=None):
             data_mean=cfg.DATA.MEAN,
             data_std=cfg.DATA.STD,
             method=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+            cfg=cfg,
+            post_softmax=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX,
             colormap=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP,
         )
 

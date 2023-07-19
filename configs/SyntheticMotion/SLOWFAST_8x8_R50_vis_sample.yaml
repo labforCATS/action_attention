@@ -1,12 +1,5 @@
 TRAIN:
   ENABLE: False
-  DATASET: SyntheticMotion
-  BATCH_SIZE: 2
-  EVAL_PERIOD: 1
-  CHECKPOINT_PERIOD: 1
-  RESUME_FROM_CHECKPOINT: False
-  # CHECKPOINT_FILE_PATH: 
-  # CHECKPOINT_TYPE: caffe2
 
 TENSORBOARD:
   ENABLE: True
@@ -22,6 +15,8 @@ TENSORBOARD:
                   # The number of layer must be equal to the number of pathway(s).
       USE_TRUE_LABEL: False
       METHOD: grad_cam
+      POST_SOFTMAX: True
+      SOFTMAX_LAYER: 'head/act'
 
 DATA:
   PATH_TO_DATA_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9
@@ -79,10 +74,16 @@ TEST:
   ENABLE: False
   DATASET: SyntheticMotion
   BATCH_SIZE: 2
-  CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00050.pyth
+  # CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/checkpoints/checkpoint_epoch_00050.pyth
+  NUM_ENSEMBLE_VIEWS: 1 # Number of clips to sample from a video uniformly for aggregating the prediction results.
+  NUM_SPATIAL_CROPS: 1 # Number of crops to sample from a frame spatially for aggregating the prediction results.
+
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True
+  INSPECT:
+    SAVE_FRAMES: False
+    SAVE_VIDEO: False
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
