@@ -266,7 +266,7 @@ class GradCAM:
             "heatmap_overlay",
             "videos",
         )
-        save_vid_overlay = cfg.DATA_LOADER.INSPECT.SAVE_OVERLAY_VIDEO
+        save_vid_overlay = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         crop_size = (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE)
@@ -275,6 +275,8 @@ class GradCAM:
         for channel_idx, localization_map in enumerate(localization_maps):
             if cfg.MODEL.ARCH == "slowfast":
                 channel = "slow" if channel_idx == 0 else "fast"
+            elif cfg.MODEL.ARCH == "i3d":
+                channel = "rgb"
             else:
                 # since other visualization architectures don't necessarily
                 # only have two input pathways, you have to add logic for it
@@ -386,6 +388,25 @@ class GradCAM:
                             )
                             if not os.path.exists(overlay_channel_folder):
                                 os.makedirs(overlay_channel_folder)
+                    elif cfg.MODEL.ARCH == "i3d":
+                        # heatmap channel folder
+                        channel_folder = os.path.join(
+                            visualization_path, channel
+                        )
+                        frame_path = os.path.join(channel_folder, frame_name)
+                        if not os.path.exists(channel_folder):
+                            os.makedirs(channel_folder)
+
+                        if save_vid_overlay:
+                            overlay_channel_folder = os.path.join(
+                                overlay_path, channel
+                            )
+                            overlay_frame_name = os.path.join(
+                                overlay_channel_folder, overlay_frame_tag
+                            )
+                            if not os.path.exists(overlay_channel_folder):
+                                os.makedirs(overlay_channel_folder)
+                    
                     else:
                         # since other visualization architectures don't necessarily
                         # only have two input pathways, you have to add logic for it

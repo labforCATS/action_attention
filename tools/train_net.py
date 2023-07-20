@@ -730,14 +730,10 @@ def train(cfg):
                     last_checkpoint = cu.get_last_checkpoint(
                         cfg.OUTPUT_DIR, task=cfg.TASK
                     )
-                    print("line 767")
-                    print("\tlast checkpoint path:", last_checkpoint)
                     # pdb.set_trace()
                     assert "{:05d}.pyth".format(cur_epoch) in last_checkpoint
                 else:
                     last_checkpoint = cfg.TRAIN.CHECKPOINT_FILE_PATH
-                    print("line 772")
-                    print("\tlast checkpoint path:", last_checkpoint)
                     # pdb.set_trace()
                 logger.info("Load from {}".format(last_checkpoint))
                 cu.load_checkpoint(

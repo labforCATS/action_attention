@@ -437,13 +437,11 @@ def save_inputs(data_loader, cfg, mode):
         pathways = ["slow", "fast"]
     elif cfg.MODEL.ARCH == "i3d":
         pathways = ["rgb"]
+    else:
+        raise NotImplementedError("specify the pathways for the model architecture")
 
     # go through each batch passed to the model
     for batch, (inputs, labels, index, time, meta) in enumerate(data_loader):
-        print(len(inputs))
-        print(inputs[0].shape)
-        print(len(labels))
-        pdb.set_trace()
         if vid_count >= cfg.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT:
             break
             # otherwise continue, and break the loop over individual videos if needed
@@ -457,9 +455,9 @@ def save_inputs(data_loader, cfg, mode):
             vid_count += 1
 
             video_index = video_indices[i]
-            
+
             for pathway_idx, pathway in enumerate(pathways):
-                print(pathway_idx)
+                
                 if cfg.DATA_LOADER.INSPECT.SAVE_FRAMES:
                     # TODO: thereotically could move this down
                     # make folders to store output images
@@ -474,6 +472,7 @@ def save_inputs(data_loader, cfg, mode):
 
                 # isolate the pathway data
                 pathway_tensor = inputs[pathway_idx][i, :, :, :, :]
+                
                 pathway_tensor = torch.unsqueeze(pathway_tensor, dim=0)
                 # revert tensor normalization
                 # permute from (B, C, T, H, W) to (B, T, H, W, C)
@@ -483,6 +482,7 @@ def save_inputs(data_loader, cfg, mode):
                 )
 
                 num_frames = pathway_tensor.size(dim=1)
+                
 
                 # initialize variables for saving the video
                 if cfg.DATA_LOADER.INSPECT.SAVE_VIDEO:
@@ -520,8 +520,7 @@ def save_inputs(data_loader, cfg, mode):
                         pathway_tensor = pathway_tensor.to("cpu")
                     # isolate the individual frames from the tensor (B, T, H, W, C)
                     pathway_np_image = (
-                        pathway_tensor[batch, frame, :, :, :].numpy() * 255
-                    )
+                            pathway_tensor[0, frame, :, :, :].numpy() * 255)
 
                     # save frame, if applicable
                     if cfg.DATA_LOADER.INSPECT.SAVE_FRAMES:

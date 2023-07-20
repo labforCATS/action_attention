@@ -17,6 +17,7 @@ TENSORBOARD:
       METHOD: grad_cam
       POST_SOFTMAX: True
       SOFTMAX_LAYER: 'head/act'
+      SAVE_OVERLAY_VIDEO: False
 
 DATA:
   PATH_TO_DATA_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9

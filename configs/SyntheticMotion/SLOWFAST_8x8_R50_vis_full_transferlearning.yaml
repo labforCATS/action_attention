@@ -17,6 +17,7 @@ TENSORBOARD:
       METHOD: grad_cam
       POST_SOFTMAX: False
       SOFTMAX_LAYER: 'head/act'
+      SAVE_OVERLAY_VIDEO: False
 
 DATA:
   PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/synthetic_motion_7_classes/ispy_0.1_9
@@ -85,7 +86,6 @@ DATA_LOADER:
     SAVE_SEQ_COUNT: 30
     SAVE_FRAMES: False
     SAVE_VIDEO: False
-    SAVE_OVERLAY_VIDEO: False
     SHUFFLE: True
 NUM_GPUS: 8
 NUM_SHARDS: 1
