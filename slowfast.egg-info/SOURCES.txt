@@ -20,6 +20,8 @@ slowfast/datasets/cv2_transform.py
 slowfast/datasets/decoder.py
 slowfast/datasets/imagenet.py
 slowfast/datasets/kinetics.py
+slowfast/datasets/kinetics_by_frame.py
+slowfast/datasets/kinetics_temp_helper.py
 slowfast/datasets/loader.py
 slowfast/datasets/mixup.py
 slowfast/datasets/multigrid_helper.py
@@ -27,6 +29,7 @@ slowfast/datasets/ptv_datasets.py
 slowfast/datasets/rand_augment.py
 slowfast/datasets/random_erasing.py
 slowfast/datasets/ssv2.py
+slowfast/datasets/synthetic_motion.py
 slowfast/datasets/transform.py
 slowfast/datasets/ucf.py
 slowfast/datasets/utils.py
@@ -54,6 +57,7 @@ slowfast/utils/benchmark.py
 slowfast/utils/bn_helper.py
 slowfast/utils/c2_model_loading.py
 slowfast/utils/checkpoint.py
+slowfast/utils/connected_components_utils.py
 slowfast/utils/distributed.py
 slowfast/utils/env.py
 slowfast/utils/logging.py
@@ -88,3 +92,4 @@ slowfast/visualization/predictor.py
 slowfast/visualization/tensorboard_vis.py
 slowfast/visualization/utils.py
 slowfast/visualization/video_visualizer.py
+slowfast/visualization/weight_calcs.py

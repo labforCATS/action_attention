@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
+def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0, mask=False):
     """Load heatmaps for a single video.
 
     Args:
@@ -27,6 +27,7 @@ def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
             < 1.0 to downsample, > 1.0 to upsample
         s_scale (float): factor for rescaling the spatial dimensions.
             < 1.0 to downsample, > 1.0 to upsample
+        mask (bool): If heatmaps_dir is a directory of mask images, set to True
 
         Example directory of heatmaps:
             |-heatmaps/
@@ -60,6 +61,9 @@ def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0):
     for fname in img_paths_list:
         path = os.path.join(heatmaps_dir, fname)
         img = np.asarray(Image.open(path))
+
+        if mask:
+            img = img[:, :, 0]
         img_list.append(img)
 
     img_stack = np.stack(img_list, axis=0)  # dimensions (T, H, W)
@@ -84,6 +88,7 @@ def plot_heatmap(
     slider=False,
     isomin=None,
     isomax=None,
+    overlay=None,
 ):
     """Plots a heatmap in 3D and saves as an interactive html file.
 
@@ -104,12 +109,21 @@ def plot_heatmap(
             only affects plot when slider==False.
         isomax (int/float): optional maximum display threshold for the heatmap.
             By default, this is just the max value in the heatmap volume.
+        overlay (3D np.array) the 3d heatmap volume for a ground truth volume to
+            be overlayed on top of the volume specified in volume arg
 
     Output:
         interactive html file, saved to the given location.
     """
     if isomax is None:
         isomax = volume.max()
+    elif overlay is not None:
+        isomax = max(volume.max(), overlay.max())
+
+    custom_colorscale = [
+        [0, "rgb(0, 100, 100)"],  # Green
+        [1, "rgb(0, 140, 140)"],  # Blue
+    ]
 
     # prepare the X, Y, and Z axes
     t_scale_step = int(1 / t_scale)
@@ -120,6 +134,12 @@ def plot_heatmap(
         0 : volume.shape[1] * s_scale_step : s_scale_step,  # width
         0 : volume.shape[2] * s_scale_step : s_scale_step,  # height
     ]
+    if overlay is not None:
+        overlay_X, overlay_Y, overlay_Z = np.mgrid[
+            0 : overlay.shape[0] * t_scale_step : t_scale_step,  # frames
+            0 : overlay.shape[1] * s_scale_step : s_scale_step,  # width
+            0 : overlay.shape[2] * s_scale_step : s_scale_step,  # height
+        ]
 
     start = datetime.now()
 
@@ -153,16 +173,10 @@ def plot_heatmap(
                 method="update",
                 args=[
                     {"visible": [False] * len(fig.data)},
-                    {
-                        "title": "Slider switched to threshold: {:.1f}".format(
-                            i / 10
-                        )
-                    },
+                    {"title": "Slider switched to threshold: {:.1f}".format(i / 10)},
                 ],  # layout attribute
             )
-            step["args"][0]["visible"][
-                i
-            ] = True  # Toggle i'th trace to "visible"
+            step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
             steps.append(step)
 
         sliders = [
@@ -182,18 +196,46 @@ def plot_heatmap(
         if isomin is None:
             isomin = 0.1 * volume.max()
 
-        fig = go.Figure(
-            data=go.Volume(
-                x=X.flatten(),
-                y=Y.flatten(),
-                z=Z.flatten(),
-                value=volume.flatten(),
-                isomin=isomin,
-                isomax=isomax,
-                opacity=0.1,  # needs to be small to see through all surfaces
-                surface_count=surface_count,
+        if overlay is not None:
+            fig = go.Figure(
+                data=go.Volume(
+                    x=overlay_X.flatten(),
+                    y=overlay_Y.flatten(),
+                    z=overlay_Z.flatten(),
+                    value=overlay.flatten(),
+                    isomin=isomin,
+                    isomax=isomax,
+                    opacity=0.08,  # needs to be small to see through all surfaces
+                    surface_count=8,
+                    colorscale=custom_colorscale,
+                )
             )
-        )
+
+            fig.add_trace(
+                go.Volume(
+                    x=X.flatten(),
+                    y=Y.flatten(),
+                    z=Z.flatten(),
+                    value=volume.flatten(),
+                    isomin=isomin,
+                    isomax=isomax,
+                    opacity=0.1,  # needs to be small to see through all surfaces
+                    surface_count=surface_count,
+                )
+            )
+        else:
+            fig = go.Figure(
+                data=go.Volume(
+                    x=X.flatten(),
+                    y=Y.flatten(),
+                    z=Z.flatten(),
+                    value=volume.flatten(),
+                    isomin=isomin,
+                    isomax=isomax,
+                    opacity=0.1,  # needs to be small to see through all surfaces
+                    surface_count=surface_count,
+                )
+            )
 
     # add labels and fix default axis view
     fig.update_layout(
@@ -201,9 +243,20 @@ def plot_heatmap(
             "xaxis_title": "Frames",
             "yaxis_title": "Image Width",
             "zaxis_title": "Image Height",
-            "xaxis": {"autorange": "reversed"},  # frames axis
-            "zaxis": {"autorange": "reversed"},  # height axis
-        }
+            "xaxis": {
+                "autorange": "reversed",
+                "showticklabels": True,
+                "dtick": 20,
+            },  # frames axis
+            "zaxis": {
+                "autorange": "reversed",
+                "showticklabels": True,
+                "dtick": 120,
+            },  # height axis
+            "yaxis": {"showticklabels": True, "dtick": 120},
+        },
+        font=dict(size=16),
+        # margin=dict(l=100, r=100, t=100, b=100),
     )
 
     # save interactive figure
@@ -261,7 +314,7 @@ def plot_all_heatmaps(
     thresh=0.2,
     t_scale=1.0,
     s_scale=1.0,
-    plot_indiv_components=True
+    plot_indiv_components=True,
 ):
     """Plots and saves a set of 3D heatmaps for all videos in a directory.
 
@@ -319,21 +372,15 @@ def plot_all_heatmaps(
     for video_idx in vid_ids:
         if model_arch == "slowfast":
             for stream in ["slow", "fast"]:
-                heatmaps_dir = os.path.join(
-                    heatmaps_root_dir, str(video_idx), stream
-                )
+                heatmaps_dir = os.path.join(heatmaps_root_dir, str(video_idx), stream)
                 logger.info("generating heatmap volumes to " + heatmaps_dir)
-                output_dir = os.path.join(
-                    output_root_dir, str(video_idx), stream
-                )
+                output_dir = os.path.join(output_root_dir, str(video_idx), stream)
 
                 img_stack = load_heatmaps(heatmaps_dir, t_scale, s_scale)
 
                 plot_heatmap(
                     img_stack,
-                    os.path.join(
-                        output_dir, "heatmap_volume_with_slider.html"
-                    ),
+                    os.path.join(output_dir, "heatmap_volume_with_slider.html"),
                     surface_count,
                     t_scale,
                     s_scale,
@@ -375,9 +422,7 @@ def heatmap_stats(volume, thresh=0.2):
     connectivity = 26  # 26, 18, and 6 (3D) are allowed
     result = cc3d.connected_components(volume, connectivity=connectivity)
     stats = cc3d.statistics(result)
-    n_components = (
-        len(stats["voxel_counts"]) - 1
-    )  # ignoring "background" element
+    n_components = len(stats["voxel_counts"]) - 1  # ignoring "background" element
 
     # TODO:
     raise NotImplementedError
@@ -489,9 +534,7 @@ def get_3d_measurements(component_volume):
             labels,
             stats,
             _,
-        ) = cv2.connectedComponentsWithStats(
-            frame.astype(np.uint8), connectivity=8
-        )
+        ) = cv2.connectedComponentsWithStats(frame.astype(np.uint8), connectivity=8)
 
         # iter over components (ignore component 0, which is the background)
         for c in range(1, n_components):
@@ -539,4 +582,85 @@ def generate_stats(component_volume):
         temporal_mean,
         temporal_median,
         temporal_mode,
+    )
+
+
+def generate_overlay(heatmaps_root_dir, output_root_dir, overlay_dir, t_scale, s_scale):
+    """
+    Generates heatmaps with another heatmap overlayed on top of it
+    Args:
+        heatmaps_root_dir (str): path to the folder containing all and only the
+            heatmaps for a single video
+            (e.g. "/.../heatmaps/grad_cam/6AyQsS4WC4A/slow"; see below for
+            example structure)
+        output_root_dir (str): path to output folder for heatmaps
+        overlay_dir (str): path to the folder containing all and only the
+            heatmaps to be overlayed over heatmaps specified in heatmaps_root_dir.
+            Follows the same structure as heatmaps_root_dir
+        t_scale (float): factor for rescaling the time dimension.
+            < 1.0 to downsample, > 1.0 to upsample
+        s_scale (float): factor for rescaling the spatial dimensions.
+            < 1.0 to downsample, > 1.0 to upsample
+
+            Example directory of heatmaps:
+            |-heatmaps/
+                |-grad_cam/ # or its variants
+                    |-<videoidx>/
+                        |-<stream_type_0>/ (optional dir, only for the SlowFast model)
+                            |-<videoidx>_000001.jpg
+                            |-<videoidx>_000002.jpg
+                            |-<videoidx>_000003.jpg
+                        ...
+                        |-<stream_type_1>/ (optional dir, only for the SlowFast model)
+                            |-<videoidx>_000001.jpg
+                            |-<videoidx>_000002.jpg
+                            |-<videoidx>_000003.jpg
+                        ...
+                    |-<videoidx>/
+                        |-...
+                    |-<videoidx>/
+                        |-...
+                    ...
+
+    """
+    # load in heatmap of model prediction
+    heatmap = load_heatmaps(heatmaps_root_dir, t_scale, s_scale)
+
+    # # load in heatmap to overlay on top
+    overlay = load_heatmaps(
+        overlay_dir,
+        t_scale * 0.64,  # scale of dimensions of overlay to model heatmap
+        s_scale * 0.64,
+        mask=True,  # if overlay_dir is a directory of masks, set to true
+    )
+    # slider for overlay is not currently implemented
+    # plots final overlayed heatmap
+    plot_heatmap(heatmap, output_root_dir, slider=False, overlay=overlay)
+
+
+if __name__ == "__main__":
+    # heatmaps_root_dir = "/research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/grad_cam/heatmaps/grad_cam/"
+    # output_root_dir = "/research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output/grad_cam/heatmaps/grad_cam_volumes/"
+    # model_arch = "slowfast"
+    # t_scale = 0.25
+    # s_scale = 1 / 8
+
+    # print("plotting all heatmaps")
+
+    # plot_all_heatmaps(
+    #     heatmaps_root_dir=heatmaps_root_dir,
+    #     output_root_dir=output_root_dir,
+    #     model_arch=model_arch,
+    #     surface_count=8,
+    #     thresh=0.2,
+    #     t_scale=t_scale,
+    #     s_scale=s_scale,
+    # )
+
+    generate_overlay(
+        "/research/cwloka/data/action_attn/synthetic_motion_7_classes/slowfast_outputs/epoch_45_outputs/heatmaps/grad_cam/pre_softmax/frames/000501/fast",
+        "/research/cwloka/projects/rohit_sandbox/heatmap",
+        "/research/cwloka/data/action_attn/synthetic_motion_7_classes/ispy_0.1_9/test/target_masks/triangle/triangle_000004",
+        0.75,
+        1 / 2,
     )
