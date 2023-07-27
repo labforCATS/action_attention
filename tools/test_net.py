@@ -16,7 +16,11 @@ import slowfast.utils.misc as misc
 import slowfast.visualization.tensorboard_vis as tb
 import slowfast.datasets.utils as data_utils
 from slowfast.datasets import loader
-from slowfast.visualization.utils import save_inputs
+from slowfast.visualization.utils import (
+    save_inputs,
+    get_confusion_matrix,
+    plot_confusion_matrix,
+)
 from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
 from slowfast.utils.meters import AVAMeter, TestMeter
@@ -147,6 +151,26 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
         test_meter.log_iter_stats(cur_iter)
 
         test_meter.iter_tic()
+
+    # Plot confusion matrix
+    confusion_matrix_path = os.path.join(
+        cfg.OUTPUT_DIR, "confusion_matrix.jpg"
+    )
+    preds = test_meter.video_preds
+    labels = test_meter.video_labels
+
+    print("preds", preds)
+    print("labels", labels)
+    pdb.set_trace()
+
+    confusion_matrix = get_confusion_matrix(
+        preds, labels, num_classes=cfg.MODEL.NUM_CLASSES, normalize="true"
+    )
+
+    cm_fig = plot_confusion_matrix(
+        confusion_matrix, cfg.MODEL.NUM_CLASSES, class_names=None, figsize=None
+    )
+    plt.save()
 
     # Log epoch stats and print the final testing results.
     if not cfg.DETECTION.ENABLE:
