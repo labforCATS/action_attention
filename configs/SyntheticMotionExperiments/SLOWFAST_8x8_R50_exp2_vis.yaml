@@ -3,7 +3,7 @@ TRAIN:
 
 TENSORBOARD:
   ENABLE: True
-  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/synthetic_motion_7_classes/ispy_0.1_9/synthetic_motion_labels.json
+  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_2/synthetic_motion_labels.json
   MODEL_VIS:
     ENABLE: True
     MODEL_WEIGHTS: False # Set to True to visualize model weights.
@@ -19,8 +19,17 @@ TENSORBOARD:
       SOFTMAX_LAYER: 'head/act'
       SAVE_OVERLAY_VIDEO: False
 
+TEST:
+  ENABLE: False
+  DATASET: SyntheticMotion
+  BATCH_SIZE: 1
+  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_2/slowfast_outputs/checkpoints/checkpoint_epoch_00100.pyth
+  CHECKPOINT_TYPE: pytorch
+  NUM_ENSEMBLE_VIEWS: 1 # Number of clips to sample from a video uniformly for aggregating the prediction results.
+  NUM_SPATIAL_CROPS: 1 # Number of crops to sample from a frame spatially for aggregating the prediction results.
+
 DATA:
-  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/synthetic_motion_7_classes/ispy_0.1_9
+  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_2
   NUM_FRAMES: 32
   # SAMPLING_RATE: 2
   TRAIN_JITTER_SCALES: [256, 320]
@@ -57,7 +66,7 @@ BN:
 SOLVER:
   BASE_LR: 0.1
   LR_POLICY: cosine
-  MAX_EPOCH: 20 # TODO: change to 100
+  MAX_EPOCH: 100
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: 34.0
@@ -65,20 +74,12 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 
 MODEL:
-  NUM_CLASSES: 7
+  NUM_CLASSES: 4
   ARCH: slowfast
   MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy
   DROPOUT_RATE: 0.5
   
-TEST:
-  ENABLE: False
-  DATASET: SyntheticMotion
-  BATCH_SIZE: 3
-  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/synthetic_motion_7_classes/outputs/checkpoints/checkpoint_epoch_00045.pyth
-  CHECKPOINT_TYPE: pytorch
-  NUM_ENSEMBLE_VIEWS: 1 # Number of clips to sample from a video uniformly for aggregating the prediction results.
-  NUM_SPATIAL_CROPS: 1 # Number of crops to sample from a frame spatially for aggregating the prediction results.
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True
@@ -90,4 +91,4 @@ DATA_LOADER:
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/data/action_attn/synthetic_motion_7_classes/outputs/epoch_45_outputs
+OUTPUT_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_2/slowfast_outputs/epoch_100_outputs

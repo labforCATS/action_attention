@@ -152,14 +152,10 @@ class GradCAM:
                 labels = labels.unsqueeze(-1)
             score = torch.gather(scores_for_all_classes, dim=1, index=labels)
 
+        # compute the gradient of the score wrt the target layers
+        score = torch.sum(score)
         self.model.zero_grad()
-
-        score = torch.sum(
-            score
-        )  # TODO: if we take the sum doesn't the gradient change?
-
         score.backward()  # Computes the gradient of current tensor w.r.t. graph leaves
-        # Note that gradients can be implicitly created only for scalar outputs
 
         localization_maps = []
         for i, inp in enumerate(inputs):
@@ -288,12 +284,6 @@ class GradCAM:
             localization_map = localization_map.squeeze(dim=1)
             if localization_map.device != torch.device("cpu"):
                 localization_map = localization_map.cpu()
-
-            count = 0
-            for t in range(len(localization_map.numpy()[0])):
-                for j in localization_map.numpy()[0][t]:
-                    if j.any() != 0:
-                        count += 1
 
             heatmap = self.colormap(localization_map.numpy())
             heatmap = heatmap[:, :, :, :, :3]
