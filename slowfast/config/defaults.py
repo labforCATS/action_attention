@@ -994,6 +994,14 @@ _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX = True
 # (added 7/13, modified 7/18):
 # whether to save the heatmaps overlaid on inputs as a video
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO: False
+# (added 7/19) Config for visualization video inputs with guided backpropagation.
+# _C.TENSORBOARD.ENABLE must be True.
+_C.TENSORBOARD.MODEL_VIS.GUIDED_BACKPROP = CfgNode()
+# Whether to run visualization using guided backpropagation technique.
+_C.TENSORBOARD.MODEL_VIS.GUIDED_BACKPROP.ENABLE = False
+# If True, visualize guided backpropagation using true labels for each instances.
+# If False, use the highest predicted class.
+_C.TENSORBOARD.MODEL_VIS.GUIDED_BACKPROP.USE_TRUE_LABEL = False
 
 
 # Config for visualization for wrong prediction visualization.

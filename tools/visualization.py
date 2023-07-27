@@ -27,6 +27,9 @@ from slowfast.visualization.video_visualizer import VideoVisualizer
 
 # from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from slowfast.visualization.gradcam_utils import GradCAM
+from slowfast.visualization.guided_backprop_utils import (
+    GuidedBackpropReLUModel,
+)
 
 # from pytorch_grad_cam import GradCAM
 # from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
@@ -78,6 +81,13 @@ def run_visualization(vis_loader, model, cfg, writer=None):
     else:
         grad_cam_layer_ls = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST
 
+    if cfg.TENSORBOARD.MODEL_VIS.GUIDED_BACKPROP.ENABLE:
+        guided_backprop = GuidedBackpropReLUModel(
+            model=model,
+            data_mean=cfg.DATA.MEAN,
+            data_std=cfg.DATA.STD,
+        )
+
     if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
         gradcam = GradCAM(
             model,
@@ -116,6 +126,19 @@ def run_visualization(vis_loader, model, cfg, writer=None):
 
         else:
             activations, preds = model_vis.get_activations(inputs)
+        
+        if cfg.TENSORBOARD.MODEL_VIS.GUIDED_BACKPROP.ENABLE:
+            target_labels = (
+                labels
+                if cfg.TENSORBOARD.MODEL_VIS.GUIDED_BACKPROP.USE_TRUE_LABEL
+                else None
+            )
+            outputs = guided_backprop(
+                inputs=inputs,
+                video_indices=video_indices,
+                cfg=cfg,
+                labels=target_labels,
+            )
 
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE:
             target_labels = (

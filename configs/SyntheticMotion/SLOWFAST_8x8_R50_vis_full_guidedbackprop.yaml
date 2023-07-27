@@ -1,0 +1,96 @@
+TRAIN:
+  ENABLE: False
+
+TENSORBOARD:
+  ENABLE: True
+  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/synthetic_motion_labels.json
+  MODEL_VIS:
+    ENABLE: True
+    MODEL_WEIGHTS: False # Set to True to visualize model weights.
+    ACTIVATIONS: False # Set to True to visualize feature maps.
+    INPUT_VIDEO: False # Set to True to visualize the input video(s) for the corresponding feature maps.
+    GRAD_CAM:
+      ENABLE: False
+      LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of CNN layers to use for Grad-CAM visualization method.
+                  # The number of layer must be equal to the number of pathway(s).
+      USE_TRUE_LABEL: False
+      METHOD: grad_cam
+      POST_SOFTMAX: True
+      SOFTMAX_LAYER: 'head/act'
+      SAVE_OVERLAY_VIDEO: False
+    GUIDED_BACKPROP: 
+      ENABLE: True 
+      USE_TRUE_LABEL: False
+
+DATA:
+  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1
+  NUM_FRAMES: 32
+  # SAMPLING_RATE: 2
+  TRAIN_JITTER_SCALES: [256, 320]
+  TRAIN_CROP_SIZE: 224
+  TEST_CROP_SIZE: 256
+  INPUT_CHANNEL_NUM: [3, 3]
+
+SLOWFAST:
+  ALPHA: 4
+  BETA_INV: 8
+  FUSION_CONV_CHANNEL_RATIO: 2
+  FUSION_KERNEL_SZ: 7
+
+RESNET:
+  ZERO_INIT_FINAL_BN: True
+  WIDTH_PER_GROUP: 64
+  NUM_GROUPS: 1
+  DEPTH: 50
+  TRANS_FUNC: bottleneck_transform
+  STRIDE_1X1: False
+  NUM_BLOCK_TEMP_KERNEL: [[3, 3], [4, 4], [6, 6], [3, 3]]
+  SPATIAL_STRIDES: [[1, 1], [2, 2], [2, 2], [2, 2]]
+  SPATIAL_DILATIONS: [[1, 1], [1, 1], [1, 1], [1, 1]]
+
+NONLOCAL:
+  LOCATION: [[[], []], [[], []], [[], []], [[], []]]
+  GROUP: [[1, 1], [1, 1], [1, 1], [1, 1]]
+  INSTANTIATION: dot_product
+
+BN:
+  USE_PRECISE_STATS: True
+  NUM_BATCHES_PRECISE: 200
+
+SOLVER:
+  BASE_LR: 0.1
+  LR_POLICY: cosine
+  MAX_EPOCH: 20 # TODO: change to 100
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 1e-4
+  WARMUP_EPOCHS: 34.0
+  WARMUP_START_LR: 0.01
+  OPTIMIZING_METHOD: sgd
+
+MODEL:
+  NUM_CLASSES: 7
+  ARCH: slowfast
+  MODEL_NAME: SlowFast
+  LOSS_FUNC: cross_entropy
+  DROPOUT_RATE: 0.5
+  
+TEST:
+  ENABLE: False
+  DATASET: SyntheticMotion
+  BATCH_SIZE: 1
+  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/slowfast_outputs/checkpoints/checkpoint_epoch_00001.pyth
+  CHECKPOINT_TYPE: pytorch
+  NUM_ENSEMBLE_VIEWS: 1 # Number of clips to sample from a video uniformly for aggregating the prediction results.
+  NUM_SPATIAL_CROPS: 1 # Number of crops to sample from a frame spatially for aggregating the prediction results.
+DATA_LOADER:
+  NUM_WORKERS: 8
+  PIN_MEMORY: True
+  INSPECT:
+    SAVE_SEQ_COUNT: 30
+    SAVE_FRAMES: False
+    SAVE_VIDEO: False
+    SHUFFLE: True
+NUM_GPUS: 8
+NUM_SHARDS: 1
+RNG_SEED: 0
+OUTPUT_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/slowfast_outputs/epoch_1_outputs
