@@ -991,6 +991,10 @@ _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP = "viridis"
 # (added 7/17): whether to compute gradients with respect to post-softmax score.
 # If True, gradient is wrt post-softmax; if False, gradient is wrt pre-softmax.
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX = True
+# (added 7/13, modified 7/18):
+# whether to save the heatmaps overlaid on inputs as a video
+_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO: False
+
 
 # Config for visualization for wrong prediction visualization.
 # _C.TENSORBOARD.ENABLE must be True.
@@ -1105,10 +1109,6 @@ _C.DATA_LOADER.INSPECT.SAVE_VIDEO: False
 _C.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT: 0
 # whether to shuffle the dataloader before iterating over it
 _C.DATA_LOADER.INSPECT.SHUFFLE: True
-
-# (added 7/13):
-# whether to save the heatmaps overlaid on inputs as a video
-_C.DATA_LOADER.INSPECT.SAVE_OVERLAY_VIDEO: False
 
 
 # Add custom config with default values.

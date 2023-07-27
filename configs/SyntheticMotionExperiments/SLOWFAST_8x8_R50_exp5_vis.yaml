@@ -1,16 +1,9 @@
 TRAIN:
   ENABLE: False
-  DATASET: SyntheticMotion
-  BATCH_SIZE: 16
-  EVAL_PERIOD: 1
-  CHECKPOINT_PERIOD: 1
-  RESUME_FROM_CHECKPOINT: True
-  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/synthetic_motion_7_classes/SLOWFAST_8x8_R50.pkl
-  CHECKPOINT_TYPE: caffe2
 
 TENSORBOARD:
-  ENABLE: False
-  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/synthetic_motion_7_classes/ispy_0.1_9/synthetic_motion_labels.json
+  ENABLE: True
+  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5/synthetic_motion_labels.json
   MODEL_VIS:
     ENABLE: True
     MODEL_WEIGHTS: False # Set to True to visualize model weights.
@@ -22,9 +15,21 @@ TENSORBOARD:
                   # The number of layer must be equal to the number of pathway(s).
       USE_TRUE_LABEL: False
       METHOD: grad_cam
+      POST_SOFTMAX: False
+      SOFTMAX_LAYER: 'head/act'
+      SAVE_OVERLAY_VIDEO: False
+
+TEST:
+  ENABLE: False
+  DATASET: SyntheticMotion
+  BATCH_SIZE: 1
+  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5/slowfast_outputs/checkpoints/checkpoint_epoch_00005.pyth
+  CHECKPOINT_TYPE: pytorch
+  NUM_ENSEMBLE_VIEWS: 1 # Number of clips to sample from a video uniformly for aggregating the prediction results.
+  NUM_SPATIAL_CROPS: 1 # Number of crops to sample from a frame spatially for aggregating the prediction results.
 
 DATA:
-  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/synthetic_motion_7_classes/ispy_0.1_9
+  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5
   NUM_FRAMES: 32
   # SAMPLING_RATE: 2
   TRAIN_JITTER_SCALES: [256, 320]
@@ -75,24 +80,15 @@ MODEL:
   LOSS_FUNC: cross_entropy
   DROPOUT_RATE: 0.5
   
-TEST:
-  ENABLE: True
-  DATASET: SyntheticMotion
-  BATCH_SIZE: 4
-  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/synthetic_motion_7_classes/outputs/checkpoints/checkpoint_epoch_00020.pyth
-  CHECKPOINT_TYPE: pytorch
-  NUM_ENSEMBLE_VIEWS: 1 # Number of clips to sample from a video uniformly for aggregating the prediction results.
-  NUM_SPATIAL_CROPS: 1 # Number of crops to sample from a frame spatially for aggregating the prediction results.
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True
   INSPECT:
-    SAVE_SEQ_COUNT: 31
-    SAVE_FRAMES: True
-    SAVE_VIDEO: True
-    SAVE_OVERLAY_VIDEO: False
+    SAVE_SEQ_COUNT: 30
+    SAVE_FRAMES: False
+    SAVE_VIDEO: False
     SHUFFLE: True
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/data/action_attn/synthetic_motion_7_classes/outputs
+OUTPUT_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5/slowfast_outputs/epoch_5_outputs

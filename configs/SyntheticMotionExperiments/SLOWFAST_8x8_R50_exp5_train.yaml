@@ -1,33 +1,24 @@
 TRAIN:
   ENABLE: True
   DATASET: SyntheticMotion
-  BATCH_SIZE: 4
+  BATCH_SIZE: 8
   EVAL_PERIOD: 1
   CHECKPOINT_PERIOD: 1
   RESUME_FROM_CHECKPOINT: True
-  # if CHECKPOINT_FILE_PATH is empty then it will resume from a latest epoch/checkpoint, if it can be found
-  CHECKPOINT_FILE_PATH: /research/cwloka/projects/hannah_sandbox/outputs/Kinetics_SLOWFAST_8x8_R50.pkl
+  # If no checkpoint file is specified, it will resume from the latest epoch checkpoint 
+  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/synthetic_motion_7_classes/SLOWFAST_8x8_R50.pkl
   CHECKPOINT_TYPE: caffe2
 
 TENSORBOARD:
   ENABLE: False
-  CLASS_NAMES_PATH: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/synthetic_motion_labels.json
-  MODEL_VIS:
-    ENABLE: True
-    MODEL_WEIGHTS: False # Set to True to visualize model weights.
-    ACTIVATIONS: False # Set to True to visualize feature maps.
-    INPUT_VIDEO: False # Set to True to visualize the input video(s) for the corresponding feature maps.
-    GRAD_CAM:
-      ENABLE: True
-      LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of CNN layers to use for Grad-CAM visualization method.
-                  # The number of layer must be equal to the number of pathway(s).
-      USE_TRUE_LABEL: False
-      METHOD: grad_cam
+
+TEST:
+  ENABLE: False
 
 DATA:
-  PATH_TO_DATA_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9
+  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5/
   NUM_FRAMES: 32
-  SAMPLING_RATE: 2
+  # SAMPLING_RATE: 2
   TRAIN_JITTER_SCALES: [256, 320]
   TRAIN_CROP_SIZE: 224
   TEST_CROP_SIZE: 256
@@ -62,7 +53,7 @@ BN:
 SOLVER:
   BASE_LR: 0.1
   LR_POLICY: cosine
-  MAX_EPOCH: 75
+  MAX_EPOCH: 100
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   WARMUP_EPOCHS: 34.0
@@ -70,25 +61,21 @@ SOLVER:
   OPTIMIZING_METHOD: sgd
 
 MODEL:
-  NUM_CLASSES: 5
+  NUM_CLASSES: 9
   ARCH: slowfast
   MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy
   DROPOUT_RATE: 0.5
   
-TEST:
-  ENABLE: False
-  DATASET: SyntheticMotion
-  BATCH_SIZE: 3
 DATA_LOADER:
   NUM_WORKERS: 8
   PIN_MEMORY: True
   INSPECT:
-    SAVE_SEQ_COUNT: 5
+    SAVE_SEQ_COUNT: 30
     SAVE_FRAMES: True
     SAVE_VIDEO: True
     SHUFFLE: True
 NUM_GPUS: 8
 NUM_SHARDS: 1
 RNG_SEED: 0
-OUTPUT_DIR: /research/cwloka/projects/hannah_sandbox/outputs/synthetic_vids/dataset_1000_subset/ispy_0.1_9/output
+OUTPUT_DIR: /research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5/slowfast_outputs

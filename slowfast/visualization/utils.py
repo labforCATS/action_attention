@@ -510,6 +510,8 @@ def save_inputs(data_loader, cfg, mode):
                     if pathway_tensor.device != torch.device("cpu"):
                         pathway_tensor = pathway_tensor.to("cpu")
                     # isolate the individual frames from the tensor (B, T, H, W, C)
+                    # (note the first dimension is a dummy dimension for batch)
+                    # pathway_tensor contains only the single video in the iteration
                     pathway_np_image = (
                         pathway_tensor[0, frame, :, :, :].numpy() * 255
                     )
