@@ -6,4 +6,5 @@
     "python.formatting.blackArgs": [
         "--line-length=80"
     ],
+    "editor.formatOnSave": true,
 }
