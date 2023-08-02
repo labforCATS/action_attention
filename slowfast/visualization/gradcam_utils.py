@@ -5,7 +5,7 @@ from slowfast.visualization.weight_calcs import get_model_weights
 import slowfast.utils.logging as logging
 import slowfast.datasets.utils as data_utils
 from slowfast.visualization.utils import get_layer, replace_layer
-from slowfast.utils.connected_components_utils import (
+from slowfast.visualization.connected_components_utils import (
     plot_heatmap,
     load_heatmaps,
 )
@@ -396,7 +396,7 @@ class GradCAM:
                             )
                             if not os.path.exists(overlay_channel_folder):
                                 os.makedirs(overlay_channel_folder)
-                    
+
                     else:
                         # since other visualization architectures don't necessarily
                         # only have two input pathways, you have to add logic for it

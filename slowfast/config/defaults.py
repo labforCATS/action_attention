@@ -994,6 +994,9 @@ _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX = True
 # (added 7/13, modified 7/18):
 # whether to save the heatmaps overlaid on inputs as a video
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO: False
+# (added 7/27):
+# whether to plot 
+_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.TRUE_TRAJECTORY_HEATMAP: False
 
 
 # Config for visualization for wrong prediction visualization.

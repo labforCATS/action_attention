@@ -3,7 +3,6 @@
 
 from slowfast.config.defaults import get_cfg
 import slowfast.utils.checkpoint as cu
-from tools.run_net import main as run_net
 from slowfast.utils.misc import launch_job
 from test_net import test
 from train_net import train
@@ -56,7 +55,7 @@ def run_experiment(cfg):
         print("no visualize")
 
 
-def run_all_experiments():
+def run_all_experiments(server):
     """Runs training and visualization for all permutations of dataset, models,
     and visualization parameters
 
@@ -70,66 +69,6 @@ def run_all_experiments():
             model
             gradcam variant
             pre/post softmax
-            epochs
-    """
-
-    """
-    things that change between architectures/server/epoch we're visualizing
-    TRAIN:
-        BATCH_SIZE
-        CHECKPOINT_FILE_PATH
-    TEST:
-        BATCH_SIZE
-        CHECKPOINT_FILE_PATH
-    DATA:
-        INPUT_CHANNEL_NUM --> SlowFast [3, 3]
-                          --> I3D/I3D NLN [3]
-    RESNET:
-        NUM_BLOCK_TEMP_KERNEL --> SlowFast [[3, 3], [4, 4], [6, 6], [3, 3]]
-                              --> I3D/NLN [[3], [4], [6], [3]]
-
-        SPATIAL_STRIDES --> SlowFast [[1, 1], [2, 2], [2, 2], [2, 2]]
-                        --> I3D/NLN (defaults) [[1], [2], [2], [2]]
-
-        SPATIAL_DILATIONS --> SlowFast [[1, 1], [1, 1], [1, 1], [1, 1]]
-                          --> I3D/NLN (defaults) [[1], [1], [1], [1]]
-    
-    NONLOCAL:
-        LOCATION --> SlowFast [[[], []], [[], []], [[], []], [[], []]]
-                 --> I3D [[[]], [[]], [[]], [[]]]
-                 --> NLN [[[]], [[1, 3]], [[1, 3, 5]], [[]]]
-        
-        GROUP --> SlowFast [[1, 1], [1, 1], [1, 1], [1, 1]]
-              --> I3D/NLN [[1], [1], [1], [1]]
-        
-        INSTANTIATION --> SlowFast dot_product
-                      --> I3D/NLN softmax
-    
-    MODEL:
-        ARCH --> SlowFast slowfast
-             --> I3D/NLN i3d
-        
-        MODEL_NAME --> SlowFast SlowFast
-                   --> I3D/NLN ResNet
-    
-    OUTPUT_DIR --> changes based on experiment
-
-
-
-
-        checkpoint file path
-        checkpoint type (if going from epoch or from pre-trained weights)
-        batch size
-
-    model:
-        model name
-        arch
-    
-    visualization:
-        grad cam layer list
-        grad cam method
-        data input channel num
-
     """
     pre_trained_slowfast = "/research/cwloka/data/action_attn/synthetic_motion_experiments/pretrained_weights/SLOWFAST_8x8_R50.pkl"
     pre_trained_i3d = "/research/cwloka/data/action_attn/synthetic_motion_experiments/pretrained_weights/I3D_8x8_R50.pkl"
@@ -144,10 +83,10 @@ def run_all_experiments():
         "slowfast": {
             "pre_trained_weights_paths": pre_trained_slowfast,
             "arch": "slowfast",
-            "input_channel_num": [[3, 3]],
-            "num_block_temp_kernel": [[[3, 3], [4, 4], [6, 6], [3, 3]]],
-            "spatial_strides": [[[1, 1], [2, 2], [2, 2], [2, 2]]],
-            "spatial_dilations": [[[1, 1], [1, 1], [1, 1], [1, 1]]],
+            "input_channel_num": [3, 3],
+            "num_block_temp_kernel": [[3, 3], [4, 4], [6, 6], [3, 3]],
+            "spatial_strides": [[1, 1], [2, 2], [2, 2], [2, 2]],
+            "spatial_dilations": [[1, 1], [1, 1], [1, 1], [1, 1]],
             "nonlocal_location": [[[], []], [[], []], [[], []], [[], []]],
             "nonlocal_group": [[1, 1], [1, 1], [1, 1], [1, 1]],
             "nonlocal_instantiation": "dot_product",
@@ -156,10 +95,10 @@ def run_all_experiments():
         "i3d": {
             "pre_trained_weights_paths": pre_trained_i3d,
             "arch": "i3d",
-            "input_channel_num": [[3]],
-            "num_block_temp_kernel": [[[3], [4], [6], [3]]],
-            "spatial_strides": [[[1], [2], [2], [2]]],
-            "spatial_dilations": [[[1], [1], [1], [1]]],
+            "input_channel_num": [3],
+            "num_block_temp_kernel": [[3], [4], [6], [3]],
+            "spatial_strides": [[1], [2], [2], [2]],
+            "spatial_dilations": [[1], [1], [1], [1]],
             "nonlocal_location": [[[]], [[]], [[]], [[]]],
             "nonlocal_group": [[1], [1], [1], [1]],
             "nonlocal_instantiation": "softmax",
@@ -168,16 +107,25 @@ def run_all_experiments():
         "i3d_nln": {
             "pre_trained_weights_paths": pre_trained_i3d_nln,
             "arch": "i3d",
-            "input_channel_num": [[3]],
-            "num_block_temp_kernel": [[[3], [4], [6], [3]]],
-            "spatial_strides": [[[1], [2], [2], [2]]],
-            "spatial_dilations": [[[1], [1], [1], [1]]],
+            "input_channel_num": [3],
+            "num_block_temp_kernel": [[3], [4], [6], [3]],
+            "spatial_strides": [[1], [2], [2], [2]],
+            "spatial_dilations": [[1], [1], [1], [1]],
             "nonlocal_location": [[[]], [[1, 3]], [[1, 3, 5]], [[]]],
             "nonlocal_group": [[1], [1], [1], [1]],
             "nonlocal_instantiation": "softmax",
             "model_name": "ResNet",
         },
     }
+
+    if server == "shadowfax":
+        model_dicts = {k: model_dicts[k] for k in ["slowfast", "i3d_nln"]}
+        batch_size = 16
+    elif server == "shuffler":
+        model_dicts = {k: model_dicts[k] for k in ["i3d"]}
+        batch_size = 10
+    else:
+        raise NotImplementedError
 
     ######## TRAINING ########
     # iterate over model
@@ -189,7 +137,9 @@ def run_all_experiments():
             # update config with our desired parameters
             cfg.TRAIN.ENABLE = True
             cfg.TRAIN.DATASET = "SyntheticMotion"
-            cfg.TRAIN.BATCH_SIZE = 8  # TODO: update based on server
+            cfg.TRAIN.BATCH_SIZE = (
+                batch_size if model == "slowfast" else batch_size / 2
+            )  # TODO: check if this fits on shuffler
             cfg.TRAIN.EVAL_PERIOD = 1
             cfg.TRAIN.CHECKPOINT_PERIOD = 1
             cfg.TRAIN.RESUME_FROM_CHECKPOINT = True
@@ -215,7 +165,6 @@ def run_all_experiments():
                 cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO = 2
                 cfg.SLOWFAST.FUSION_KERNEL_SZ = 7
             else:  # model == "i3d" or model == "i3d_nln"
-                # TODO: check configs, check w wloka?
                 pass
 
             cfg.RESNET.ZERO_INIT_FINAL_BN = True
@@ -237,8 +186,9 @@ def run_all_experiments():
             cfg.BN.USE_PRECISE_STATS = True
             cfg.BN.NUM_BATCHES_PRECISE = 200
 
-            # TODO: add solver params, check w prof wloka
-            # these are slowfast solver params, check for i3d
+            # TODO: if training does not go well, double check the
+            # solver params, since the i3d vs i3d_in1k configs for
+            # kinetics had different setups
             cfg.SOLVER.BASE_LR = 0.1
             cfg.SOLVER.LR_POLICY = "cosine"
             cfg.SOLVER.MAX_EPOCH = 100
@@ -268,10 +218,9 @@ def run_all_experiments():
             cfg.OUTPUT_DIR = output_dir
 
             # run training
-            run_net(cfg)
+            run_experiment(cfg)
 
     ######## VISUALIZATION ########
-    best_epoch = get_best_epoch(cfg)
 
     # iterate over model
     for model, model_params in model_dicts.items():
@@ -314,11 +263,19 @@ def run_all_experiments():
                         False
                     )
 
+                    output_dir = os.path.join(data_dir, f"{model}_output")
+                    cfg.OUTPUT_DIR = output_dir
+
+                    best_epoch = get_best_epoch(
+                        output_dir=output_dir, epochs=100, eval_period=1
+                    )
+
                     cfg.TEST.ENABLE = False
                     cfg.TEST.DATASET = "SyntheticMotion"
                     cfg.TEST.BATCH_SIZE = 1
-                    cfg.TEST.CHECKPOINT_FILE_PATH = "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5/slowfast_outputs/checkpoints/checkpoint_epoch_{best_epoch:05d}.pyth"
+                    cfg.TEST.CHECKPOINT_FILE_PATH = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_5/slowfast_outputs/checkpoints/checkpoint_epoch_{best_epoch:05d}.pyth"
                     cfg.TEST.CHECKPOINT_TYPE = "pytorch"
+                    # remove extra cropping from testing data
                     cfg.TEST.NUM_ENSEMBLE_VIEWS = 1  # Number of clips to sample from a video uniformly for aggregating the prediction results.
                     cfg.TEST.NUM_SPATIAL_CROPS = 1  # Number of crops to sample from a frame spatially for aggregating the prediction results.
 
@@ -338,7 +295,6 @@ def run_all_experiments():
                         cfg.SLOWFAST.FUSION_CONV_CHANNEL_RATIO = 2
                         cfg.SLOWFAST.FUSION_KERNEL_SZ = 7
                     else:  # model == "i3d" or model == "i3d_nln"
-                        # TODO: check configs, check w wloka?
                         pass
 
                     cfg.RESNET.ZERO_INIT_FINAL_BN = True
@@ -364,17 +320,6 @@ def run_all_experiments():
                     cfg.BN.USE_PRECISE_STATS = True
                     cfg.BN.NUM_BATCHES_PRECISE = 200
 
-                    # TODO: add solver params, check w prof wloka
-                    # these are slowfast solver params, check for i3d
-                    cfg.SOLVER.BASE_LR = 0.1
-                    cfg.SOLVER.LR_POLICY = "cosine"
-                    cfg.SOLVER.MAX_EPOCH = 100
-                    cfg.SOLVER.MOMENTUM = 0.9
-                    cfg.SOLVER.WEIGHT_DECAY = 1e-4
-                    cfg.SOLVER.WARMUP_EPOCHS = 34.0
-                    cfg.SOLVER.WARMUP_START_LR = 0.01
-                    cfg.SOLVER.OPTIMIZING_METHOD = "sgd"
-
                     cfg.MODEL.NUM_CLASSES = num_classes[exp]
                     cfg.MODEL.ARCH = model_params["arch"]
                     cfg.MODEL.MODEL_NAME = model_params["model_name"]
@@ -391,18 +336,15 @@ def run_all_experiments():
                     cfg.DATA_LOADER.NUM_SHARDS = 1
                     cfg.DATA_LOADER.RNG_SEED = 0
 
-                    output_dir = os.path.join(data_dir, f"{model}_output")
-                    cfg.OUTPUT_DIR = output_dir
-
-                    # run training
-                    run_net(cfg)
+                    # run visualization
+                    run_experiment(cfg)
 
 
-def get_best_epoch(cfg):
+def get_best_epoch(output_dir, epochs, eval_period):
     """identify the epoch from training w the best validation accuracy"""
 
     # verify that output log of training stats exists
-    stats_path = os.path.join(cfg.OUTPUT_DIR, "json_stats.log")
+    stats_path = os.path.join(output_dir, "json_stats.log")
     assert os.path.exists(
         stats_path
     ), f"training did not start properly, no stats file found"
@@ -423,9 +365,7 @@ def get_best_epoch(cfg):
 
     # verify that training is complete, i.e. that the number of validation
     # epochs matches the number of epochs declared in the config
-    assert (
-        len(val_accs) == cfg.SOLVER.MAX_EPOCHS // cfg.TRAIN.EVAL_PERIOD
-    ), f"training was incomplete"
+    assert len(val_accs) == epochs // eval_period, f"training was incomplete"
 
     # retrieve the best epoch
     best_epoch = np.argmax(val_accs)
@@ -434,4 +374,4 @@ def get_best_epoch(cfg):
 
 
 if __name__ == "__main__":
-    run_all_experiments()
+    run_all_experiments(server="shadowfax")
