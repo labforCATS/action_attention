@@ -47,6 +47,7 @@ def run_experiment(cfg):
     if cfg.TENSORBOARD.ENABLE and (
         cfg.TENSORBOARD.MODEL_VIS.ENABLE
         or cfg.TENSORBOARD.WRONG_PRED_VIS.ENABLE
+        or cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE
     ):
         print("Starting visualization")
         start = datetime.now()
@@ -56,14 +57,14 @@ def run_experiment(cfg):
         print("no visualize")
 
 
-def run_all_experiments(server, run_train=True, run_val=True):
+def run_all_experiments(server, run_train=True, run_vis=True):
     """Runs training and visualization for all permutations of dataset, models,
     and visualization parameters
 
     Args:
         server (str): either "shadowfax" or "shuffler"
         run_train (bool): whether to run training. Defaults to True.
-        run_val (bool): whether to run validation. Defaults to True.
+        run_vis (bool): whether to run validation. Defaults to True.
 
     params to loop over:
         training:
@@ -82,7 +83,7 @@ def run_all_experiments(server, run_train=True, run_val=True):
 
     experiments = ["1", "2", "3", "4", "5", "5b"]
     num_classes = {"1": 7, "2": 7, "3": 7, "4": 7, "5": 7, "5b": 9}
-    vis_techniques = ["gradcam", "gradcam_plusplus", "eigen_cam"]
+    vis_techniques = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
     post_softmax = [False, True]
 
     model_dicts = {
@@ -97,6 +98,7 @@ def run_all_experiments(server, run_train=True, run_val=True):
             "nonlocal_group": [[1, 1], [1, 1], [1, 1], [1, 1]],
             "nonlocal_instantiation": "dot_product",
             "model_name": "SlowFast",
+            "gradcam_layer_list": ["s5/pathway1_res2","s5/pathway0_res2"],
         },
         "i3d": {
             "pre_trained_weights_paths": pre_trained_i3d,
@@ -109,6 +111,7 @@ def run_all_experiments(server, run_train=True, run_val=True):
             "nonlocal_group": [[1], [1], [1], [1]],
             "nonlocal_instantiation": "softmax",
             "model_name": "ResNet",
+            "gradcam_layer_list": ['s5/pathway0_res2'],
         },
         "i3d_nln": {
             "pre_trained_weights_paths": pre_trained_i3d_nln,
@@ -121,6 +124,7 @@ def run_all_experiments(server, run_train=True, run_val=True):
             "nonlocal_group": [[1], [1], [1], [1]],
             "nonlocal_instantiation": "softmax",
             "model_name": "ResNet",
+            "gradcam_layer_list": ['s5/pathway0_res2'],
         },
     }
 
@@ -160,10 +164,10 @@ def run_all_experiments(server, run_train=True, run_val=True):
 
                 data_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}"
                 cfg.DATA.PATH_TO_DATA_DIR = data_dir
-                cfg.DATA.NUM_FRAMES: 32
-                cfg.DATA.TRAIN_JITTER_SCALES: [256, 320]
-                cfg.DATA.TRAIN_CROP_SIZE: 224
-                cfg.DATA.TEST_CROP_SIZE: 256
+                cfg.DATA.NUM_FRAMES = 32
+                cfg.DATA.TRAIN_JITTER_SCALES = [256, 320]
+                cfg.DATA.TRAIN_CROP_SIZE = 224
+                cfg.DATA.TEST_CROP_SIZE = 256
                 cfg.DATA.INPUT_CHANNEL_NUM = model_params["input_channel_num"]
 
                 if model == "slowfast":
@@ -230,7 +234,7 @@ def run_all_experiments(server, run_train=True, run_val=True):
                 run_experiment(cfg)
 
     ######## VISUALIZATION ########
-    if run_val:
+    if run_vis:
         # iterate over model
         for model, model_params in model_dicts.items():
             # iterate over experiment
@@ -247,18 +251,14 @@ def run_all_experiments(server, run_train=True, run_val=True):
                         cfg.TENSORBOARD.ENABLE = True
                         cfg.TENSORBOARD.CLASS_NAMES_PATH = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}/synthetic_motion_labels.json"
                         cfg.TENSORBOARD.MODEL_VIS.ENABLE = True
-                        cfg.TENSORBOARD.MODEL_VIS.MODEL_WEIGHTS = (
-                            False  # Set to True to visualize model weights.
-                        )
-                        cfg.TENSORBOARD.MODEL_VIS.ACTIVATIONS = (
-                            False  # Set to True to visualize feature maps.
-                        )
+                        # Set to True to visualize model weights.
+                        cfg.TENSORBOARD.MODEL_VIS.MODEL_WEIGHTS = False
+                        # Set to True to visualize feature maps.
+                        cfg.TENSORBOARD.MODEL_VIS.ACTIVATIONS = False
                         cfg.TENSORBOARD.MODEL_VIS.INPUT_VIDEO = False  # Set to True to visualize the input video(s) for the corresponding feature maps.
                         cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.ENABLE = True
-                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST = [
-                            "s5/pathway1_res2",
-                            "s5/pathway0_res2",
-                        ]  # List of CNN layers to use for Grad-CAM visualization method.
+                        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.LAYER_LIST = model_params["gradcam_layer_list"]
+                        # List of CNN layers to use for Grad-CAM visualization method.
                         # The number of layer must be equal to the number of pathway(s).
                         cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.USE_TRUE_LABEL = (
                             False
@@ -285,6 +285,7 @@ def run_all_experiments(server, run_train=True, run_val=True):
                         )
 
                         cfg.TEST.ENABLE = False
+                        cfg.TRAIN.DATASET = "SyntheticMotion" #TODO: remove later
                         cfg.TEST.DATASET = "SyntheticMotion"
                         cfg.TEST.BATCH_SIZE = 1
                         cfg.TEST.CHECKPOINT_FILE_PATH = os.path.join(
@@ -352,9 +353,9 @@ def run_all_experiments(server, run_train=True, run_val=True):
                         cfg.DATA_LOADER.INSPECT.SAVE_FRAMES = True
                         cfg.DATA_LOADER.INSPECT.SAVE_VIDEO = True
                         cfg.DATA_LOADER.INSPECT.SHUFFLE = True
-                        cfg.DATA_LOADER.NUM_GPUS = 8
-                        cfg.DATA_LOADER.NUM_SHARDS = 1
-                        cfg.DATA_LOADER.RNG_SEED = 0
+                        cfg.NUM_GPUS = 8
+                        cfg.NUM_SHARDS = 1
+                        cfg.RNG_SEED = 0
 
                         # run visualization
                         run_experiment(cfg)
@@ -402,4 +403,4 @@ def get_best_epoch(output_dir, epochs, eval_period):
 
 
 if __name__ == "__main__":
-    run_all_experiments(server="shuffler", run_train=False, run_val=True)
+    run_all_experiments(server="shuffler", run_train=True, run_vis=False)
