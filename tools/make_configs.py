@@ -157,12 +157,12 @@ def generate_all_configs():
                 "ENABLE": True,
                 "CLASS_NAMES_PATH": f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}/synthetic_motion_labels.json",
                 "MODEL_VIS": {
-                    "ENABLE": True,
+                    "ENABLE": False,
                     "MODEL_WEIGHTS": False,
                     "ACTIVATIONS": False,
                     "INPUT_VIDEO": False,
                     "GRAD_CAM": {
-                        "ENABLE": True,
+                        "ENABLE": False,
                         "LAYER_LIST": model_params["gradcam_layer_list"],
                         "SOFTMAX_LAYER": "head/act",
                         "SAVE_OVERLAY_VIDEO": False,
