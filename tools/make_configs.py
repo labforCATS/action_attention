@@ -5,6 +5,47 @@ import yaml
 import os
 import pdb
 import copy
+import json
+import numpy as np
+
+def get_best_epoch(output_dir, epochs, eval_period):
+    """identify the epoch from training w the best validation accuracy.
+
+    NOTE: epochs are 1-indexed.
+    """
+
+    # verify that output log of training stats exists
+    stats_path = os.path.join(output_dir, "json_stats.log")
+    assert os.path.exists(
+        stats_path
+    ), f"training did not start properly, no stats file found"
+
+    # compile list of validation accuracies for each epoch
+    val_accs = []
+
+    with open(stats_path, "r") as f:
+        for line in f.readlines():
+            dict_str = line.rstrip().removeprefix("json_stats: ")
+            stats_dict = json.loads(dict_str)
+            mode = stats_dict["_type"].removesuffix("_epoch")
+            loss = float(stats_dict["loss"])
+            acc = 1.0 - float(stats_dict["top1_err"])
+
+            if mode == "val":
+                val_accs.append(acc)
+
+    # verify that training is complete, i.e. that the number of validation
+    # epochs matches the number of epochs declared in the config
+    print(len(val_accs))
+    print(epochs//eval_period)
+    assert len(val_accs) == epochs // eval_period, f"training was incomplete"
+    
+
+    # retrieve the best epoch
+    best_epoch = np.argmax(val_accs)
+
+    # checkpoint epoch labels are 1-indexed
+    return best_epoch + 1
 
 
 def generate_all_configs():
@@ -135,7 +176,7 @@ def generate_all_configs():
                 "ENABLE": True,
                 "DATASET": "SyntheticMotion",
                 # TODO: perhaps loop over this variable if we want to also generate configs for shuffler
-                "BATCH_SIZE": 10,
+                "BATCH_SIZE": 7,
                 "EVAL_PERIOD": 1,
                 "CHECKPOINT_PERIOD": 1,
                 "RESUME_FROM_CHECKPOINT": True,
@@ -231,17 +272,135 @@ def generate_all_configs():
                 yaml.dump(cfg_dict, f)
 
     # generate visualization configs
-    for model, model_params in model_dicts.items():
+    for model, model_params_original in model_dicts.items():
         # iterate over experiment
         for exp in experiments:
+            data_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}"
+            output_dir = os.path.join(data_dir, f"{model}_output")
+            print("model:", model)
+            print("experiment:", exp)
+            best_epoch = get_best_epoch(
+                output_dir=output_dir, epochs=100, eval_period=1
+            )
+            best_epoch_path = os.path.join(
+                output_dir,
+                f"checkpoints/checkpoint_epoch_{best_epoch:05d}.pyth",
+            )
+
             # iterate over gradcam variant
             for gradcam_variant in gradcam_variants:
                 # iterate over pre/post softmax
                 for softmax_option in post_softmax:
-                    # generate visualization config
-                    # save visualization config
-                    # this is where the yaml dump goes
+                    model_params = copy.deepcopy(model_params_original)
 
-                    pass
+                    train_params = {
+                    "ENABLE": False,
+                    "DATASET": "SyntheticMotion",
+                    "BATCH_SIZE": 7,
+                    "EVAL_PERIOD": 1,
+                    "CHECKPOINT_PERIOD": 1,
+                    "RESUME_FROM_CHECKPOINT": True,
+                    "CHECKPOINT_FILE_PATH": model_params["pre_trained_weights_paths"],
+                    "CHECKPOINT_TYPE": "caffe2",
+                    }
+
+                    test_params = {
+                        "ENABLE": False,
+                        "DATASET": "SyntheticMotion",
+                        "BATCH_SIZE": 1,
+                        "NUM_ENSEMBLE_VIEWS": 1,
+                        "NUM_SPATIAL_CROPS": 1,
+                        "CHECKPOINT_FILE_PATH": best_epoch_path
+                    }
+
+
+                    data_params = {
+                        "PATH_TO_DATA_DIR": data_dir,
+                        "NUM_FRAMES": 32,
+                        "TRAIN_JITTER_SCALES": [256, 320],
+                        "TRAIN_CROP_SIZE": 224,
+                        "TEST_CROP_SIZE": 256,
+                        "INPUT_CHANNEL_NUM": model_params["input_channel_num"],
+                    }
+                    tensorboard_params = {
+                        "ENABLE": True,
+                        "CLASS_NAMES_PATH": f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}/synthetic_motion_labels.json",
+                        "MODEL_VIS": {
+                            "ENABLE": True,
+                            "MODEL_WEIGHTS": False,
+                            "ACTIVATIONS": False,
+                            "INPUT_VIDEO": False,
+                            "GRAD_CAM": {
+                                "ENABLE": True,
+                                "LAYER_LIST": model_params["gradcam_layer_list"],
+                                "POST_SOFTMAX": softmax_option,
+                                "METHOD": gradcam_variant,
+                                "SOFTMAX_LAYER": "head/act",
+                                "SAVE_OVERLAY_VIDEO": False,
+                            },
+                        },
+                    }
+
+                    resnet_params = {
+                        "ZERO_INIT_FINAL_BN": True,
+                        "WIDTH_PER_GROUP": 64,
+                        "NUM_GROUPS": 1,
+                        "DEPTH": 50,
+                        "TRANS_FUNC": "bottleneck_transform",
+                        "STRIDE_1X1": False,
+                        "NUM_BLOCK_TEMP_KERNEL": model_params["num_block_temp_kernel"],
+                        "SPATIAL_STRIDES": model_params["spatial_strides"],
+                        "SPATIAL_DILATIONS": model_params["spatial_dilations"],
+                    }
+
+                    nonlocal_params = {
+                        "LOCATION": model_params["nonlocal_location"],
+                        "GROUP": model_params["nonlocal_group"],
+                        "INSTANTIATION": model_params["nonlocal_instantiation"],
+                    }
+
+                    model_params = {
+                        "NUM_CLASSES": num_classes[exp],
+                        "ARCH": model_params["arch"],
+                        "MODEL_NAME": model_params["model_name"],
+                        "LOSS_FUNC": "cross_entropy",
+                        "DROPOUT_RATE": 0.5,
+                    }
+
+                    # combine all the params in a single dictionary
+                    cfg_dict = {
+                        "TRAIN": train_params,
+                        "TEST": test_params,
+                        "TENSORBOARD": tensorboard_params,
+                        "DATA": data_params,
+                        "SLOWFAST": slowfast_params,
+                        "RESNET": resnet_params,
+                        "NONLOCAL": nonlocal_params,
+                        "BN": batchnorm_params,
+                        "MODEL": model_params,
+                        "DATA_LOADER": dataloader_params,
+                        "SOLVER": solver_params,
+                        "NUM_GPUS": 8,
+                        "NUM_SHARDS": 1,
+                        "RNG_SEED": 0,
+                        "OUTPUT_DIR": output_dir,
+                    }
+                    # set up folder to save config files to
+                    config_dir = os.path.join(data_dir, "configs")
+                    if not os.path.isdir(config_dir):
+                        os.makedirs(config_dir)
+
+                    # turn the dictionary into a config file and save it
+                    pre_post_softmax = "post"
+                    if softmax_option ==  False:
+                        pre_post_softmax = "pre"
+
+                    config_filename = os.path.join(config_dir, f"vis_exp{exp}_{model}_{gradcam_variant}_{pre_post_softmax}softmax.yaml")
+                    with open(config_filename, "w") as f:
+                        yaml.dump(cfg_dict, f)
+                    # train/test/vis, exp num, architecture, grad cam variant, pre-post softmax
+
+
+                    
 
     pass
