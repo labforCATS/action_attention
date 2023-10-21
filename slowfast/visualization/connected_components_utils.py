@@ -63,8 +63,6 @@ def load_heatmaps(heatmaps_dir, t_scale=1.0, s_scale=1.0, mask=False):
         img = np.asarray(Image.open(path))
 
         if mask:
-            print(img.shape)
-            pdb.set_trace()
             img = img[:, :, 0]  # check why we need this?
         img_list.append(img)
 
@@ -604,7 +602,7 @@ def generate_stats(component_volume):
 
 
 def generate_overlay(
-    heatmaps_root_dir, output_root_dir, overlay_dir, t_scale, s_scale
+    heatmaps_root_dir, output_path, overlay_dir, t_scale, s_scale
 ):
     """
     Generates heatmaps with another heatmap overlayed on top of it
@@ -613,7 +611,8 @@ def generate_overlay(
             heatmaps for a single video
             (e.g. "/.../heatmaps/grad_cam/6AyQsS4WC4A/slow"; see below for
             example structure)
-        output_root_dir (str): path to output folder for heatmaps
+        output_path (str): desired path name for the generated output 3d
+            heatmap. must end with ".html"
         overlay_dir (str): path to the folder containing all and only the
             heatmaps to be overlayed over heatmaps specified in heatmaps_root_dir.
             Follows the same structure as heatmaps_root_dir
@@ -643,6 +642,12 @@ def generate_overlay(
                     ...
 
     """
+    # set up output folder
+    assert output_path.endswith(".html")
+    output_dir = os.path.dirname(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     # load in heatmap of model prediction
     heatmap = load_heatmaps(heatmaps_root_dir, t_scale, s_scale)
 
@@ -653,9 +658,9 @@ def generate_overlay(
         s_scale * 0.64,
         mask=True,  # if overlay_dir is a directory of masks, set to true
     )
-    # slider for overlay is not currently implemented
+    # TODO: slider for overlay is not currently implemented
     # plots final overlayed heatmap
-    plot_heatmap(heatmap, output_root_dir, slider=False, overlay=overlay)
+    plot_heatmap(heatmap, output_path, slider=False, overlay=overlay)
 
 
 if __name__ == "__main__":
