@@ -3,6 +3,11 @@
 """Functions for computing metrics."""
 
 import torch
+import numpy as np
+from slowfast.visualization.connected_components_utils import (
+    load_heatmaps,
+    generate_overlay,
+)
 
 
 def topks_correct(preds, labels, ks):
@@ -67,3 +72,59 @@ def topk_accuracies(preds, labels, ks):
     """
     num_topks_correct = topks_correct(preds, labels, ks)
     return [(x / preds.size(0)) for x in num_topks_correct]
+
+
+def IOU_3D(vol1, vol2):
+    """Compute the intersection over union for two 3d arrays with binarized
+    volumes.
+
+    Args:
+        vol1, vol2: 3d arrays with the same shape. If it contains integers, all non-zero integers are treated as True or 1
+    """
+    assert vol1.shape == vol2.shape
+
+    vol1 = vol1.astype(bool)
+    vol2 = vol2.astype(bool)
+
+    total_volume_1 = vol1.sum()
+    total_volume_2 = vol2.sum()
+
+    # compute intersection
+    intersect = np.logical_and(vol1, vol2).sum()
+
+    # compute union
+    union = total_volume_1 + total_volume_2 - intersect
+
+    # compute IOU
+    iou = intersect / union
+    return iou
+
+
+def IOU_heatmap(heatmap_dir, trajectory_dir, thresh=0.2):
+    """Compute the intersection over union for a heatmap with its ground-truth
+    trajectory.
+
+    Args:
+        heatmap_dir (str): path to the directory containing all the heatmap
+            frames for a single channel
+        trajectory_dir (str): path to the directory containing all the target
+            masks for the ground truth trajectory
+        thresh (float): float between 0.0 and 1.0 as the percent of the
+            maximum value in the heatmap at which the heatmap will be binarized
+    """
+    # load GT trajectory
+    target_volume = load_heatmaps(
+        trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
+    )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
+
+    # load heatmap
+    heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
+
+    # binarize the heatmaps using a threshold
+    max_intensity = heatmap_volume.max()
+
+    heatmap_volume = np.where(heatmap_volume >= thresh * max_intensity, 1, 0)
+
+    # compute 3D IOU
+    iou = IOU_3D(target_volume, heatmap_volume)
+    return iou
