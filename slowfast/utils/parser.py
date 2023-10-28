@@ -76,7 +76,7 @@ def load_config(args, path_to_config=None):
     if path_to_config is not None:
         cfg.merge_from_file(path_to_config)
     # Load config from command line, overwrite config from opts.
-    if args.opts is not None:
+    if hasattr(args, "opts"):
         cfg.merge_from_list(args.opts)
 
     # Inherit parameters from args.
