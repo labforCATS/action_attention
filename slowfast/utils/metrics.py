@@ -4,6 +4,12 @@
 
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
+import pdb
+from scipy.spatial.distance import cdist
+from scipy.optimize import linear_sum_assignment
+import copy
+from scipy import stats
 from slowfast.visualization.connected_components_utils import (
     load_heatmaps,
     generate_overlay,
@@ -79,7 +85,8 @@ def IOU_3D(vol1, vol2):
     volumes.
 
     Args:
-        vol1, vol2: 3d arrays with the same shape. If it contains integers, all non-zero integers are treated as True or 1
+        vol1, vol2: 3d arrays with the same shape. If it contains integers,
+            all non-zero integers are treated as True or 1
     """
     assert vol1.shape == vol2.shape
 
@@ -128,3 +135,208 @@ def IOU_heatmap(heatmap_dir, trajectory_dir, thresh=0.2):
     # compute 3D IOU
     iou = IOU_3D(target_volume, heatmap_volume)
     return iou
+
+
+def convert_to_prob_dist(target_volume, heatmap_volume):
+    """
+    Takes in the ground truth heatmap and actual heatmap and converts both
+    to probability distributions. the two volumes must have the same
+    dimensions
+
+    Parameters:
+        target_volume: ground truth heatmap, numpy array of
+            (time, width, height) format
+        heatmap_volume: actual heatmap, numpy array of same dimensions
+            as target_volume
+    Returns:
+        converted target and heatmap volumes
+    """
+    # make copies of both arrays so we can manipulate values
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
+
+    # check that the shapes of the arrays are equivalent
+    assert target_vol.shape == heatmap_vol.shape
+
+    target_total_sum = np.sum(target_vol)
+    heatmap_total_sum = np.sum(heatmap_vol)
+
+    conv_target_dist = np.vectorize(lambda val: val / target_total_sum)
+    conv_heatmap_dist = np.vectorize(lambda val: val / heatmap_total_sum)
+    target_vol = conv_target_dist(target_vol)
+    heatmap_vol = conv_heatmap_dist(heatmap_vol)
+
+    return target_vol, heatmap_vol
+
+
+def normalize(target_volume, heatmap_volume):
+    """
+    Takes in the ground truth heatmap and actual heatmap and normalizes them.
+    the two volumes must have the same dimensions
+
+    Parameters:
+        target_volume: ground truth heatmap, numpy array of
+            (time, width, height) format
+        heatmap_volume: actual heatmap, numpy array of same dimensions
+            as target_volume
+    Returns:
+        normalized target and heatmap volumes
+    """
+    # make copies of both arrays so we can manipulate values
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
+
+    # check that the shapes of the arrays are equivalent
+    assert target_vol.shape == heatmap_vol.shape
+
+    target_max_val = np.max(target_vol)
+    heatmap_max_val = np.max(heatmap_vol)
+
+    conv_target_dist = np.vectorize(lambda val: val / target_max_val)
+    conv_heatmap_dist = np.vectorize(lambda val: val / heatmap_max_val)
+    target_vol = conv_target_dist(target_vol)
+    heatmap_vol = conv_heatmap_dist(heatmap_vol)
+
+    return target_vol, heatmap_vol
+
+
+def KL_div(vid_idx):
+    motion_class = "circle"
+    sample_target_mask_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/test/target_masks/{motion_class}/{motion_class}_{vid_idx:06d}"
+    target_volume = load_heatmaps(
+        sample_target_mask_dir, t_scale=0.64, s_scale=0.64, mask=True
+    )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
+
+    sample_heatmap_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/prev_individual_runs/slowfast_outputs/epoch_100_outputs/heatmaps/grad_cam/pre_softmax/frames/{vid_idx:06d}/fast"
+    heatmap_volume = load_heatmaps(sample_heatmap_dir)
+
+    kl_div = KL_div_3d(target_volume, heatmap_volume)
+    return kl_div
+
+
+def KL_div_3d(target_volume, heatmap_volume):
+    """
+    calculates the pointwise KL-divergence between the normalized activations
+    of the target and heatmap volumes. the two volumes must have the
+    same dimensions
+
+    parameters:
+        target_volume: numpy array of (time, width, height) format,
+            signifying ground truth heatmap
+        heatmap_volume: numpy array of (time, width, height) format,
+            signifying actual activation
+    returns:
+        floating point representing calculated KL divergence
+    """
+    # convert value of each point into probability
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
+    assert target_vol.shape == heatmap_vol.shape
+
+    # normalize both arrays
+    num_frame_pixels = len(target_vol[0]) * len(target_vol[0][0])
+    adjust_vals = lambda val: val + (1 / num_frame_pixels)
+    target_vol = adjust_vals(target_vol)
+    heatmap_vol = adjust_vals(heatmap_vol)
+
+    target_dist, heatmap_dist = convert_to_prob_dist(target_vol, heatmap_vol)
+    print("sum target distribution:", np.sum(target_dist))
+    print("sum heatmap distribution:", np.sum(heatmap_dist))
+
+    # flatten into a 1d array
+    flattened_target = np.ndarray.flatten(target_dist)
+    flattened_heatmap = np.ndarray.flatten(heatmap_dist)
+    kl_div = np.sum(
+        np.where(
+            flattened_heatmap != 0,
+            flattened_heatmap * np.log(flattened_heatmap / flattened_target),
+            0,
+        )
+    )
+    return kl_div
+
+
+def MSE(target_volume, heatmap_volume):
+    """
+    calculates the pixelwise mean squared error in normalized activation
+    between two heatmap volumes (must be of the same dimensions). the two
+    volumes must have the same dimensions
+
+    parameters:
+        target_volume: 3d numpy array consisting of ground truth activations
+        heatmap_volume: 3d numpy array consisting of actual activations
+    returns:
+        mean squared error between the target and heatmap volumes
+    """
+    time = len(target_volume)
+    width = len(target_volume[0])
+    height = len(target_volume[0][0])
+    num_terms = time * width * height
+
+    target_vol, heatmap_vol = normalize(target_volume, heatmap_volume)
+
+    result = 0
+
+    for t in range(time):
+        for w in range(width):
+            for h in range(height):
+                activation_diff = (heatmap_vol[t][w][h] - target_vol[t][w][h]) ** 2
+                result += activation_diff
+    result = result / num_terms
+    return result
+
+
+def covariance(target_volume, heatmap_volume):
+    """
+    calculates the pixelwise covariance between the normalized activations of
+    the target volume and observed activations. the two volumes must have the
+    same dimensions
+
+    parameters:
+        target_volume: numpy array of (time, width, height) format,
+            signifying ground truth heatmap
+        heatmap_volume: numpy array of (time, width, height) format,
+            signifying actual activation
+    return:
+        floating point representing pixelwise covariance
+    """
+    time = len(target_volume)
+    width = len(target_volume[0])
+    height = len(target_volume[0][0])
+    num_terms = time * width * height
+
+    target_vol, heatmap_vol = normalize(target_volume, heatmap_volume)
+
+    target_vol_mean = np.mean(target_vol)
+    heatmap_vol_mean = np.mean(heatmap_vol)
+
+    summation = 0
+    for t in range(time):
+        for w in range(width):
+            for h in range(height):
+                heatmap_diff = heatmap_vol[t][w][h] - heatmap_vol_mean
+                target_vol_diff = target_vol[t][w][h] - target_vol_mean
+                summation += heatmap_diff * target_vol_diff
+    covariance = summation / (num_terms - 1)
+    return covariance
+
+
+def pearson_correlation(target_volume, heatmap_volume):
+    """
+    calculates the pixelwise pearson correlation between the normalized
+    activations of the target volume and observed activations. the two
+    volumes must have the same dimensions
+
+    parameters:
+        target_volume: numpy array of (time, width, height) format,
+            signifying ground truth heatmap
+        heatmap_volume: numpy array of (time, width, height) format,
+            signifying actual activation
+    return:
+        floating point representing pixelwise pearson correlation
+    """
+    covariance = covariance(target_volume, heatmap_volume)
+    target_std = np.std(target_volume)
+    heatmap_std = np.std(heatmap_volume)
+    pearson = covariance / (target_std * heatmap_std)
+    return pearson
