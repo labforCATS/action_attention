@@ -1114,6 +1114,12 @@ _C.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT: 0
 _C.DATA_LOADER.INSPECT.SHUFFLE: True
 
 
+# (added 11/8)
+_C.METRICS = CfgNode()
+
+_C.METRICS.FUNCS = []
+
+
 # Add custom config with default values.
 custom_config.add_custom_config(_C)
 
