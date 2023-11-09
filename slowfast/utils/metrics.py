@@ -80,6 +80,7 @@ def topk_accuracies(preds, labels, ks):
     return [(x / preds.size(0)) for x in num_topks_correct]
 
 
+# TODO change param names to target_volume, heatmap_volume for the sake of consistency
 def IOU_3D(vol1, vol2):
     """Compute the intersection over union for two 3d arrays with binarized
     volumes.
@@ -104,36 +105,6 @@ def IOU_3D(vol1, vol2):
 
     # compute IOU
     iou = intersect / union
-    return iou
-
-
-def IOU_heatmap(heatmap_dir, trajectory_dir, thresh=0.2):
-    """Compute the intersection over union for a heatmap with its ground-truth
-    trajectory.
-
-    Args:
-        heatmap_dir (str): path to the directory containing all the heatmap
-            frames for a single channel
-        trajectory_dir (str): path to the directory containing all the target
-            masks for the ground truth trajectory
-        thresh (float): float between 0.0 and 1.0 as the percent of the
-            maximum value in the heatmap at which the heatmap will be binarized
-    """
-    # load GT trajectory
-    target_volume = load_heatmaps(
-        trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
-    )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
-
-    # load heatmap
-    heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
-
-    # binarize the heatmaps using a threshold
-    max_intensity = heatmap_volume.max()
-
-    heatmap_volume = np.where(heatmap_volume >= thresh * max_intensity, 1, 0)
-
-    # compute 3D IOU
-    iou = IOU_3D(target_volume, heatmap_volume)
     return iou
 
 
@@ -340,3 +311,36 @@ def pearson_correlation(target_volume, heatmap_volume):
     heatmap_std = np.std(heatmap_volume)
     pearson = covariance / (target_std * heatmap_std)
     return pearson
+
+
+# TODO PICK UP HERE
+# bog boy function stub
+def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
+    """Compute the intersection over union for a heatmap with its ground-truth
+    trajectory.
+
+    Args:
+        heatmap_dir (str): path to the directory containing all the heatmap
+            frames for a single channel
+        trajectory_dir (str): path to the directory containing all the target
+            masks for the ground truth trajectory
+        thresh (float): float between 0.0 and 1.0 as the percent of the
+            maximum value in the heatmap at which the heatmap will be binarized
+    """
+    raise NotImplementedError
+    # # load GT trajectory
+    # target_volume = load_heatmaps(
+    #     trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
+    # )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
+
+    # # load heatmap
+    # heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
+
+    # # binarize the heatmaps using a threshold
+    # max_intensity = heatmap_volume.max()
+
+    # heatmap_volume = np.where(heatmap_volume >= thresh * max_intensity, 1, 0)
+
+    # # compute 3D IOU
+    # iou = IOU_3D(target_volume, heatmap_volume)
+    # return iou
