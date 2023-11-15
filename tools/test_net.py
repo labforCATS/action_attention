@@ -35,7 +35,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
     form a video-level prediction. All video predictions are compared to
     ground-truth labels and the final testing performance is logged.
 
-    NOTE: the multi-view parameters are configured in the data loader class for a particular dataset. The above description is true for most datasets except the synthetic dataset of generated videos. For the synthetic videos, the test_loader is configured to return entire videos, not subsampled ones. 
+    NOTE: the multi-view parameters are configured in the data loader class for a particular dataset. The above description is true for most datasets except the synthetic dataset of generated videos. For the synthetic videos, the test_loader is configured to return entire videos, not subsampled ones.
 
     For detection:
     Perform fully-convolutional testing on the full frames without crop.
@@ -53,9 +53,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
     model.eval()
     test_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(
-        test_loader
-    ):
+    for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(test_loader):
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
             if isinstance(inputs, (list,)):
@@ -82,20 +80,12 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             metadata = meta["metadata"]
 
             preds = preds.detach().cpu() if cfg.NUM_GPUS else preds.detach()
-            ori_boxes = (
-                ori_boxes.detach().cpu()
-                if cfg.NUM_GPUS
-                else ori_boxes.detach()
-            )
-            metadata = (
-                metadata.detach().cpu() if cfg.NUM_GPUS else metadata.detach()
-            )
+            ori_boxes = ori_boxes.detach().cpu() if cfg.NUM_GPUS else ori_boxes.detach()
+            metadata = metadata.detach().cpu() if cfg.NUM_GPUS else metadata.detach()
 
             if cfg.NUM_GPUS > 1:
                 preds = torch.cat(du.all_gather_unaligned(preds), dim=0)
-                ori_boxes = torch.cat(
-                    du.all_gather_unaligned(ori_boxes), dim=0
-                )
+                ori_boxes = torch.cat(du.all_gather_unaligned(ori_boxes), dim=0)
                 metadata = torch.cat(du.all_gather_unaligned(metadata), dim=0)
 
             test_meter.iter_toc()
@@ -115,9 +105,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             yd, yi = model(inputs, video_idx, time)
             batchSize = yi.shape[0]
             K = yi.shape[1]
-            C = (
-                cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM
-            )  # eg 400 for Kinetics400
+            C = cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM  # eg 400 for Kinetics400
             candidates = train_labels.view(1, -1).expand(batchSize, -1)
             retrieval = torch.gather(candidates, 1, yi)
             retrieval_one_hot = torch.zeros((batchSize * K, C)).cuda()
@@ -134,9 +122,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
         # Gather all the predictions across all the devices to perform ensemble.
         if cfg.NUM_GPUS > 1:
-            preds, labels, video_idx = du.all_gather(
-                [preds, labels, video_idx]
-            )
+            preds, labels, video_idx = du.all_gather([preds, labels, video_idx])
         if cfg.NUM_GPUS:
             preds = preds.cpu()
             labels = labels.cpu()
@@ -144,9 +130,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
         test_meter.iter_toc()
         # Update and log stats.
-        test_meter.update_stats(
-            preds.detach(), labels.detach(), video_idx.detach()
-        )
+        test_meter.update_stats(preds.detach(), labels.detach(), video_idx.detach())
         test_meter.log_iter_stats(cur_iter)
 
         test_meter.iter_tic()
@@ -171,17 +155,13 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             writer.plot_eval(preds=all_preds, labels=all_labels)
 
         if cfg.TEST.SAVE_RESULTS_PATH != "":
-            save_path = os.path.join(
-                cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH
-            )
+            save_path = os.path.join(cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH)
 
             if du.is_root_proc():
                 with pathmgr.open(save_path, "wb") as f:
                     pickle.dump([all_preds, all_labels], f)
 
-            logger.info(
-                "Successfully saved prediction results to {}".format(save_path)
-            )
+            logger.info("Successfully saved prediction results to {}".format(save_path))
 
     test_meter.finalize_metrics()
     return test_meter
@@ -191,9 +171,9 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     """
     For classification:
-    Run metric computations over existing heatmaps. This will retrieve predictions for each video and compute the metrics declared in the config. 
+    Run metric computations over existing heatmaps. This will retrieve predictions for each video and compute the metrics declared in the config.
 
-    NOTE: this is only designed to work for the SyntheticMotion dataset for now as it uses the full testing videos and does not subsample multiple testing videos like the standard testing loader/pipeline are configured to do. 
+    NOTE: this is only designed to work for the SyntheticMotion dataset for now as it uses the full testing videos and does not subsample multiple testing videos like the standard testing loader/pipeline are configured to do.
 
     Args:
         test_loader (loader): video testing loader.
@@ -205,13 +185,66 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         writer (TensorboardWriter object, optional): TensorboardWriter object
             to writer Tensorboard log.
     """
+    # Check that the heatmap files all exist
+    heatmaps_root_dir = os.path.join(
+        cfg.OUTPUT_DIR,
+        "heatmaps",
+        cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+        "post_softmax"
+        if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
+        else "pre_softmax",
+    )
+
+    # infer list of classes from config
+    input_json_path = os.path.join(
+        cfg.DATA.PATH_TO_DATA_DIR, "synthetic_motion_test.json"
+    )
+    with open(input_json_path, "r") as f:
+        vid_logs = json.load(f)  # list of dictionaries
+    class_names = set([vid_log["labels"] for vid_log in vid_logs])
+
+    for target_class in class_names:
+        class_heatmap_dir = os.path.join(
+            heatmaps_root_dir,
+            "frames",
+            target_class,
+        )
+        # let's just check that the first frame of the first heatmap for the first channel exist
+        vid_idx = sorted(os.listdir(outputs_dir))[0]
+        vid_heatmap_dir = os.path.join(class_heatmap_dir, f"{target_class}_{vid_idx}")
+
+        channel = sorted(os.listdir(vid_heatmap_dir))[0]
+        path_to_heatmap_frame = os.path.join(
+            vid_heatmap_dir,
+            channel,
+            f"{target_class}_{vid_idx}_{channel}_000000.jpg",
+        )
+        print("path_to_heatmap_frame", path_to_heatmap_frame)
+        assert os.path.exists(
+            path_to_heatmap_frame,
+            "did not pass checks for heatmap outputs; cannot compute metrics if heatmaps do not exist",
+        )
+
     # Enable eval mode.
     model.eval()
     test_meter.iter_tic()
 
-    for cur_iter, (inputs, labels, video_idx, time, meta) in enumerate(
-        test_loader
-    ):
+    # Create results dictionary (which will later be converted to a dataframe
+    # and exported to csv)
+    # the keys will be the output video index (just because it is unique so it's convenient for indexing)
+    # the value will be another dictionary with the following format
+    # {
+    #     "input_vid_idx": input_vid_idx,
+    #     "label": label,
+    #     "pred": pred,
+    #     "correct": pred == label,
+    #     "iou": iou,
+    #     "kl_div": kl_div,
+    #     ...and more metrics as desired, etc.
+    # }
+    results = {}
+
+    for cur_iter, (inputs, labels, video_ids, time, meta) in enumerate(test_loader):
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
             if isinstance(inputs, (list,)):
@@ -221,7 +254,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 inputs = inputs.cuda(non_blocking=True)
             # Transfer the data to the current GPU device.
             labels = labels.cuda()
-            video_idx = video_idx.cuda()
+            video_ids = video_ids.cuda()
             for key, val in meta.items():
                 if isinstance(val, (list,)):
                     for i in range(len(val)):
@@ -233,56 +266,73 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         # Perform the forward pass.
         preds = model(inputs)
 
-        # TODO PICK UP HERE
-        # TODO maybe create a new meter (MetricsMeter or smth instead of TestMeter) to log results to 
-        # then define a helper function thats takes a TestMeter and MetricsMeter and combines results ? 
-        # actually i dont even think the test meter tracks predictions for indiv videos does it 
-        # also, the meters log to json, but it's must easier to work with dataframes as they have columns and easier row/col manipulation 
+        # for each video, check that the heatmaps exist
+        # TODO
+
+        # Compute metrics over heatmaps
+        metrics = {}
+
+        # log results for each video to the results dict
+        # iterate over each sample in the batch
+        for label, pred, output_vid_idx in zip(labels, preds, video_ids):
+            # retrieve the input vid index
+            _, input_vid_idx = output_idx_to_input(input_json_path, output_vid_idx)
+
+            vid_info = {
+                "input_vid_idx": input_vid_idx,
+                "label": label,
+                "pred": pred,
+                "correct": (pred == label),
+            }
+
+            # compute metrics
+            # TODO PICK UP HERE
+            # MAKE THE BOG BOY FUNCTION STUB
+
+        # TODO maybe create a new meter (MetricsMeter or smth instead of TestMeter) to log results to
+        # then define a helper function thats takes a TestMeter and MetricsMeter and combines results ?
+        # actually i dont even think the test meter tracks predictions for indiv videos does it
+        # also, the meters log to json, but it's must easier to work with dataframes as they have columns and easier row/col manipulation
         # the rest of the function below was simply copy pasted from perform_test() and has not been modified yet to do the desired metrics evaluation
 
         # pseudocode for the rest of this function:
-        # somewhere at the start (prob top of function), check that the heatmaps actually exist for the particular experiment, otherwise raise an error 
-        # retrieve labels, predictions, and video indices for all test data 
+        # somewhere at the start (prob top of function), check that the heatmaps actually exist for the particular experiment, otherwise raise an error
+        # retrieve labels, predictions, and video indices for all test data
         # convert the output video index to the corresponding input index (use helper function from tools/scripts.py) (we already know the label class)
-        # create dictionary 
-            # have the key be maybe the output video index (just for indexing purposes) and let the value be another dictionary with the data
-                # {
-                #     "vid_idx": input vid idx,
-                #     "label": label, 
-                #     "pred": pred,
-                # }
-        # the reason why we want a dictionary is so that we can later easily convert the whole thing into a pd dataframe *after* we add all the metric values. if we create the dataframe first, it's really annoying to append to a dataframe 
-        # add a column that indicates if prediction is right or wrong 
+        # create dictionary
+        # have the key be maybe the output video index (just for indexing purposes) and let the value be another dictionary with the data
+        # {
+        #     "vid_idx": input vid idx,
+        #     "label": label,
+        #     "pred": pred,
+        # }
+        # the reason why we want a dictionary is so that we can later easily convert the whole thing into a pd dataframe *after* we add all the metric values. if we create the dataframe first, it's really annoying to append to a dataframe
+        # add a column that indicates if prediction is right or wrong
         # retrieve the list of metrics to compute from the config (also need to set up the structure and defaults for this)
         # iterate over the metrics
-            # create a temporary container to 
-            # iterate over all the classes
-                # iterate over all videos in the class 
-                    # retrieve heatmap 
-                    # call bog boy metrics helper 
-                        # which will call the metrics func and compute the values
-                    # get the metric value and add an entry to the dictionary
-                    # e.g. data_dict[output vid idx]["metric name"] = metric result 
-        # convert the whole dict into a dataframe 
-        # export dataframe as csv, saved to a location specified by the config or some reasonable default location based on the output_dir given in config) 
+        # create a temporary container to
+        # iterate over all the classes
+        # iterate over all videos in the class
+        # retrieve heatmap
+        # call bog boy metrics helper
+        # which will call the metrics func and compute the values
+        # get the metric value and add an entry to the dictionary
+        # e.g. data_dict[output vid idx]["metric name"] = metric result
+        # convert the whole dict into a dataframe
+        # export dataframe as csv, saved to a location specified by the config or some reasonable default location based on the output_dir given in config)
         # do processing of the data to see if there are any trends in the metrics results (perhaps in a separate exploratory notebook)
-
 
         # Gather all the predictions across all the devices to perform ensemble.
         if cfg.NUM_GPUS > 1:
-            preds, labels, video_idx = du.all_gather(
-                [preds, labels, video_idx]
-            )
+            preds, labels, video_ids = du.all_gather([preds, labels, video_ids])
         if cfg.NUM_GPUS:
             preds = preds.cpu()
             labels = labels.cpu()
-            video_idx = video_idx.cpu()
+            video_ids = video_ids.cpu()
 
         test_meter.iter_toc()
         # Update and log stats.
-        test_meter.update_stats(
-            preds.detach(), labels.detach(), video_idx.detach()
-        )
+        test_meter.update_stats(preds.detach(), labels.detach(), video_ids.detach())
         test_meter.log_iter_stats(cur_iter)
 
         test_meter.iter_tic()
@@ -307,20 +357,17 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
             writer.plot_eval(preds=all_preds, labels=all_labels)
 
         if cfg.TEST.SAVE_RESULTS_PATH != "":
-            save_path = os.path.join(
-                cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH
-            )
+            save_path = os.path.join(cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH)
 
             if du.is_root_proc():
                 with pathmgr.open(save_path, "wb") as f:
                     pickle.dump([all_preds, all_labels], f)
 
-            logger.info(
-                "Successfully saved prediction results to {}".format(save_path)
-            )
+            logger.info("Successfully saved prediction results to {}".format(save_path))
 
     test_meter.finalize_metrics()
     return test_meter
+
 
 def test(cfg):
     """
@@ -393,9 +440,7 @@ def test(cfg):
         )
 
     # Set up writer for logging to Tensorboard format.
-    if cfg.TENSORBOARD.ENABLE and du.is_master_proc(
-        cfg.NUM_GPUS * cfg.NUM_SHARDS
-    ):
+    if cfg.TENSORBOARD.ENABLE and du.is_master_proc(cfg.NUM_GPUS * cfg.NUM_SHARDS):
         writer = tb.TensorboardWriter(cfg)
     else:
         writer = None
