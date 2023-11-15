@@ -161,8 +161,8 @@ def convert_to_prob_dist(target_volume, heatmap_volume):
     target_total_sum = np.sum(target_vol)
     heatmap_total_sum = np.sum(heatmap_vol)
 
-    conv_target_dist = np.vectorize(lambda val: val / target_total_sum)
-    conv_heatmap_dist = np.vectorize(lambda val: val / heatmap_total_sum)
+    conv_target_dist = lambda val: val / target_total_sum
+    conv_heatmap_dist = lambda val: val / heatmap_total_sum
     target_vol = conv_target_dist(target_vol)
     heatmap_vol = conv_heatmap_dist(heatmap_vol)
 
@@ -192,8 +192,8 @@ def normalize(target_volume, heatmap_volume):
     target_max_val = np.max(target_vol)
     heatmap_max_val = np.max(heatmap_vol)
 
-    conv_target_dist = np.vectorize(lambda val: val / target_max_val)
-    conv_heatmap_dist = np.vectorize(lambda val: val / heatmap_max_val)
+    conv_target_dist = lambda val: val / target_max_val
+    conv_heatmap_dist = lambda val: val / heatmap_max_val
     target_vol = conv_target_dist(target_vol)
     heatmap_vol = conv_heatmap_dist(heatmap_vol)
 
