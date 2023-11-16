@@ -15,6 +15,8 @@ from slowfast.visualization.connected_components_utils import (
     generate_overlay,
 )
 
+# placeholder
+METRIC_FUNCS = []
 
 def topks_correct(preds, labels, ks):
     """
@@ -171,21 +173,7 @@ def normalize(target_volume, heatmap_volume):
     return target_vol, heatmap_vol
 
 
-def KL_div(vid_idx):
-    motion_class = "circle"
-    sample_target_mask_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/test/target_masks/{motion_class}/{motion_class}_{vid_idx:06d}"
-    target_volume = load_heatmaps(
-        sample_target_mask_dir, t_scale=0.64, s_scale=0.64, mask=True
-    )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
-
-    sample_heatmap_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/prev_individual_runs/slowfast_outputs/epoch_100_outputs/heatmaps/grad_cam/pre_softmax/frames/{vid_idx:06d}/fast"
-    heatmap_volume = load_heatmaps(sample_heatmap_dir)
-
-    kl_div = KL_div_3d(target_volume, heatmap_volume)
-    return kl_div
-
-
-def KL_div_3d(target_volume, heatmap_volume):
+def KL_div(target_volume, heatmap_volume):
     """
     calculates the pointwise KL-divergence between the normalized activations
     of the target and heatmap volumes. the two volumes must have the
@@ -316,25 +304,50 @@ def pearson_correlation(target_volume, heatmap_volume):
 # TODO PICK UP HERE
 # bog boy function stub
 def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
-    """Compute the intersection over union for a heatmap with its ground-truth
-    trajectory.
+    """Compute the values for a list of given metric functions on a heatmap 
+        with its ground-truth trajectory.
 
     Args:
         heatmap_dir (str): path to the directory containing all the heatmap
             frames for a single channel
         trajectory_dir (str): path to the directory containing all the target
             masks for the ground truth trajectory
+        metrics (str list): list of metric function names. must be a valid 
+            element of METRIC_FUNCS
         thresh (float): float between 0.0 and 1.0 as the percent of the
             maximum value in the heatmap at which the heatmap will be binarized
-    """
-    raise NotImplementedError
-    # # load GT trajectory
-    # target_volume = load_heatmaps(
-    #     trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
-    # )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
 
-    # # load heatmap
-    # heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
+    Returns:
+        dictionary containing the metric names and values 
+    """
+    assert set(metrics).issubset(set(METRIC_FUNCS))
+
+    # retrieve heatmap and trajectory volumes 
+    # load GT trajectory
+    target_volume = load_heatmaps(
+        trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
+    )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
+
+    # load heatmap
+    heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
+
+    metric_results = {}
+
+    for metric_name in metrics:
+        # do pre-processing of volumes as needed
+
+        # compute metric results 
+
+        # log metric results 
+        metric_results[metric_name] = NotImplemented
+
+
+
+    raise NotImplementedError
+
+    return metric_results
+
+
 
     # # binarize the heatmaps using a threshold
     # max_intensity = heatmap_volume.max()
