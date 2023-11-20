@@ -1117,6 +1117,7 @@ _C.DATA_LOADER.INSPECT.SHUFFLE: True
 # (added 11/8)
 _C.METRICS = CfgNode()
 
+# metrics to run
 _C.METRICS.FUNCS = []
 
 
