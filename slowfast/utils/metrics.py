@@ -89,6 +89,8 @@ def IOU_3D(target_volume, heatmap_volume):
     Args:
         target_volume, heatmap_volume: 3d arrays with the same shape. If it contains integers,
             all non-zero integers are treated as True or 1
+    Returns:
+        calculated intersection over union between the volumes
     """
     assert target_volume.shape == heatmap_volume.shape
 
@@ -118,11 +120,12 @@ def convert_to_prob_dist(target_volume, heatmap_volume):
     to probability distributions. the two volumes must have the same
     dimensions
 
-    Parameters:
+    Args:
         target_volume: ground truth heatmap, numpy array of
             (time, width, height) format
         heatmap_volume: actual heatmap, numpy array of same dimensions
             as target_volume
+
     Returns:
         converted target and heatmap volumes
     """
@@ -149,11 +152,12 @@ def normalize(target_volume, heatmap_volume):
     Takes in the ground truth heatmap and actual heatmap and normalizes them.
     the two volumes must have the same dimensions
 
-    Parameters:
+    Args:
         target_volume: ground truth heatmap, numpy array of
             (time, width, height) format
         heatmap_volume: actual heatmap, numpy array of same dimensions
             as target_volume
+
     Returns:
         normalized target and heatmap volumes
     """
@@ -181,12 +185,13 @@ def KL_div(target_volume, heatmap_volume):
     of the target and heatmap volumes. the two volumes must have the
     same dimensions
 
-    parameters:
+    Args:
         target_volume: numpy array of (time, width, height) format,
             signifying ground truth heatmap
         heatmap_volume: numpy array of (time, width, height) format,
             signifying actual activation
-    returns:
+
+    Returns:
         floating point representing calculated KL divergence
     """
     # convert value of each point into probability
@@ -201,8 +206,8 @@ def KL_div(target_volume, heatmap_volume):
     heatmap_vol = adjust_vals(heatmap_vol)
 
     target_dist, heatmap_dist = convert_to_prob_dist(target_vol, heatmap_vol)
-    print("sum target distribution:", np.sum(target_dist))
-    print("sum heatmap distribution:", np.sum(heatmap_dist))
+    # print("sum target distribution:", np.sum(target_dist))
+    # print("sum heatmap distribution:", np.sum(heatmap_dist))
 
     # flatten into a 1d array
     flattened_target = np.ndarray.flatten(target_dist)
@@ -223,10 +228,11 @@ def MSE(target_volume, heatmap_volume):
     between two heatmap volumes (must be of the same dimensions). the two
     volumes must have the same dimensions
 
-    parameters:
+    Args:
         target_volume: 3d numpy array consisting of ground truth activations
         heatmap_volume: 3d numpy array consisting of actual activations
-    returns:
+
+    Returns:
         mean squared error between the target and heatmap volumes
     """
     time = len(target_volume)
@@ -253,12 +259,13 @@ def covariance(target_volume, heatmap_volume):
     the target volume and observed activations. the two volumes must have the
     same dimensions
 
-    parameters:
+    Args:
         target_volume: numpy array of (time, width, height) format,
             signifying ground truth heatmap
         heatmap_volume: numpy array of (time, width, height) format,
             signifying actual activation
-    return:
+
+    Returns:
         floating point representing pixelwise covariance
     """
     time = len(target_volume)
@@ -288,12 +295,13 @@ def pearson_correlation(target_volume, heatmap_volume):
     activations of the target volume and observed activations. the two
     volumes must have the same dimensions
 
-    parameters:
+    Args:
         target_volume: numpy array of (time, width, height) format,
             signifying ground truth heatmap
         heatmap_volume: numpy array of (time, width, height) format,
             signifying actual activation
-    return:
+
+    Returns:
         floating point representing pixelwise pearson correlation
     """
     covariance = covariance(target_volume, heatmap_volume)
@@ -303,8 +311,6 @@ def pearson_correlation(target_volume, heatmap_volume):
     return pearson
 
 
-# TODO PICK UP HERE
-# bog boy function stub
 def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
     """Compute the values for a list of given metric functions on a heatmap 
         with its ground-truth trajectory.
@@ -324,13 +330,12 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
     """
     assert set(metrics).issubset(set(METRIC_FUNCS))
 
-    # retrieve heatmap and trajectory volumes 
-    # load GT trajectory
+    # load ground truth trajectory
     target_volume = load_heatmaps(
         trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
     )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
 
-    # load heatmap
+    # load activation heatmap (heatmap volume)
     heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
 
     # create binarized version of heatmap volume
@@ -340,8 +345,7 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
 
     metric_results = {}
 
-    
-
+    # iterate through list of metrics, computing the values
     for metric_name in metrics:
         if metric_name == "kl_div":
             result = KL_Div(target_volume, heatmap_volume)
@@ -355,17 +359,7 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
             result = IOU_3D(target_volume, binarized_heatmap)
         else:
             raise NotImplementedError("Unrecognized metric; implement metric and add logic")
-
+        
         metric_results[metric_name] = result
+
     return metric_results
-
-
-
-    # # binarize the heatmaps using a threshold
-    # max_intensity = heatmap_volume.max()
-
-    # heatmap_volume = np.where(heatmap_volume >= thresh * max_intensity, 1, 0)
-
-    # # compute 3D IOU
-    # iou = IOU_3D(target_volume, heatmap_volume)
-    # return iou
