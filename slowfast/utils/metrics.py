@@ -348,14 +348,14 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
     # iterate through list of metrics, computing the values
     for metric_name in metrics:
         if metric_name == "kl_div":
-            result = KL_Div(target_volume, heatmap_volume)
-        else if metric_name == "mse":
+            result = KL_div(target_volume, heatmap_volume)
+        elif metric_name == "mse":
             result = MSE(target_volume, heatmap_volume)
-        else if metric_name == "covariance":
+        elif metric_name == "covariance":
             result = covariance(target_volume, heatmap_volume)
-        else if metric_name == "pearson":
+        elif metric_name == "pearson":
             result = pearson_correlation(target_volume, heatmap_volume)
-        else if metric_name == "iou":
+        elif metric_name == "iou":
             result = IOU_3D(target_volume, binarized_heatmap)
         else:
             raise NotImplementedError("Unrecognized metric; implement metric and add logic")
