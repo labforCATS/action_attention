@@ -8,6 +8,7 @@ import pickle
 import torch
 import pdb
 import cv2
+import json
 
 import slowfast.utils.checkpoint as cu
 import slowfast.utils.distributed as du
@@ -20,6 +21,7 @@ from slowfast.visualization.utils import save_inputs
 from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
 from slowfast.utils.meters import AVAMeter, TestMeter
+from slowfast.utils.metrics import heatmap_metrics
 
 
 logger = logging.get_logger(__name__)
@@ -82,6 +84,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             preds = preds.detach().cpu() if cfg.NUM_GPUS else preds.detach()
             ori_boxes = ori_boxes.detach().cpu() if cfg.NUM_GPUS else ori_boxes.detach()
             metadata = metadata.detach().cpu() if cfg.NUM_GPUS else metadata.detach()
+
 
             if cfg.NUM_GPUS > 1:
                 preds = torch.cat(du.all_gather_unaligned(preds), dim=0)
@@ -162,6 +165,7 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
                     pickle.dump([all_preds, all_labels], f)
 
             logger.info("Successfully saved prediction results to {}".format(save_path))
+            pdb.set_trace()
 
     test_meter.finalize_metrics()
     return test_meter
@@ -286,7 +290,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
             }
 
             # compute metrics
-            # TODO PICK UP HERE
+            # TODO: retrieve the target path and heatmap path
+            metrics_dict = heatmap_metrics(target_path, heatmap_path)
             # MAKE THE BOG BOY FUNCTION STUB
 
         # TODO maybe create a new meter (MetricsMeter or smth instead of TestMeter) to log results to
