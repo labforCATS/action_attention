@@ -82,25 +82,27 @@ def topk_accuracies(preds, labels, ks):
     return [(x / preds.size(0)) for x in num_topks_correct]
 
 
-# TODO change param names to target_volume, heatmap_volume for the sake of consistency
-def IOU_3D(vol1, vol2):
+def IOU_3D(target_volume, heatmap_volume):
     """Compute the intersection over union for two 3d arrays with binarized
     volumes.
 
     Args:
-        vol1, vol2: 3d arrays with the same shape. If it contains integers,
+        target_volume, heatmap_volume: 3d arrays with the same shape. If it contains integers,
             all non-zero integers are treated as True or 1
     """
-    assert vol1.shape == vol2.shape
+    assert target_volume.shape == heatmap_volume.shape
 
-    vol1 = vol1.astype(bool)
-    vol2 = vol2.astype(bool)
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
 
-    total_volume_1 = vol1.sum()
-    total_volume_2 = vol2.sum()
+    target_vol = target_vol.astype(bool)
+    heatmap_vol = heatmap_vol.astype(bool)
+
+    total_volume_1 = target_vol.sum()
+    total_volume_2 = heatmap_vol.sum()
 
     # compute intersection
-    intersect = np.logical_and(vol1, vol2).sum()
+    intersect = np.logical_and(target_vol, heatmap_vol).sum()
 
     # compute union
     union = total_volume_1 + total_volume_2 - intersect
@@ -331,20 +333,30 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
     # load heatmap
     heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
 
+    # create binarized version of heatmap volume
+    max_intensity = heatmap_volume.max()
+    binarized_heatmap = copy.deepcopy(heatmap_volume)
+    binarized_heatmap = np.where(binarized_heatmap >= thresh * max_intensity, 1, 0)
+
     metric_results = {}
 
+    
+
     for metric_name in metrics:
-        # do pre-processing of volumes as needed
+        if metric_name == "kl_div":
+            result = KL_Div(target_volume, heatmap_volume)
+        else if metric_name == "mse":
+            result = MSE(target_volume, heatmap_volume)
+        else if metric_name == "covariance":
+            result = covariance(target_volume, heatmap_volume)
+        else if metric_name == "pearson":
+            result = pearson_correlation(target_volume, heatmap_volume)
+        else if metric_name == "iou":
+            result = IOU_3D(target_volume, binarized_heatmap)
+        else:
+            raise NotImplementedError("Unrecognized metric; implement metric and add logic")
 
-        # compute metric results 
-
-        # log metric results 
-        metric_results[metric_name] = NotImplemented
-
-
-
-    raise NotImplementedError
-
+        metric_results[metric_name] = result
     return metric_results
 
 
