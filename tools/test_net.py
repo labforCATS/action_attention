@@ -22,7 +22,7 @@ from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
 from slowfast.utils.meters import AVAMeter, TestMeter
 from slowfast.utils.metrics import heatmap_metrics
-from tools.scripts import output_idx_to_input, get_exp_and_root_dir
+from scripts import output_idx_to_input, get_exp_and_root_dir
 
 
 logger = logging.get_logger(__name__)
@@ -224,12 +224,18 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     #     ...and more metrics as desired, etc.
     # }
 
-    metrics = cfg.METRCS.FUNCS # TODO check configs from nikki 
+    metrics = cfg.METRICS.FUNCS # TODO check configs from nikki 
+
+    if cfg.NONLOCAL.LOCATION == [[[]], [[1, 3]], [[1, 3, 5]], [[]]]:
+        is_nonlocal = True
+    else:
+        is_nonlocal = False
+
 
     experiment_params = {
         "experiment": exp,
         "model": cfg.MODEL.ARCH,
-        "nonlocal": is_nonlocal, # TODO how to get this? 
+        "nonlocal": is_nonlocal,
         "gradcam_variant": cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
         "post_softmax": cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX,
     }
@@ -265,6 +271,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
             _, input_vid_idx = output_idx_to_input(input_json_path, output_vid_idx)
 
             # iterate over each channel (i think we should compute separate statistics for each channel; TODO verify this)
+            # @halu: see my slack message for how to access the channel - Nikki
 
             for channel in []: # TODO figure out where to get channels from 
 
