@@ -14,6 +14,10 @@ def output_idx_to_input(input_json_path, output_vid_idx):
         input_json_path (str): path to the json file containing input data
             information. for example, "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/synthetic_motion_test.json"
         output_vid_idx (int): index for the output video (assumes 0-based index)
+
+    Returns:
+        tuple containing the target class (i.e. label) and integer index for 
+        the input video
     """
     with open(input_json_path, "r") as f:
         vid_logs = json.load(f)  # list of dictionaries
@@ -22,6 +26,35 @@ def output_idx_to_input(input_json_path, output_vid_idx):
     target_class = input_vid_log["labels"]
     input_vid_idx = int(input_vid_log["video_id"].split("_")[1])
     return target_class, input_vid_idx
+
+def get_exp_and_root_dir(sub_dir):
+    """Given the path to some subdirectory of an experiment's root directory, extract the path to the root directory as well as the experiment index. 
+
+    Args:
+        sub_dir (str): path to some subdirectory of an experiment's root 
+            directory. must contain the folder "experiment_{exp}". 
+
+    Returns:
+        tuple containing the experiment index (str) and path to the 
+        experiment's root directory. 
+    """
+    assert "experiment_" in sub_dir
+    temp_split_paths = sub_dir.split("experiment_")
+
+    exp = temp_split_paths[1][0]
+    if len(temp_split_paths[1]) > 1 and temp_split_paths[1][1] != "/": 
+        # check if the experiment is, for example, "5b" rather than just "5"
+        exp += temp_split_paths[1][1]
+
+    experiment_root_dir = (
+        temp_split_paths[0] + "experiment_" + exp
+    )
+
+    return exp, experiment_root_dir
+
+
+    # TODO oops i just realized a problem, the 5b experiments may have gotten screwed up since it wouldve used exp 5 data 
+
 
 
 def reformat_output_dirs(outputs_dir):

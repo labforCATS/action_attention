@@ -22,6 +22,7 @@ from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
 from slowfast.utils.meters import AVAMeter, TestMeter
 from slowfast.utils.metrics import heatmap_metrics
+from tools.scripts import output_idx_to_input, get_exp_and_root_dir
 
 
 logger = logging.get_logger(__name__)
@@ -189,7 +190,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         writer (TensorboardWriter object, optional): TensorboardWriter object
             to writer Tensorboard log.
     """
-    # Check that the heatmap files all exist
+    # get the heatmap root dir and json containing the list of test data 
     heatmaps_root_dir = os.path.join(
         cfg.OUTPUT_DIR,
         "heatmaps",
@@ -198,36 +199,12 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
         else "pre_softmax",
     )
-
-    # infer list of classes from config
     input_json_path = os.path.join(
         cfg.DATA.PATH_TO_DATA_DIR, "synthetic_motion_test.json"
     )
-    with open(input_json_path, "r") as f:
-        vid_logs = json.load(f)  # list of dictionaries
-    class_names = set([vid_log["labels"] for vid_log in vid_logs])
 
-    for target_class in class_names:
-        class_heatmap_dir = os.path.join(
-            heatmaps_root_dir,
-            "frames",
-            target_class,
-        )
-        # let's just check that the first frame of the first heatmap for the first channel exist
-        vid_idx = sorted(os.listdir(outputs_dir))[0]
-        vid_heatmap_dir = os.path.join(class_heatmap_dir, f"{target_class}_{vid_idx}")
-
-        channel = sorted(os.listdir(vid_heatmap_dir))[0]
-        path_to_heatmap_frame = os.path.join(
-            vid_heatmap_dir,
-            channel,
-            f"{target_class}_{vid_idx}_{channel}_000000.jpg",
-        )
-        print("path_to_heatmap_frame", path_to_heatmap_frame)
-        assert os.path.exists(
-            path_to_heatmap_frame,
-            "did not pass checks for heatmap outputs; cannot compute metrics if heatmaps do not exist",
-        )
+    # get details of the experiment, including experiment number and nonlocal
+    exp, experiment_root_dir = get_exp_and_root_dir(cfg.DATA.PATH_TO_DATA_DIR)
 
     # Enable eval mode.
     model.eval()
@@ -246,6 +223,17 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     #     "kl_div": kl_div,
     #     ...and more metrics as desired, etc.
     # }
+
+    metrics = cfg.METRCS.FUNCS # TODO check configs from nikki 
+
+    experiment_params = {
+        "experiment": exp,
+        "model": cfg.MODEL.ARCH,
+        "nonlocal": is_nonlocal, # TODO how to get this? 
+        "gradcam_variant": cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
+        "post_softmax": cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX,
+    }
+
     results = {}
 
     for cur_iter, (inputs, labels, video_ids, time, meta) in enumerate(test_loader):
@@ -270,29 +258,57 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         # Perform the forward pass.
         preds = model(inputs)
 
-        # for each video, check that the heatmaps exist
-        # TODO
-
-        # Compute metrics over heatmaps
-        metrics = {}
-
-        # log results for each video to the results dict
-        # iterate over each sample in the batch
+        # log results for each heatmap to the results dict
+        # iterate over each video in the batch
         for label, pred, output_vid_idx in zip(labels, preds, video_ids):
             # retrieve the input vid index
             _, input_vid_idx = output_idx_to_input(input_json_path, output_vid_idx)
 
-            vid_info = {
-                "input_vid_idx": input_vid_idx,
-                "label": label,
-                "pred": pred,
-                "correct": (pred == label),
-            }
+            # iterate over each channel (i think we should compute separate statistics for each channel; TODO verify this)
 
-            # compute metrics
-            # TODO: retrieve the target path and heatmap path
-            metrics_dict = heatmap_metrics(target_path, heatmap_path)
-            # MAKE THE BOG BOY FUNCTION STUB
+            for channel in []: # TODO figure out where to get channels from 
+
+                heatmap_info = {
+                    "input_vid_idx": input_vid_idx,
+                    "label": label,
+                    "pred": pred,
+                    "correct": (pred == label),
+                    "channel": channel,
+                }
+
+                # check that the heatmaps exist
+                # (let's just check the first frame)
+                heatmap_frames_dir = os.path.join(
+                    heatmaps_root_dir,
+                    "frames",
+                    label,
+                    f"{label}_{input_vid_idx}",
+                    channel,
+                )
+                trajectory_frames_dir = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "test", "target_masks", label, f"{label}_{input_vid_idx:06d}")
+                # "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/test/target_masks/circle/circle_000000"
+
+                sample_heatmap_frame_path = os.path.join(
+                    heatmap_frames_dir,
+                    f"{label}_{input_vid_idx}_{channel}_000000.jpg",
+
+                )
+                print("path_to_heatmap_frame", sample_heatmap_frame_path)
+                # TODO decide if it should be a fatal error or just a warning if it doesn't exist? 
+                assert os.path.exists(
+                    sample_heatmap_frame_path,
+                    f"could not find heatmaps for {label} {input_vid_idx} {channel} channel; cannot compute metrics if heatmaps do not exist",
+                )
+
+                # Compute metrics over the heatmap
+                metric_results = heatmap_metrics(
+                    heatmap_dir=heatmap_frames_dir, 
+                    trajectory_dir=trajectory_frames_dir, 
+                    metrics=metrics, 
+                    thresh=0.2)
+                
+                # merge the metric_results dictionary with the video details and experiment information 
+                # TODO 
 
         # TODO maybe create a new meter (MetricsMeter or smth instead of TestMeter) to log results to
         # then define a helper function thats takes a TestMeter and MetricsMeter and combines results ?
