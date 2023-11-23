@@ -225,8 +225,11 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     # }
 
     metrics = cfg.METRICS.FUNCS # TODO check configs from nikki 
+    nonlocal_location = np.array(cfg.NONLOCAL.LOCATION, dtype = "object")
+    nonlocal_location = nonlocal_location.flatten("F")
+    non_empty_elems = [x for x in nonlocal_location if len(x) != 0]
 
-    if cfg.NONLOCAL.LOCATION == [[[]], [[1, 3]], [[1, 3, 5]], [[]]]:
+    if len(non_empty_elems) != 0:
         is_nonlocal = True
     else:
         is_nonlocal = False
@@ -272,8 +275,15 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
 
             # iterate over each channel (i think we should compute separate statistics for each channel; TODO verify this)
             # @halu: see my slack message for how to access the channel - Nikki
+            if cfg.MODEL.ARCH not in ["slowfast", "i3d"]:
+                raise NotImplementedError("add in logic retrieving channels for this architecture")
+            
+            if len(inputs) == 1:
+                channel_list = ["rgb"]
+            else:
+                channel_list = ["slow", "fast"]
 
-            for channel in []: # TODO figure out where to get channels from 
+            for channel in channel_list:
 
                 heatmap_info = {
                     "input_vid_idx": input_vid_idx,
@@ -474,7 +484,10 @@ def test(cfg):
         writer = None
 
     # # Perform multi-view test on the entire dataset.
-    test_meter = perform_test(test_loader, model, test_meter, cfg, writer)
+    if cfg.METRICS.CALCULATE_METRICS:
+        test_meter = run_heatmap_metrics(test_loader, model, test_meter, cfg, writer)
+    else:
+        test_meter = perform_test(test_loader, model, test_meter, cfg, writer)
     if writer is not None:
         writer.close()
     result_string = (

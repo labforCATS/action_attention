@@ -1120,6 +1120,9 @@ _C.METRICS = CfgNode()
 # metrics to run
 _C.METRICS.FUNCS = []
 
+# whether or not to run metric calculations
+_C.METRICS.CALCULATE_METRICS = True
+
 
 # Add custom config with default values.
 custom_config.add_custom_config(_C)
