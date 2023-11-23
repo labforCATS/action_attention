@@ -16,6 +16,7 @@ import slowfast.utils.logging as logging
 import slowfast.utils.misc as misc
 import slowfast.visualization.tensorboard_vis as tb
 import slowfast.datasets.utils as data_utils
+import pandas as pd
 from slowfast.datasets import loader
 from slowfast.visualization.utils import save_inputs
 from slowfast.models import build_model
@@ -236,11 +237,11 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
 
 
     experiment_params = {
-        "experiment": exp,
-        "model": cfg.MODEL.ARCH,
-        "nonlocal": is_nonlocal,
-        "gradcam_variant": cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
-        "post_softmax": cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX,
+        "experiment": [exp],
+        "model": [cfg.MODEL.ARCH],
+        "nonlocal": [is_nonlocal],
+        "gradcam_variant": [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD],
+        "post_softmax": [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX],
     }
 
     results = {}
@@ -286,11 +287,11 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
             for channel in channel_list:
 
                 heatmap_info = {
-                    "input_vid_idx": input_vid_idx,
-                    "label": label,
-                    "pred": pred,
-                    "correct": (pred == label),
-                    "channel": channel,
+                    "input_vid_idx": [input_vid_idx],
+                    "label": [label],
+                    "pred": [pred],
+                    "correct": [(pred == label)],
+                    "channel": [channel],
                 }
 
                 # check that the heatmaps exist
@@ -312,10 +313,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 )
                 print("path_to_heatmap_frame", sample_heatmap_frame_path)
                 # TODO decide if it should be a fatal error or just a warning if it doesn't exist? 
-                assert os.path.exists(
-                    sample_heatmap_frame_path,
-                    f"could not find heatmaps for {label} {input_vid_idx} {channel} channel; cannot compute metrics if heatmaps do not exist",
-                )
+                assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps for {label} {input_vid_idx} {channel} channel; cannot compute metrics if heatmaps do not exist"
+                
 
                 # Compute metrics over the heatmap
                 metric_results = heatmap_metrics(
@@ -326,6 +325,9 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 
                 # merge the metric_results dictionary with the video details and experiment information 
                 # TODO 
+                heatmap_info.update(metric_results)
+                heatmap_info.update(experiment_params)
+                results[input_vid_idx]
 
         # TODO maybe create a new meter (MetricsMeter or smth instead of TestMeter) to log results to
         # then define a helper function thats takes a TestMeter and MetricsMeter and combines results ?
