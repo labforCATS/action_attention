@@ -560,7 +560,7 @@ def generate_all_configs():
                     }
 
                     test_params = {
-                        "ENABLE": True,
+                        "ENABLE": False,
                         "DATASET": "SyntheticMotion",
                         "BATCH_SIZE": 1,
                         "NUM_ENSEMBLE_VIEWS": 1,
@@ -622,7 +622,8 @@ def generate_all_configs():
                     }
 
                     metric_params = {
-                        "FUNCS": ["kl_div", "mse", "covariance", "pearson", "iou"]
+                        "FUNCS": ["kl_div", "mse", "covariance", "pearson", "iou"],
+                        "ENABLE": True,
                     }
 
                     # combine all the params in a single dictionary

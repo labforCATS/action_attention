@@ -326,7 +326,8 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
             maximum value in the heatmap at which the heatmap will be binarized
 
     Returns:
-        dictionary containing the metric names and values 
+        dictionary containing the metric names and values, where the value is
+        a single element list
     """
     assert set(metrics).issubset(set(METRIC_FUNCS))
 
@@ -360,6 +361,6 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
         else:
             raise NotImplementedError("Unrecognized metric; implement metric and add logic")
         
-        metric_results[metric_name] = result
+        metric_results[metric_name] = [result]
 
     return metric_results

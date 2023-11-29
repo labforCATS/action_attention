@@ -9,6 +9,7 @@ import torch
 import pdb
 import cv2
 import json
+import copy
 
 import slowfast.utils.checkpoint as cu
 import slowfast.utils.distributed as du
@@ -207,6 +208,11 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     # get details of the experiment, including experiment number and nonlocal
     exp, experiment_root_dir = get_exp_and_root_dir(cfg.DATA.PATH_TO_DATA_DIR)
 
+    print("heatmaps root directory:", heatmaps_root_dir)
+    print("input json path:", input_json_path)
+    print("experiment:", exp)
+    pdb.set_trace()
+
     # Enable eval mode.
     model.eval()
     test_meter.iter_tic()
@@ -235,6 +241,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     else:
         is_nonlocal = False
 
+    print(is_nonlocal)
+    pdb.set_trace()
 
     experiment_params = {
         "experiment": [exp],
@@ -243,7 +251,11 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         "gradcam_variant": [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD],
         "post_softmax": [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX],
     }
+    
+    print(experiment_params)
+    pdb.set_trace()
 
+    
     results = {}
 
     for cur_iter, (inputs, labels, video_ids, time, meta) in enumerate(test_loader):
@@ -283,14 +295,15 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 channel_list = ["rgb"]
             else:
                 channel_list = ["slow", "fast"]
-
+            label_val = label.item()
             for channel in channel_list:
-
+                pdb.set_trace()
+                
                 heatmap_info = {
                     "input_vid_idx": [input_vid_idx],
-                    "label": [label],
+                    "label": [label_val],
                     "pred": [pred],
-                    "correct": [(pred == label)],
+                    "correct": [(pred == label_val)],
                     "channel": [channel],
                 }
 
@@ -299,21 +312,24 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 heatmap_frames_dir = os.path.join(
                     heatmaps_root_dir,
                     "frames",
-                    label,
-                    f"{label}_{input_vid_idx}",
+                    f"{label_val}",
+                    f"{label_val}_{input_vid_idx}",
                     channel,
                 )
-                trajectory_frames_dir = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "test", "target_masks", label, f"{label}_{input_vid_idx:06d}")
+                pdb.set_trace()
+                trajectory_frames_dir = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "test", "target_masks", f"{label_val}", f"{label}_{input_vid_idx:06d}")
                 # "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/test/target_masks/circle/circle_000000"
+                pdb.set_trace()
 
                 sample_heatmap_frame_path = os.path.join(
                     heatmap_frames_dir,
-                    f"{label}_{input_vid_idx}_{channel}_000000.jpg",
+                    f"{label_val}_{input_vid_idx}_{channel}_000000.jpg",
 
                 )
+                pdb.set_trace()
                 print("path_to_heatmap_frame", sample_heatmap_frame_path)
                 # TODO decide if it should be a fatal error or just a warning if it doesn't exist? 
-                assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps for {label} {input_vid_idx} {channel} channel; cannot compute metrics if heatmaps do not exist"
+                assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps for {label_val} {input_vid_idx} {channel} channel; cannot compute metrics if heatmaps do not exist"
                 
 
                 # Compute metrics over the heatmap
@@ -323,11 +339,20 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                     metrics=metrics, 
                     thresh=0.2)
                 
-                # merge the metric_results dictionary with the video details and experiment information 
-                # TODO 
-                heatmap_info.update(metric_results)
-                heatmap_info.update(experiment_params)
-                results[input_vid_idx]
+
+                # create dictionary to merge the other dictionaries together
+                curr_results = {}
+                curr_results.update(metric_results)
+                curr_results.update(experiment_params)
+                curr_results.update(heatmap_info)
+                # handle storage of results for multi-channel architectures, where the different
+                # channels will have different results
+                if input_vid_idx in results:
+                    for key, value in curr_results.items():
+                        results[input_vid_idx][key].append(value)
+                else:
+                    results[input_vid_idx] = copy.deepcopy(curr_results)
+                print("added results to results, lol")
 
         # TODO maybe create a new meter (MetricsMeter or smth instead of TestMeter) to log results to
         # then define a helper function thats takes a TestMeter and MetricsMeter and combines results ?
@@ -376,6 +401,11 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         test_meter.log_iter_stats(cur_iter)
 
         test_meter.iter_tic()
+
+    # TODO: may run into issues if any video index overwriting happens, want it to enum the entries
+    results_dataframe = pd.DataFrame.from_dict(results)
+    output_path = os.path.join(cfg.OUTPUT_DIR, "metric_results.csv")
+    results_dataframe.to_csv(output_path)
 
     # Log epoch stats and print the final testing results.
     if not cfg.DETECTION.ENABLE:
@@ -486,7 +516,7 @@ def test(cfg):
         writer = None
 
     # # Perform multi-view test on the entire dataset.
-    if cfg.METRICS.CALCULATE_METRICS:
+    if cfg.METRICS.ENABLE:
         test_meter = run_heatmap_metrics(test_loader, model, test_meter, cfg, writer)
     else:
         test_meter = perform_test(test_loader, model, test_meter, cfg, writer)

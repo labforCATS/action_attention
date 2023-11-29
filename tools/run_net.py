@@ -40,6 +40,14 @@ def main():
             print("Testing complete, runtime was", datetime.now() - start)
         else:
             print("no test")
+        
+        if cfg.METRICS.ENABLE:
+            print("Starting metric calculations")
+            start = datetime.now()
+            launch_job(cfg=cfg, init_method=args.init_method, func=test)
+            print("Metric calculations complete, runtime was", datetime.now() - start)
+        else:
+            print("no metric calculation")
         # Perform model visualization.
         if cfg.TENSORBOARD.ENABLE and (
             cfg.TENSORBOARD.MODEL_VIS.ENABLE
