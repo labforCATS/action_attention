@@ -57,7 +57,7 @@ def get_exp_and_root_dir(sub_dir):
 
 
 
-def reformat_output_dirs(outputs_dir):
+def reformat_output_dirs(outputs_dir, override=False):
     """Reformats the output files so that they are sorted by class and
     reindexed to match their input video index.
 
@@ -72,12 +72,16 @@ def reformat_output_dirs(outputs_dir):
             "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/slowfast_output/heatmaps/grad_cam/pre_softmax/3d_volumes"
             "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/slowfast_output/heatmaps/grad_cam/pre_softmax/heatmap_overlay/frames"
             "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/slowfast_output/heatmaps/grad_cam/pre_softmax/heatmap_overlay/videos"
+        override (bool): whether or not to delete existing class folders, if 
+            they exist
     """
-    temp_split_paths = outputs_dir.split("experiment_")
-    experiment_root_dir = (
-        temp_split_paths[0] + "experiment_" + temp_split_paths[1][0]
-    )
-    print(experiment_root_dir)
+    # temp_split_paths = outputs_dir.split("experiment_")
+    exp, experiment_root_dir = get_exp_and_root_dir(outputs_dir)
+    # experiment_root_dir = (
+    #     temp_split_paths[0] + "experiment_" + temp_split_paths[1][0]
+    # )
+    # print(experiment_root_dir)
+    # here if it was exp 5b, it wouldbe accidentally set the experiment root dir to 5 
     input_json_path = os.path.join(
         experiment_root_dir, "synthetic_motion_test.json"
     )
@@ -90,6 +94,15 @@ def reformat_output_dirs(outputs_dir):
 
     last_folder = os.path.basename(outputs_dir)
     second_last_folder = os.path.basename(os.path.dirname(outputs_dir))
+
+    # if the target classes folder already exist, manually clear all of them 
+    if override:
+        print('overriding, clearing previous reformatted class folders')
+        for class_name in class_names:
+            class_dir = os.path.join(outputs_dir, class_name)
+            if os.path.exists(class_dir):
+                shutil.rmtree(class_dir)
+
 
     # iterate over all items in the outputs_dir, move into corresponding target class dir, and rename all downstream files so they use the input vid idx
     for fname in sorted(os.listdir(outputs_dir)):
@@ -176,7 +189,7 @@ def reformat_output_dirs(outputs_dir):
                 raise NotImplementedError
 
 
-def run_reformat_output_dirs(cfg):
+def run_reformat_output_dirs(cfg, override=False):
     # check all the places where outputs are saved (e.g. heatmap volumes,
     # frames, overlays), and reformat their outputs
     heatmaps_root_dir = os.path.join(
@@ -194,12 +207,12 @@ def run_reformat_output_dirs(cfg):
         heatmaps_root_dir,
         "frames",
     )
-    reformat_output_dirs(heatmaps_frames_root_dir)
+    reformat_output_dirs(heatmaps_frames_root_dir, override)
 
     # heatmap 3d volumes are always automatically saved
     print("reformatting heatmap 3d volumes")
     heatmap_volume_root_dir = os.path.join(heatmaps_root_dir, "3d_volumes")
-    reformat_output_dirs(heatmap_volume_root_dir)
+    reformat_output_dirs(heatmap_volume_root_dir, override)
 
     # check if overlay videos and frames are saved
     if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO:
@@ -209,13 +222,13 @@ def run_reformat_output_dirs(cfg):
             "heatmap_overlay",
             "frames",
         )
-        reformat_output_dirs(heatmap_overlay_frames_root_dir)
+        reformat_output_dirs(heatmap_overlay_frames_root_dir, override)
         heatmap_overlay_video_root_dir = os.path.join(
             heatmaps_root_dir,
             "heatmap_overlay",
             "videos",
         )
-        reformat_output_dirs(heatmap_overlay_video_root_dir)
+        reformat_output_dirs(heatmap_overlay_video_root_dir, override)
 
 
 def run_reformat_all_outputs():
@@ -231,4 +244,19 @@ def run_reformat_all_outputs():
                 print(f"reformatting for: {cfg_name}")
                 cfg_path = os.path.join(configs_dir, cfg_name)
                 cfg = load_config(args=None, path_to_config=cfg_path)
-                run_reformat_output_dirs(cfg)
+                run_reformat_output_dirs(cfg, override=False)
+
+def run_reformat_5_5b():
+    root_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments/"
+
+    # iterate over all experiments
+    for exp in ["5b", "5"]:
+        # iterate over all configs
+        configs_dir = os.path.join(root_dir, f"experiment_{exp}/configs")
+        for cfg_name in sorted(os.listdir(configs_dir)):
+            # only use the visualization configs
+            if cfg_name.startswith("vis_"):
+                print(f"reformatting for: {cfg_name}")
+                cfg_path = os.path.join(configs_dir, cfg_name)
+                cfg = load_config(args=None, path_to_config=cfg_path)
+                run_reformat_output_dirs(cfg, override=True)
