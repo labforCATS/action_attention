@@ -33,21 +33,13 @@ def main():
         else:
             print("No training")
         # Perform multi-clip testing.
-        if cfg.TEST.ENABLE:
-            print("Starting testing")
+        if cfg.TEST.ENABLE or cfg.METRICS.ENABLE:
+            print("Starting testing or metrics computation")
             start = datetime.now()
             launch_job(cfg=cfg, init_method=args.init_method, func=test)
-            print("Testing complete, runtime was", datetime.now() - start)
+            print("Testing or metrics complete, runtime was", datetime.now() - start)
         else:
-            print("no test")
-        
-        if cfg.METRICS.ENABLE:
-            print("Starting metric calculations")
-            start = datetime.now()
-            launch_job(cfg=cfg, init_method=args.init_method, func=test)
-            print("Metric calculations complete, runtime was", datetime.now() - start)
-        else:
-            print("no metric calculation")
+            print("no testing or metrics")
         # Perform model visualization.
         if cfg.TENSORBOARD.ENABLE and (
             cfg.TENSORBOARD.MODEL_VIS.ENABLE

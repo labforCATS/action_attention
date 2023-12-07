@@ -24,7 +24,7 @@ from slowfast.models import build_model
 from slowfast.utils.env import pathmgr
 from slowfast.utils.meters import AVAMeter, TestMeter
 from slowfast.utils.metrics import heatmap_metrics
-from scripts import output_idx_to_input, get_exp_and_root_dir
+from scripts import output_idx_to_input, get_exp_and_root_dir, class_int_to_string
 
 
 logger = logging.get_logger(__name__)
@@ -185,8 +185,6 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     Args:
         test_loader (loader): video testing loader.
         model (model): the pretrained video model to test.
-        test_meter (TestMeter): testing meters to log and ensemble the testing
-            results.
         cfg (CfgNode): configs. Details can be found in
             slowfast/config/defaults.py
         writer (TensorboardWriter object, optional): TensorboardWriter object
@@ -204,6 +202,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     input_json_path = os.path.join(
         cfg.DATA.PATH_TO_DATA_DIR, "synthetic_motion_test.json"
     )
+    label_json_path = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "synthetic_motion_labels.json")
 
     # get details of the experiment, including experiment number and nonlocal
     exp, experiment_root_dir = get_exp_and_root_dir(cfg.DATA.PATH_TO_DATA_DIR)
@@ -211,52 +210,53 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     print("heatmaps root directory:", heatmaps_root_dir)
     print("input json path:", input_json_path)
     print("experiment:", exp)
-    pdb.set_trace()
 
     # Enable eval mode.
     model.eval()
-    test_meter.iter_tic()
+    # test_meter.iter_tic()
 
-    # Create results dictionary (which will later be converted to a dataframe
-    # and exported to csv)
-    # the keys will be the output video index (just because it is unique so it's convenient for indexing)
-    # the value will be another dictionary with the following format
-    # {
-    #     "input_vid_idx": input_vid_idx,
-    #     "label": label,
-    #     "pred": pred,
-    #     "correct": pred == label,
-    #     "iou": iou,
-    #     "kl_div": kl_div,
-    #     ...and more metrics as desired, etc.
-    # }
+    # get experiment properties 
+    metrics = cfg.METRICS.FUNCS
 
-    metrics = cfg.METRICS.FUNCS # TODO check configs from nikki 
     nonlocal_location = np.array(cfg.NONLOCAL.LOCATION, dtype = "object")
     nonlocal_location = nonlocal_location.flatten("F")
-    non_empty_elems = [x for x in nonlocal_location if len(x) != 0]
+    non_empty_elems = [x for x in nonlocal_location if len(x) != 0] 
+    # TODO ^ is this able to handle nested lists of arbitrary depth? 
+    print("cfg.NONLOCAL.LOCATION", cfg.NONLOCAL.LOCATION)
+    print("nonlocal_location after flatten", nonlocal_location)
+    print("non_empty_elems", non_empty_elems)
 
     if len(non_empty_elems) != 0:
         is_nonlocal = True
     else:
         is_nonlocal = False
 
-    print(is_nonlocal)
-    pdb.set_trace()
 
-    experiment_params = {
-        "experiment": [exp],
-        "model": [cfg.MODEL.ARCH],
-        "nonlocal": [is_nonlocal],
-        "gradcam_variant": [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD],
-        "post_softmax": [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX],
+    # Create results dictionary (which will later be converted to a dataframe
+    # and exported to csv)
+    # the keys will be the various properties, e.g. video index, label, experiment parameters, etc. and the values are lists, where the ith value of each list corresponds to the ith video we iterate over, aka the ith row in the dataframe after we convert it 
+    dataset_size = len(test_loader.dataset)
+    data_dict = {
+        # experiment params are the same for all videos in the dataset 
+        "experiment": [exp] * dataset_size, 
+        "model": [cfg.MODEL.ARCH] * dataset_size,
+        "nonlocal": [is_nonlocal] * dataset_size,
+        "gradcam_variant": (
+            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD] * dataset_size),
+        "post_softmax": (
+            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX] * dataset_size
+        ),
+        # video features
+        "input_vid_idx": [],
+        "channel": [],
+        "label": [],
+        "label_numeric": [],
+        "pred": [],
+        "pred_numeric": [],
+        "correct": [],
     }
-    
-    print(experiment_params)
-    pdb.set_trace()
-
-    
-    results = {}
+    for metric in metrics:
+        data_dict[metric] = []
 
     for cur_iter, (inputs, labels, video_ids, time, meta) in enumerate(test_loader):
         if cfg.NUM_GPUS:
@@ -275,7 +275,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                         val[i] = val[i].cuda(non_blocking=True)
                 else:
                     meta[key] = val.cuda(non_blocking=True)
-        test_meter.data_toc()
+        # test_meter.data_toc()
 
         # Perform the forward pass.
         preds = model(inputs)
@@ -284,10 +284,14 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         # iterate over each video in the batch
         for label, pred, output_vid_idx in zip(labels, preds, video_ids):
             # retrieve the input vid index
-            _, input_vid_idx = output_idx_to_input(input_json_path, output_vid_idx)
+            target_class, input_vid_idx = output_idx_to_input(input_json_path, output_vid_idx)
 
-            # iterate over each channel (i think we should compute separate statistics for each channel; TODO verify this)
-            # @halu: see my slack message for how to access the channel - Nikki
+            # other option instead of using target_class is to convert the label (which is the integer encoding of the class) to the string. but that's annoying 
+
+            # get the actual prediction (preds has the cross entropy scores for all classes) 
+            pred_numeric = torch.flatten(torch.argmax(pred, dim=-1)).item()
+            pred_class = class_int_to_string(pred_numeric, label_json_path)
+
             if cfg.MODEL.ARCH not in ["slowfast", "i3d"]:
                 raise NotImplementedError("add in logic retrieving channels for this architecture")
             
@@ -295,41 +299,42 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 channel_list = ["rgb"]
             else:
                 channel_list = ["slow", "fast"]
-            label_val = label.item()
+
+            label_numeric = label.item()
             for channel in channel_list:
-                pdb.set_trace()
                 
-                heatmap_info = {
-                    "input_vid_idx": [input_vid_idx],
-                    "label": [label_val],
-                    "pred": [pred],
-                    "correct": [(pred == label_val)],
-                    "channel": [channel],
-                }
+                # heatmap_info = {
+                #     "input_vid_idx": [input_vid_idx],
+                #     "label": [label_val],
+                #     "pred": [pred],
+                #     "correct": [(pred == label_val)],
+                #     "channel": [channel],
+                # }
 
                 # check that the heatmaps exist
                 # (let's just check the first frame)
                 heatmap_frames_dir = os.path.join(
                     heatmaps_root_dir,
                     "frames",
-                    f"{label_val}",
-                    f"{label_val}_{input_vid_idx}",
+                    f"{target_class}",
+                    f"{target_class}_{input_vid_idx:06d}",
                     channel,
                 )
-                pdb.set_trace()
-                trajectory_frames_dir = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "test", "target_masks", f"{label_val}", f"{label}_{input_vid_idx:06d}")
+                trajectory_frames_dir = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "test", "target_masks", f"{target_class}", f"{target_class}_{input_vid_idx:06d}")
                 # "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/test/target_masks/circle/circle_000000"
-                pdb.set_trace()
+                # "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/i3d_output/heatmaps/eigen_cam/post_softmax/frames/circle/circle_000000/rgb/circle_000000_rgb_000001.jpg"
 
                 sample_heatmap_frame_path = os.path.join(
                     heatmap_frames_dir,
-                    f"{label_val}_{input_vid_idx}_{channel}_000000.jpg",
+                    f"{target_class}_{input_vid_idx:06d}_{channel}_000001.jpg",
 
                 )
-                pdb.set_trace()
-                print("path_to_heatmap_frame", sample_heatmap_frame_path)
+                # print(heatmap_frames_dir)
+                # print(sample_heatmap_frame_path)
+                # pdb.set_trace()
+
                 # TODO decide if it should be a fatal error or just a warning if it doesn't exist? 
-                assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps for {label_val} {input_vid_idx} {channel} channel; cannot compute metrics if heatmaps do not exist"
+                assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps {sample_heatmap_frame_path}; cannot compute metrics if heatmaps do not exist"
                 
 
                 # Compute metrics over the heatmap
@@ -339,104 +344,60 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                     metrics=metrics, 
                     thresh=0.2)
                 
+                # update video features in the data dictionary 
+                data_dict["input_vid_idx"].append(input_vid_idx)
+                data_dict["channel"].append(channel)
+                data_dict["label"].append(target_class)
+                data_dict["pred"].append(pred_class)
+                data_dict["label_numeric"].append(label_numeric)
+                data_dict["pred_numeric"].append(pred_numeric)
+                data_dict["correct"].append((label_numeric == pred_numeric))
 
-                # create dictionary to merge the other dictionaries together
-                curr_results = {}
-                curr_results.update(metric_results)
-                curr_results.update(experiment_params)
-                curr_results.update(heatmap_info)
-                # handle storage of results for multi-channel architectures, where the different
-                # channels will have different results
-                if input_vid_idx in results:
-                    for key, value in curr_results.items():
-                        results[input_vid_idx][key].append(value)
-                else:
-                    results[input_vid_idx] = copy.deepcopy(curr_results)
-                print("added results to results, lol")
+                # update metric results in the data dictionary
+                for metric in metrics:
+                    data_dict[metric].append(metric_results[metric])
 
-        # TODO maybe create a new meter (MetricsMeter or smth instead of TestMeter) to log results to
-        # then define a helper function thats takes a TestMeter and MetricsMeter and combines results ?
-        # actually i dont even think the test meter tracks predictions for indiv videos does it
-        # also, the meters log to json, but it's must easier to work with dataframes as they have columns and easier row/col manipulation
-        # the rest of the function below was simply copy pasted from perform_test() and has not been modified yet to do the desired metrics evaluation
+                # print(data_dict)
+                # pdb.set_trace()
+                # # create dictionary to merge the other dictionaries together
+                # curr_results = {}
+                # curr_results.update(metric_results)
+                # curr_results.update(experiment_params)
+                # curr_results.update(heatmap_info)
+                # # handle storage of results for multi-channel architectures, where the different
+                # # channels will have different results
+                # if input_vid_idx in results:
+                #     for key, value in curr_results.items():
+                #         results[input_vid_idx][key].append(value)
+                # else:
+                #     results[input_vid_idx] = copy.deepcopy(curr_results)
 
-        # pseudocode for the rest of this function:
-        # somewhere at the start (prob top of function), check that the heatmaps actually exist for the particular experiment, otherwise raise an error
-        # retrieve labels, predictions, and video indices for all test data
-        # convert the output video index to the corresponding input index (use helper function from tools/scripts.py) (we already know the label class)
-        # create dictionary
-        # have the key be maybe the output video index (just for indexing purposes) and let the value be another dictionary with the data
-        # {
-        #     "vid_idx": input vid idx,
-        #     "label": label,
-        #     "pred": pred,
-        # }
-        # the reason why we want a dictionary is so that we can later easily convert the whole thing into a pd dataframe *after* we add all the metric values. if we create the dataframe first, it's really annoying to append to a dataframe
-        # add a column that indicates if prediction is right or wrong
-        # retrieve the list of metrics to compute from the config (also need to set up the structure and defaults for this)
-        # iterate over the metrics
-        # create a temporary container to
-        # iterate over all the classes
-        # iterate over all videos in the class
-        # retrieve heatmap
-        # call bog boy metrics helper
-        # which will call the metrics func and compute the values
-        # get the metric value and add an entry to the dictionary
-        # e.g. data_dict[output vid idx]["metric name"] = metric result
-        # convert the whole dict into a dataframe
-        # export dataframe as csv, saved to a location specified by the config or some reasonable default location based on the output_dir given in config)
-        # do processing of the data to see if there are any trends in the metrics results (perhaps in a separate exploratory notebook)
 
-        # Gather all the predictions across all the devices to perform ensemble.
-        if cfg.NUM_GPUS > 1:
-            preds, labels, video_ids = du.all_gather([preds, labels, video_ids])
-        if cfg.NUM_GPUS:
-            preds = preds.cpu()
-            labels = labels.cpu()
-            video_ids = video_ids.cpu()
+        # # Gather all the predictions across all the devices to perform ensemble.
+        # if cfg.NUM_GPUS > 1:
+        #     preds, labels, video_ids = du.all_gather([preds, labels, video_ids])
+        # if cfg.NUM_GPUS:
+        #     preds = preds.cpu()
+        #     labels = labels.cpu()
+        #     video_ids = video_ids.cpu()
 
-        test_meter.iter_toc()
-        # Update and log stats.
-        test_meter.update_stats(preds.detach(), labels.detach(), video_ids.detach())
-        test_meter.log_iter_stats(cur_iter)
+        # test_meter.iter_toc()
+        # # Update and log stats.
+        # test_meter.update_stats(preds.detach(), labels.detach(), video_ids.detach())
+        # test_meter.log_iter_stats(cur_iter)
 
-        test_meter.iter_tic()
+        # test_meter.iter_tic()
 
     # TODO: may run into issues if any video index overwriting happens, want it to enum the entries
-    results_dataframe = pd.DataFrame.from_dict(results)
+    print(data_dict)
+    pdb.set_trace()
+
+    results_dataframe = pd.DataFrame.from_dict(data_dict)
     output_path = os.path.join(cfg.OUTPUT_DIR, "metric_results.csv")
     results_dataframe.to_csv(output_path)
 
-    # Log epoch stats and print the final testing results.
-    if not cfg.DETECTION.ENABLE:
-        all_preds = test_meter.video_preds.clone().detach()
-        all_labels = test_meter.video_labels
-        if cfg.NUM_GPUS:
-            all_preds = all_preds.cpu()
-            all_labels = all_labels.cpu()
-            new_preds = list(all_preds)
-            predictions = []
-            for pred in range(len(new_preds)):
-                new_preds[pred] = list(new_preds[pred])
-                num = max(new_preds[pred])
-                p = new_preds[pred].index(num)
-                predictions += [p]
-            #     for p in range(len(new_preds[pred])):
-            #         new_preds[pred][p] = float(new_preds[pred][p] - num)
-        if writer is not None:
-            writer.plot_eval(preds=all_preds, labels=all_labels)
+    # TODO log testing stats e.g. accuracy - figure out a nice way to do this 
 
-        if cfg.TEST.SAVE_RESULTS_PATH != "":
-            save_path = os.path.join(cfg.OUTPUT_DIR, cfg.TEST.SAVE_RESULTS_PATH)
-
-            if du.is_root_proc():
-                with pathmgr.open(save_path, "wb") as f:
-                    pickle.dump([all_preds, all_labels], f)
-
-            logger.info("Successfully saved prediction results to {}".format(save_path))
-
-    test_meter.finalize_metrics()
-    return test_meter
 
 
 def test(cfg):
@@ -515,10 +476,11 @@ def test(cfg):
     else:
         writer = None
 
-    # # Perform multi-view test on the entire dataset.
     if cfg.METRICS.ENABLE:
         test_meter = run_heatmap_metrics(test_loader, model, test_meter, cfg, writer)
-    else:
+
+    # Perform multi-view test on the entire dataset.
+    if cfg.TEST.ENABLE: 
         test_meter = perform_test(test_loader, model, test_meter, cfg, writer)
     if writer is not None:
         writer.close()

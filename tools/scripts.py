@@ -5,6 +5,19 @@ import json
 import shutil
 import pdb
 
+def class_int_to_string(class_int, labels_json_path):
+    """ Convert numeric encoding of a class label to the string. """
+    with open(labels_json_path, "r") as f:
+        labels_json = json.load(f) 
+        
+    # the key is the string name while the value is the int encoding, so we can't do a normal lookup, we have to iterate over all the items until we find the specified int. we also want all the values to be unique
+    assert len(set(labels_json.values())) == len(labels_json), "integer encodings in the labels json are not unique"
+        
+    for key, value in labels_json.items():
+        if value == class_int:
+            return key 
+    raise ValueError(f"No corresponding class name for the numeric encoding provided: {class_int}")
+
 
 def output_idx_to_input(input_json_path, output_vid_idx):
     """Given the index for an output data, return the target class and index

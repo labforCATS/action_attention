@@ -16,7 +16,13 @@ from slowfast.visualization.connected_components_utils import (
 )
 
 # placeholder
-METRIC_FUNCS = []
+METRIC_FUNCS = [
+    "kl_div",
+    "mse",
+    "covariance",
+    "pearson",
+    "iou",
+]
 
 def topks_correct(preds, labels, ks):
     """
@@ -304,10 +310,10 @@ def pearson_correlation(target_volume, heatmap_volume):
     Returns:
         floating point representing pixelwise pearson correlation
     """
-    covariance = covariance(target_volume, heatmap_volume)
+    cov = covariance(target_volume, heatmap_volume)
     target_std = np.std(target_volume)
     heatmap_std = np.std(heatmap_volume)
-    pearson = covariance / (target_std * heatmap_std)
+    pearson = cov / (target_std * heatmap_std)
     return pearson
 
 
@@ -361,6 +367,6 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
         else:
             raise NotImplementedError("Unrecognized metric; implement metric and add logic")
         
-        metric_results[metric_name] = [result]
+        metric_results[metric_name] = result
 
     return metric_results
