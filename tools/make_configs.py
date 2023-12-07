@@ -74,6 +74,8 @@ def generate_all_configs():
     pre_trained_i3d = "/research/cwloka/data/action_attn/synthetic_motion_experiments/pretrained_weights/I3D_8x8_R50.pkl"
     pre_trained_i3d_nln = "/research/cwloka/data/action_attn/synthetic_motion_experiments/pretrained_weights/I3D_NLN_8x8_R50.pkl"
 
+    csv_output_path = "/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results/full_results.csv"
+
     # dictionary of config file information for each of the networks
     model_dicts = {
         "slowfast": {
@@ -577,7 +579,7 @@ def generate_all_configs():
                         "INPUT_CHANNEL_NUM": model_params["input_channel_num"],
                     }
                     tensorboard_params = {
-                        "ENABLE": True,
+                        "ENABLE": False,
                         "CLASS_NAMES_PATH": f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}/synthetic_motion_labels.json",
                         "MODEL_VIS": {
                             "ENABLE": False,
@@ -624,6 +626,7 @@ def generate_all_configs():
                     metric_params = {
                         "FUNCS": ["kl_div", "mse", "covariance", "pearson", "iou"],
                         "ENABLE": True,
+                        "CSV_PATH": csv_output_path
                     }
 
                     # combine all the params in a single dictionary

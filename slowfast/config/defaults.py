@@ -1123,6 +1123,9 @@ _C.METRICS.FUNCS = []
 # whether or not to run metric calculations
 _C.METRICS.ENABLE = True
 
+# (added 12/7) path to save the csv results to
+_C.METRICS.CSV_PATH = ""
+
 
 # Add custom config with default values.
 custom_config.add_custom_config(_C)
