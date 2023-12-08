@@ -17,6 +17,7 @@ from slowfast.utils.env import pathmgr
 from datetime import datetime
 import pdb
 
+logging.getLogger('PIL').setLevel(logging.WARNING)
 
 def _suppress_print():
     """
