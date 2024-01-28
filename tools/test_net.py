@@ -257,8 +257,9 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     }
     for metric in metrics:
         data_dict[metric] = []
-
+    print("beginning iterations through testing loader")
     for cur_iter, (inputs, labels, video_ids, time, meta) in enumerate(test_loader):
+        print("current iteration", cur_iter)
         if cfg.NUM_GPUS:
             # Transfer the data to the current GPU device.
             if isinstance(inputs, (list,)):
@@ -338,6 +339,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 
 
                 # Compute metrics over the heatmap
+                # pdb.set_trace()
                 metric_results = heatmap_metrics(
                     heatmap_dir=heatmap_frames_dir, 
                     trajectory_dir=trajectory_frames_dir, 
@@ -390,11 +392,14 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
 
     # TODO: may run into issues if any video index overwriting happens, want it to enum the entries
     print(data_dict)
-    pdb.set_trace()
+
 
     results_dataframe = pd.DataFrame.from_dict(data_dict)
-    output_path = os.path.join(cfg.OUTPUT_DIR, "metric_results.csv")
-    results_dataframe.to_csv(output_path)
+    if os.path.exists(cfg.METRICS.CSV_PATH):
+        results_dataframe.to_csv(cfg.METRICS.CSV_PATH, mode='a', index=False, header=False)
+    else:
+        results_dataframe.to_csv(cfg.METRICS.CSV_PATH, index=False)
+
 
     # TODO log testing stats e.g. accuracy - figure out a nice way to do this 
 
@@ -478,25 +483,27 @@ def test(cfg):
 
     if cfg.METRICS.ENABLE:
         test_meter = run_heatmap_metrics(test_loader, model, test_meter, cfg, writer)
+        logger.info("metric calculations done")
+
 
     # Perform multi-view test on the entire dataset.
     if cfg.TEST.ENABLE: 
         test_meter = perform_test(test_loader, model, test_meter, cfg, writer)
-    if writer is not None:
-        writer.close()
-    result_string = (
-        "_a{}{}{} Top1 Acc: {} Top5 Acc: {} MEM: {:.2f} dataset: {}{}"
-        "".format(
-            out_str_prefix,
-            cfg.TEST.DATASET[0],
-            test_meter.stats["top1_acc"],
-            test_meter.stats["top1_acc"],
-            test_meter.stats["top5_acc"],
-            misc.gpu_mem_usage(),
-            cfg.TEST.DATASET[0],
-            cfg.MODEL.NUM_CLASSES,
+        if writer is not None:
+            writer.close()
+        result_string = (
+            "_a{}{}{} Top1 Acc: {} Top5 Acc: {} MEM: {:.2f} dataset: {}{}"
+            "".format(
+                out_str_prefix,
+                cfg.TEST.DATASET[0],
+                test_meter.stats["top1_acc"],
+                test_meter.stats["top1_acc"],
+                test_meter.stats["top5_acc"],
+                misc.gpu_mem_usage(),
+                cfg.TEST.DATASET[0],
+                cfg.MODEL.NUM_CLASSES,
+            )
         )
-    )
-    logger.info("testing done: {}".format(result_string))
+        logger.info("testing done: {}".format(result_string))
 
-    return result_string
+        return result_string

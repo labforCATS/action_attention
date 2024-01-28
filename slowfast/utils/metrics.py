@@ -203,6 +203,8 @@ def KL_div(target_volume, heatmap_volume):
     # convert value of each point into probability
     target_vol = copy.deepcopy(target_volume)
     heatmap_vol = copy.deepcopy(heatmap_volume)
+    if target_vol.shape != heatmap_vol.shape:
+        pdb.set_trace()
     assert target_vol.shape == heatmap_vol.shape
 
     # normalize both arrays
