@@ -367,6 +367,11 @@ def generate_all_configs():
                         "LOSS_FUNC": "cross_entropy",
                         "DROPOUT_RATE": 0.5,
                     }
+                    metric_params = {
+                        "FUNCS": ["kl_div", "mse", "covariance", "pearson", "iou"],
+                        "ENABLE": False,
+                        "CSV_PATH": csv_output_path
+                    }
 
                     # combine all the params in a single dictionary
                     cfg_dict = {
@@ -385,6 +390,7 @@ def generate_all_configs():
                         "NUM_SHARDS": 1,
                         "RNG_SEED": 0,
                         "OUTPUT_DIR": output_dir,
+                        "METRICS": metric_params,
                     }
                     # set up folder to save config files to
                     config_dir = os.path.join(data_dir, "configs")
@@ -564,7 +570,7 @@ def generate_all_configs():
                     test_params = {
                         "ENABLE": False,
                         "DATASET": "SyntheticMotion",
-                        "BATCH_SIZE": 1,
+                        "BATCH_SIZE": 20,
                         "NUM_ENSEMBLE_VIEWS": 1,
                         "NUM_SPATIAL_CROPS": 1,
                         "SAVE_RESULTS_PATH": "test_results.pkl",
