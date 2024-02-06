@@ -236,15 +236,22 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     # and exported to csv)
     # the keys will be the various properties, e.g. video index, label, experiment parameters, etc. and the values are lists, where the ith value of each list corresponds to the ith video we iterate over, aka the ith row in the dataframe after we convert it 
     dataset_size = len(test_loader.dataset)
+    if cfg.MODEL.ARCH == "slowfast":
+        num_channels = 2
+    elif cfg.MODEL.ARCH == "i3d":
+        num_channels = 1
+    else:
+        raise NotImplementedError("add in number of channels for architecture")
+
     data_dict = {
-        # experiment params are the same for all videos in the dataset 
-        "experiment": [exp] * dataset_size, 
-        "model": [cfg.MODEL.ARCH] * dataset_size,
-        "nonlocal": [is_nonlocal] * dataset_size,
+        # experiment params are the same for all videos in the dataset
+        "experiment": [exp] * dataset_size * num_channels, 
+        "model": [cfg.MODEL.ARCH] * dataset_size * num_channels,
+        "nonlocal": [is_nonlocal] * dataset_size * num_channels,
         "gradcam_variant": (
-            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD] * dataset_size),
+            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD] * dataset_size * num_channels),
         "post_softmax": (
-            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX] * dataset_size
+            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX] * dataset_size * num_channels
         ),
         # video features
         "input_vid_idx": [],
@@ -343,7 +350,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                 metric_results = heatmap_metrics(
                     heatmap_dir=heatmap_frames_dir, 
                     trajectory_dir=trajectory_frames_dir, 
-                    metrics=metrics, 
+                    metrics=metrics,
+                    pathway=channel, 
                     thresh=0.2)
                 
                 # update video features in the data dictionary 
@@ -391,9 +399,10 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         # test_meter.iter_tic()
 
     # TODO: may run into issues if any video index overwriting happens, want it to enum the entries
-    print(data_dict)
+    # print(data_dict)
 
-
+    print("check the length of the results dataframe, make sure all entries have same length")
+    pdb.set_trace()
     results_dataframe = pd.DataFrame.from_dict(data_dict)
     if os.path.exists(cfg.METRICS.CSV_PATH):
         results_dataframe.to_csv(cfg.METRICS.CSV_PATH, mode='a', index=False, header=False)
