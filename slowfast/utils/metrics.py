@@ -319,7 +319,7 @@ def pearson_correlation(target_volume, heatmap_volume):
     return pearson
 
 
-def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
+def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, pathway, thresh=0.2):
     """Compute the values for a list of given metric functions on a heatmap 
         with its ground-truth trajectory.
 
@@ -330,6 +330,7 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
             masks for the ground truth trajectory
         metrics (str list): list of metric function names. must be a valid 
             element of METRIC_FUNCS
+        pathway (string): indicates input pathway
         thresh (float): float between 0.0 and 1.0 as the percent of the
             maximum value in the heatmap at which the heatmap will be binarized
 
@@ -340,13 +341,24 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
     assert set(metrics).issubset(set(METRIC_FUNCS))
 
     # load ground truth trajectory
-    target_volume = load_heatmaps(
-        trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
-    )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
-
+    if pathway == 'rgb':
+        target_volume = load_heatmaps(
+            trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
+        )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
+    elif pathway == 'slow':
+        # should be 0.16 to get 50 frames to 8
+        target_volume = load_heatmaps(
+            trajectory_dir, t_scale=0.16, s_scale=0.64, mask=True
+        )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
+    elif pathway == 'fast':
+        # tscale fine here
+        target_volume = load_heatmaps(
+            trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
+        )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
+    else:
+        raise NotImplementedError("Add in logic to retrieve the correct target volume")
     # load activation heatmap (heatmap volume)
     heatmap_volume = load_heatmaps(heatmap_dir)  # shape (T, W, H)
-
     # create binarized version of heatmap volume
     max_intensity = heatmap_volume.max()
     binarized_heatmap = copy.deepcopy(heatmap_volume)
@@ -370,5 +382,6 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, thresh=0.2):
             raise NotImplementedError("Unrecognized metric; implement metric and add logic")
         
         metric_results[metric_name] = result
+    # pdb.set_trace()
 
     return metric_results
