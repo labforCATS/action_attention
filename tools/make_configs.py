@@ -7,6 +7,7 @@ import pdb
 import copy
 import json
 import numpy as np
+import argparse
 
 
 def get_best_epoch(output_dir, epochs, eval_period):
@@ -48,7 +49,31 @@ def get_best_epoch(output_dir, epochs, eval_period):
     return best_epoch + 1
 
 
-def generate_all_configs():
+def get_nonzero_epoch(model_name: str, experiment_num: int) -> int:
+    """Get nonzero epoch to pull weights from for visualization
+
+    Args:
+        model_name (str): name of the model, one of "slowfast", "i3d", or "i3d_nln"
+        experiment_num (int): number of experiment, 1-6. Note experiment 5b is experiment 6
+
+    Returns:
+        int: predetermined epoch to pull weights from
+    """
+    assert model_name in ["slowfast", "i3d", "i3d_nln"]
+    assert experiment_num >= 1 and experiment_num <= 6
+
+    specific_epochs = {
+            1 : {"slowfast": 20, "i3d": 50, "i3d_nln": 50},
+            2 : {"slowfast": 10, "i3d": 20, "i3d_nln": 1}, # TODO: nln is a mess here, pick a real epoch
+            3 : {"slowfast": 25, "i3d": 30, "i3d_nln": 50},
+            4 : {"slowfast": 75, "i3d": 80, "i3d_nln": 90},
+            5 : {"slowfast": 80, "i3d": 70, "i3d_nln": 1}, # TODO: same as above
+            6 : {"slowfast": 70, "i3d": 80, "i3d_nln": 90},
+        }
+    
+    return specific_epochs[experiment_num][model_name]
+
+def generate_all_configs(use_specific_epoch: bool = False):
     """
     Generates config files for training, testing, and visualizing for each
     of our experiments. Adds a new subfolder to each of the experiments folders
@@ -175,7 +200,6 @@ def generate_all_configs():
             train_params = {
                 "ENABLE": True,
                 "DATASET": "SyntheticMotion",
-                # TODO: perhaps loop over this variable if we want to also generate configs for shuffler
                 "BATCH_SIZE": 7,
                 "EVAL_PERIOD": 1,
                 "CHECKPOINT_PERIOD": 1,
@@ -279,12 +303,18 @@ def generate_all_configs():
             output_dir = os.path.join(data_dir, f"{model}_output")
             print("model:", model)
             print("experiment:", exp)
-            best_epoch = get_best_epoch(
-                output_dir=output_dir, epochs=100, eval_period=1
-            )
-            best_epoch_path = os.path.join(
+
+            if use_specific_epoch:
+                exp_num = 6 if exp=="5b" else int(exp)
+                epoch = get_nonzero_epoch(model_name=model, experiment_num=exp_num)
+            else:
+                epoch = get_best_epoch(
+                    output_dir=output_dir, epochs=100, eval_period=1
+                )
+
+            epoch_path = os.path.join(
                 output_dir,
-                f"checkpoints/checkpoint_epoch_{best_epoch:05d}.pyth",
+                f"checkpoints/checkpoint_epoch_{epoch:05d}.pyth",
             )
 
             # iterate over gradcam variant
@@ -312,7 +342,7 @@ def generate_all_configs():
                         "BATCH_SIZE": 1,
                         "NUM_ENSEMBLE_VIEWS": 1,
                         "NUM_SPATIAL_CROPS": 1,
-                        "CHECKPOINT_FILE_PATH": best_epoch_path,
+                        "CHECKPOINT_FILE_PATH": epoch_path,
                     }
 
                     data_params = {
@@ -672,4 +702,9 @@ def generate_all_configs():
                         yaml.dump(cfg_dict, f)
                     # train/test/vis, exp num, architecture, grad cam variant, pre-post softmax
 
-    pass
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--use_specific_epochs", help="enable using specific epochs instead of the best performing epoch", action="store_true")
+    args = parser.parse_args()
+
+    generate_all_configs(use_specific_epoch=args.use_specific_epochs)
