@@ -64,10 +64,10 @@ def get_nonzero_epoch(model_name: str, experiment_num: int) -> int:
 
     specific_epochs = {
             1 : {"slowfast": 20, "i3d": 50, "i3d_nln": 50},
-            2 : {"slowfast": 10, "i3d": 20, "i3d_nln": 1}, # TODO: nln is a mess here, pick a real epoch
+            2 : {"slowfast": 10, "i3d": 20, "i3d_nln": 30}, # nln is a mess here, so may need to change
             3 : {"slowfast": 25, "i3d": 30, "i3d_nln": 50},
             4 : {"slowfast": 75, "i3d": 80, "i3d_nln": 90},
-            5 : {"slowfast": 80, "i3d": 70, "i3d_nln": 1}, # TODO: same as above
+            5 : {"slowfast": 80, "i3d": 70, "i3d_nln": 1}, # TODO: nln is a mess here, pick a real epoch
             6 : {"slowfast": 70, "i3d": 80, "i3d_nln": 90},
         }
     
