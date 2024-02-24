@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pdb  
     
-def generate_commands(server, run_train=False, run_vis=False, run_metrics=True):
+def generate_commands(server, run_train=False, run_vis=False, run_metrics=False):
     """
     generate_commands takes in information about the server and processes
     that are to be spawned and returns a string consisting of bash commands
