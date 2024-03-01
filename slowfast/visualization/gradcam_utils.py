@@ -236,10 +236,14 @@ class GradCAM:
             labels=labels,
         )
 
+        isolate_epoch_file = cfg.TEST.CHECKPOINT_FILE_PATH.split("/")[-1]
+        remove_tag = isolate_epoch_file.split(".")
+        epoch_selected = (remove_tag[0].split("_"))[2]
+
         # save heatmaps
         heatmaps_root_dir = os.path.join(
             output_dir,
-            "heatmaps",
+            f"heatmaps_epoch_{epoch_selected}",
             cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
             "post_softmax"
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
