@@ -570,12 +570,17 @@ def generate_all_configs(use_specific_epoch: bool = False):
             output_dir = os.path.join(data_dir, f"{model}_output")
             print("model:", model)
             print("experiment:", exp)
-            best_epoch = get_best_epoch(
-                output_dir=output_dir, epochs=100, eval_period=1
-            )
-            best_epoch_path = os.path.join(
+            if use_specific_epoch:
+                exp_num = 6 if exp=="5b" else int(exp)
+                epoch = get_nonzero_epoch(model_name=model, experiment_num=exp_num)
+            else:
+                epoch = get_best_epoch(
+                    output_dir=output_dir, epochs=100, eval_period=1
+                )
+
+            epoch_path = os.path.join(
                 output_dir,
-                f"checkpoints/checkpoint_epoch_{best_epoch:05d}.pyth",
+                f"checkpoints/checkpoint_epoch_{epoch:05d}.pyth",
             )
 
             # iterate over gradcam variant
@@ -604,6 +609,7 @@ def generate_all_configs(use_specific_epoch: bool = False):
                         "NUM_ENSEMBLE_VIEWS": 1,
                         "NUM_SPATIAL_CROPS": 1,
                         "SAVE_RESULTS_PATH": "test_results.pkl",
+                        "CHECKPOINT_FILE_PATH": epoch_path,
                     }
 
                     data_params = {
