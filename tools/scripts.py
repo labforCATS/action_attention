@@ -205,9 +205,13 @@ def reformat_output_dirs(outputs_dir, override=False):
 def run_reformat_output_dirs(cfg, override=False):
     # check all the places where outputs are saved (e.g. heatmap volumes,
     # frames, overlays), and reformat their outputs
+    isolate_epoch_file = cfg.TEST.CHECKPOINT_FILE_PATH.split("/")[-1]
+    remove_tag = isolate_epoch_file.split(".")
+    epoch_selected = (remove_tag[0].split("_"))[2]
+    
     heatmaps_root_dir = os.path.join(
         cfg.OUTPUT_DIR,
-        "heatmaps",
+        f"heatmaps_epoch_{epoch_selected}",
         cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
         "post_softmax"
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
@@ -257,7 +261,7 @@ def run_reformat_all_outputs():
                 print(f"reformatting for: {cfg_name}")
                 cfg_path = os.path.join(configs_dir, cfg_name)
                 cfg = load_config(args=None, path_to_config=cfg_path)
-                run_reformat_output_dirs(cfg, override=False)
+                run_reformat_output_dirs(cfg, override=True)
 
 def run_reformat_5_5b():
     root_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments/"
