@@ -4,29 +4,29 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-
 def filter_by_exp(dataframe, experiments = [1, 2, 3, 4, 5, "5b"],
                   architectures = ["slowfast", "i3d", "i3d_nln"],
                   metrics = ["kl_div", "iou", "pearson", "mse", "covariance"],
                   gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]):
 
     # make a single plot for each experiment
-    output_folder = "/research/cwloka/projects/nikki_sandbox/action_attention/metric_exploration/plots"
+    output_folder = "/research/cwloka/projects/francine_sandbox/action_attention/metric_exploration/plots"
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
     
     for exp in experiments:
         print(f"experiment: {exp}")
         exp_filtered = dataframe[dataframe['experiment'] == exp]
+
         for metric in metrics:
             print(f"metric: {metric}")
 
             ## try plt.figure
             metric_filtered = exp_filtered[metric]
             
-            fig = plt.hist(exp_filtered[metric], bins=20)
+            fig = plt.hist(exp_filtered[metric], bins=20, log=True)
 
-            plt.xlabel(f"{metric} between GT and actual activation")
+            plt.xlabel(f"{metric} between GT and actual activation (log scale)")
             plt.ylabel("frequency")
             plt.title(f"Experiment {exp}: Distribution of {metric} values")
 
