@@ -191,9 +191,13 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
             to writer Tensorboard log.
     """
     # get the heatmap root dir and json containing the list of test data 
+    isolate_epoch_file = cfg.TEST.CHECKPOINT_FILE_PATH.split("/")[-1]
+    remove_tag = isolate_epoch_file.split(".")
+    epoch_selected = (remove_tag[0].split("_"))[2]
+    
     heatmaps_root_dir = os.path.join(
         cfg.OUTPUT_DIR,
-        "heatmaps",
+        f"heatmaps_epoch_{epoch_selected}",
         cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
         "post_softmax"
         if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
@@ -401,8 +405,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     # TODO: may run into issues if any video index overwriting happens, want it to enum the entries
     # print(data_dict)
 
-    print("check the length of the results dataframe, make sure all entries have same length")
-    pdb.set_trace()
+    # print("check the length of the results dataframe, make sure all entries have same length")
+    # pdb.set_trace()
     results_dataframe = pd.DataFrame.from_dict(data_dict)
     if os.path.exists(cfg.METRICS.CSV_PATH):
         results_dataframe.to_csv(cfg.METRICS.CSV_PATH, mode='a', index=False, header=False)
