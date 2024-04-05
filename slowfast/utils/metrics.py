@@ -24,6 +24,7 @@ METRIC_FUNCS = [
     "iou",
 ]
 
+
 def topks_correct(preds, labels, ks):
     """
     Given the predictions, labels, and a list of top-k values, compute the
@@ -118,6 +119,10 @@ def IOU_3D(target_volume, heatmap_volume):
     # compute IOU
     iou = intersect / union
     return iou
+
+
+def IOU_frame(target_frame, heatmap_frame) -> float:
+    pass
 
 
 def convert_to_prob_dist(target_volume, heatmap_volume):
@@ -320,7 +325,7 @@ def pearson_correlation(target_volume, heatmap_volume):
 
 
 def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, pathway, thresh=0.2):
-    """Compute the values for a list of given metric functions on a heatmap 
+    """Compute the values for a list of given metric functions on a heatmap
         with its ground-truth trajectory.
 
     Args:
@@ -328,7 +333,7 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, pathway, thresh=0.2):
             frames for a single channel
         trajectory_dir (str): path to the directory containing all the target
             masks for the ground truth trajectory
-        metrics (str list): list of metric function names. must be a valid 
+        metrics (str list): list of metric function names. must be a valid
             element of METRIC_FUNCS
         pathway (string): indicates input pathway
         thresh (float): float between 0.0 and 1.0 as the percent of the
@@ -341,16 +346,16 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, pathway, thresh=0.2):
     assert set(metrics).issubset(set(METRIC_FUNCS))
 
     # load ground truth trajectory
-    if pathway == 'rgb':
+    if pathway == "rgb":
         target_volume = load_heatmaps(
             trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
         )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
-    elif pathway == 'slow':
+    elif pathway == "slow":
         # should be 0.16 to get 50 frames to 8
         target_volume = load_heatmaps(
             trajectory_dir, t_scale=0.16, s_scale=0.64, mask=True
         )  # t_scale and s_scale are to rescale the time and space dimensions to match the rescaled video outputs
-    elif pathway == 'fast':
+    elif pathway == "fast":
         # tscale fine here
         target_volume = load_heatmaps(
             trajectory_dir, t_scale=0.64, s_scale=0.64, mask=True
@@ -379,8 +384,10 @@ def heatmap_metrics(heatmap_dir, trajectory_dir, metrics, pathway, thresh=0.2):
         elif metric_name == "iou":
             result = IOU_3D(target_volume, binarized_heatmap)
         else:
-            raise NotImplementedError("Unrecognized metric; implement metric and add logic")
-        
+            raise NotImplementedError(
+                "Unrecognized metric; implement metric and add logic"
+            )
+
         metric_results[metric_name] = result
     # pdb.set_trace()
 
