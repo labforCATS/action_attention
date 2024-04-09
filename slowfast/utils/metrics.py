@@ -89,7 +89,7 @@ def topk_accuracies(preds, labels, ks):
     return [(x / preds.size(0)) for x in num_topks_correct]
 
 
-def IOU_3D(target_volume, heatmap_volume):
+def IOU_3D(target_volume, heatmap_volume) -> float:
     """Compute the intersection over union for two 3d arrays with binarized
     volumes.
 
@@ -222,7 +222,7 @@ def normalize(target_volume, heatmap_volume):
     return target_vol, heatmap_vol
 
 
-def KL_div(target_volume, heatmap_volume):
+def KL_div(target_volume, heatmap_volume) -> float:
     """
     calculates the pointwise KL-divergence between the normalized activations
     of the target and heatmap volumes. the two volumes must have the
@@ -306,7 +306,7 @@ def KL_div_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> np.n
     return kl_div
 
 
-def MSE(target_volume, heatmap_volume):
+def MSE(target_volume, heatmap_volume) -> float:
     """
     calculates the pixelwise mean squared error in normalized activation
     between two heatmap volumes. the two volumes must have the same dimensions
@@ -370,7 +370,7 @@ def MSE_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> np.ndar
     return mses
 
 
-def covariance(target_volume, heatmap_volume):
+def covariance(target_volume, heatmap_volume) -> float:
     """
     calculates the pixelwise covariance between the normalized activations of
     the target volume and observed activations. the two volumes must have the
@@ -497,6 +497,7 @@ def heatmap_metrics(
     metrics: List[str],
     pathway: str,
     thresh: float = 0.2,
+    use_frames: bool = False,
 ) -> dict:
     """Compute the values for a list of given metric functions on a heatmap
         with its ground-truth trajectory.
@@ -511,6 +512,8 @@ def heatmap_metrics(
         pathway (string): indicates input pathway
         thresh (float, optional): float between 0.0 and 1.0 as the percent of the
             maximum value in the heatmap at which the heatmap will be binarized
+        use_frames (bool, optional): whether to calculate metrics for individual frames
+            instead of combined whole heatmap volumes
 
     Returns:
         dict: dictionary containing the metric names and values, where the value is
@@ -546,23 +549,39 @@ def heatmap_metrics(
 
     metric_results = {}
 
-    # iterate through list of metrics, computing the values
-    for metric_name in metrics:
-        if metric_name == "kl_div":
-            result = KL_div(target_volume, heatmap_volume)
-        elif metric_name == "mse":
-            result = MSE(target_volume, heatmap_volume)
-        elif metric_name == "covariance":
-            result = covariance(target_volume, heatmap_volume)
-        elif metric_name == "pearson":
-            result = pearson_correlation(target_volume, heatmap_volume)
-        elif metric_name == "iou":
-            result = IOU_3D(target_volume, binarized_heatmap)
-        else:
-            raise NotImplementedError(
-                "Unrecognized metric; implement metric and add logic"
-            )
-
-        metric_results[metric_name] = result
+    if use_frames:
+        for metric_name in metrics:
+            if metric_name == "kl_div":
+                result = KL_div_frames(target_volume, heatmap_volume)
+            elif metric_name == "mse":
+                result = MSE_frames(target_volume, heatmap_volume)
+            elif metric_name == "covariance":
+                result = covariance_frames(target_volume, heatmap_volume)
+            elif metric_name == "pearson":
+                result = pearson_correlation_frames(target_volume, heatmap_volume)
+            elif metric_name == "iou":
+                result = IOU_frames(target_volume, binarized_heatmap)
+            else:
+                raise NotImplementedError(
+                    "Unrecognized metric; implement metric and add logic"
+                )
+    else:
+        # iterate through list of metrics, computing the values
+        for metric_name in metrics:
+            if metric_name == "kl_div":
+                result = KL_div(target_volume, heatmap_volume)
+            elif metric_name == "mse":
+                result = MSE(target_volume, heatmap_volume)
+            elif metric_name == "covariance":
+                result = covariance(target_volume, heatmap_volume)
+            elif metric_name == "pearson":
+                result = pearson_correlation(target_volume, heatmap_volume)
+            elif metric_name == "iou":
+                result = IOU_3D(target_volume, binarized_heatmap)
+            else:
+                raise NotImplementedError(
+                    "Unrecognized metric; implement metric and add logic"
+                )
+    metric_results[metric_name] = result
 
     return metric_results
