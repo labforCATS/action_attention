@@ -565,6 +565,9 @@ def heatmap_metrics(
                 raise NotImplementedError(
                     "Unrecognized metric; implement metric and add logic"
                 )
+            metric_results[metric_name] = result
+        metric_results["frame_id"] = range(target_volume.shape[0])
+
     else:
         # iterate through list of metrics, computing the values
         for metric_name in metrics:
@@ -582,6 +585,6 @@ def heatmap_metrics(
                 raise NotImplementedError(
                     "Unrecognized metric; implement metric and add logic"
                 )
-    metric_results[metric_name] = result
+            metric_results[metric_name] = result
 
     return metric_results
