@@ -143,11 +143,11 @@ def IOU_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> np.ndar
     target_vol = target_vol.astype(bool)
     heatmap_vol = heatmap_vol.astype(bool)
 
-    target_totals = target_vol.sum(axis=0)
-    heatmap_totals = heatmap_vol.sum(axis=0)
+    target_totals = target_vol.sum(axis=(1,2))
+    heatmap_totals = heatmap_vol.sum(axis=(1,2))
 
     # compute intersection
-    intersect = np.logical_and(target_vol, heatmap_vol).sum(axis=0)
+    intersect = np.logical_and(target_vol, heatmap_vol).sum(axis=(1,2))
 
     # compute union
     union = target_totals + heatmap_totals - intersect
@@ -301,7 +301,7 @@ def KL_div_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> np.n
             heatmap_2d * np.log(heatmap_2d / target_2d),
             0,
         ),
-        axis=0,
+        axis=1,
     )
     return kl_div
 
@@ -431,8 +431,8 @@ def covariance_frames(
 
     target_vol, heatmap_vol = normalize(target_volume, heatmap_volume)
 
-    target_vol_means = np.mean(target_vol, axis=0)
-    heatmap_vol_means = np.mean(heatmap_vol, axis=0)
+    target_vol_means = np.mean(target_vol, axis=(1,2))
+    heatmap_vol_means = np.mean(heatmap_vol, axis=(1,2))
 
     summation = 0
     sums = np.zeros((time))
@@ -441,7 +441,7 @@ def covariance_frames(
             for h in range(height):
                 heatmap_diff = heatmap_vol[t][w][h] - heatmap_vol_means[t]
                 target_vol_diff = target_vol[t][w][h] - target_vol_means[t]
-                sums[t] += heatmap_diff * target_vol_diff
+                sums[t] += heatmap_diff*target_vol_diff
     covariances = sums / (num_terms_per_frame - 1)
     return covariances
 
@@ -485,8 +485,8 @@ def pearson_correlation_frames(
             pearson correlation
     """
     covs = covariance_frames(target_volume, heatmap_volume)
-    target_stds = np.std(target_volume, axis=0)
-    heatmap_stds = np.std(heatmap_volume, axis=0)
+    target_stds = np.std(target_volume, axis=(1,2))
+    heatmap_stds = np.std(heatmap_volume, axis=(1,2))
     pearsons = covs / (target_stds * heatmap_stds)
     return pearsons
 
@@ -494,7 +494,7 @@ def pearson_correlation_frames(
 def heatmap_metrics(
     heatmap_dir: str,
     trajectory_dir: str,
-    metrics: List[str],
+    metrics: [str],
     pathway: str,
     thresh: float = 0.2,
     use_frames: bool = False,
@@ -519,7 +519,7 @@ def heatmap_metrics(
         dict: dictionary containing the metric names and values, where the value is
         a single element list
     """
-    assert set(metrics).issubset(set(METRIC_FUNCS))
+    assert set(metrics).issubset(set(METRIC_FUNCS + ["frame_id"]))
 
     # load ground truth trajectory
     if pathway == "rgb":
@@ -561,12 +561,14 @@ def heatmap_metrics(
                 result = pearson_correlation_frames(target_volume, heatmap_volume)
             elif metric_name == "iou":
                 result = IOU_frames(target_volume, binarized_heatmap)
+            elif metric_name == "frame_id":
+                pass
             else:
                 raise NotImplementedError(
                     "Unrecognized metric; implement metric and add logic"
                 )
             metric_results[metric_name] = result
-        metric_results["frame_id"] = range(target_volume.shape[0])
+        metric_results["frame_id"] = [x for x in range(target_volume.shape[0])]
 
     else:
         # iterate through list of metrics, computing the values

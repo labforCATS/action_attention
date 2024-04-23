@@ -168,14 +168,13 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
                     pickle.dump([all_preds, all_labels], f)
 
             logger.info("Successfully saved prediction results to {}".format(save_path))
-            pdb.set_trace()
 
     test_meter.finalize_metrics()
     return test_meter
 
 
 @torch.no_grad()
-def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
+def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_frames=False):
     """
     For classification:
     Run metric computations over existing heatmaps. This will retrieve predictions for each video and compute the metrics declared in the config.
@@ -211,6 +210,12 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     # get details of the experiment, including experiment number and nonlocal
     exp, experiment_root_dir = get_exp_and_root_dir(cfg.DATA.PATH_TO_DATA_DIR)
 
+    # use_frames
+    use_frames = True
+    num_frames = cfg.DATA.NUM_FRAMES
+    
+
+
     print("heatmaps root directory:", heatmaps_root_dir)
     print("input json path:", input_json_path)
     print("experiment:", exp)
@@ -221,6 +226,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
 
     # get experiment properties 
     metrics = cfg.METRICS.FUNCS
+    if use_frames:
+        metrics = metrics + ["frame_id"]
 
     nonlocal_location = np.array(cfg.NONLOCAL.LOCATION, dtype = "object")
     nonlocal_location = nonlocal_location.flatten("F")
@@ -247,15 +254,19 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
     else:
         raise NotImplementedError("add in number of channels for architecture")
 
+    entry_multiplier = dataset_size * num_channels
+    if use_frames:
+        entry_multiplier = entry_multiplier * num_frames
+
     data_dict = {
         # experiment params are the same for all videos in the dataset
-        "experiment": [exp] * dataset_size * num_channels, 
-        "model": [cfg.MODEL.ARCH] * dataset_size * num_channels,
-        "nonlocal": [is_nonlocal] * dataset_size * num_channels,
+        "experiment": [exp] * entry_multiplier, 
+        "model": [cfg.MODEL.ARCH] * entry_multiplier,
+        "nonlocal": [is_nonlocal] * entry_multiplier,
         "gradcam_variant": (
-            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD] * dataset_size * num_channels),
+            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD] * entry_multiplier),
         "post_softmax": (
-            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX] * dataset_size * num_channels
+            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX] * entry_multiplier
         ),
         # video features
         "input_vid_idx": [],
@@ -266,6 +277,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
         "pred_numeric": [],
         "correct": [],
     }
+
+    
     for metric in metrics:
         data_dict[metric] = []
     print("beginning iterations through testing loader")
@@ -315,14 +328,6 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
             label_numeric = label.item()
             for channel in channel_list:
                 
-                # heatmap_info = {
-                #     "input_vid_idx": [input_vid_idx],
-                #     "label": [label_val],
-                #     "pred": [pred],
-                #     "correct": [(pred == label_val)],
-                #     "channel": [channel],
-                # }
-
                 # check that the heatmaps exist
                 # (let's just check the first frame)
                 heatmap_frames_dir = os.path.join(
@@ -333,86 +338,62 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None):
                     channel,
                 )
                 trajectory_frames_dir = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "test", "target_masks", f"{target_class}", f"{target_class}_{input_vid_idx:06d}")
-                # "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/test/target_masks/circle/circle_000000"
-                # "/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_1/i3d_output/heatmaps/eigen_cam/post_softmax/frames/circle/circle_000000/rgb/circle_000000_rgb_000001.jpg"
-
+                
                 sample_heatmap_frame_path = os.path.join(
                     heatmap_frames_dir,
                     f"{target_class}_{input_vid_idx:06d}_{channel}_000001.jpg",
 
                 )
-                # print(heatmap_frames_dir)
-                # print(sample_heatmap_frame_path)
-                # pdb.set_trace()
 
-                # TODO decide if it should be a fatal error or just a warning if it doesn't exist? 
                 assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps {sample_heatmap_frame_path}; cannot compute metrics if heatmaps do not exist"
                 
 
                 # Compute metrics over the heatmap
-                # pdb.set_trace()
                 metric_results = heatmap_metrics(
                     heatmap_dir=heatmap_frames_dir, 
                     trajectory_dir=trajectory_frames_dir, 
                     metrics=metrics,
                     pathway=channel, 
-                    thresh=0.2)
+                    thresh=0.2,
+                    use_frames = use_frames)
                 
-                # update video features in the data dictionary 
-                data_dict["input_vid_idx"].append(input_vid_idx)
-                data_dict["channel"].append(channel)
-                data_dict["label"].append(target_class)
-                data_dict["pred"].append(pred_class)
-                data_dict["label_numeric"].append(label_numeric)
-                data_dict["pred_numeric"].append(pred_numeric)
-                data_dict["correct"].append((label_numeric == pred_numeric))
+                # update video features in the data dictionary
+                frame_multiplier = 1
+                if use_frames:
+                    frame_multiplier = num_frames
+                
+                data_dict["input_vid_idx"] += [input_vid_idx]*frame_multiplier
+                data_dict["channel"] += [channel] * frame_multiplier
+                data_dict["label"] += [target_class] * frame_multiplier
+                data_dict["pred"] += [pred_class] * frame_multiplier
+                data_dict["label_numeric"] += [label_numeric] * frame_multiplier
+                data_dict["pred_numeric"] += [pred_numeric] * frame_multiplier
+                data_dict["correct"] += [(label_numeric == pred_numeric)] * frame_multiplier
 
                 # update metric results in the data dictionary
                 for metric in metrics:
-                    data_dict[metric].append(metric_results[metric])
+                    if use_frames:
+                        if isinstance(metric_results[metric], list):
+                            data_dict[metric] += metric_results[metric]
+                        else:
+                            data_dict[metric] += metric_results[metric].tolist()
+                    else:
+                        data_dict[metric].append(metric_results[metric])
+                
 
-                # print(data_dict)
-                # pdb.set_trace()
-                # # create dictionary to merge the other dictionaries together
-                # curr_results = {}
-                # curr_results.update(metric_results)
-                # curr_results.update(experiment_params)
-                # curr_results.update(heatmap_info)
-                # # handle storage of results for multi-channel architectures, where the different
-                # # channels will have different results
-                # if input_vid_idx in results:
-                #     for key, value in curr_results.items():
-                #         results[input_vid_idx][key].append(value)
-                # else:
-                #     results[input_vid_idx] = copy.deepcopy(curr_results)
-
-
-        # # Gather all the predictions across all the devices to perform ensemble.
-        # if cfg.NUM_GPUS > 1:
-        #     preds, labels, video_ids = du.all_gather([preds, labels, video_ids])
-        # if cfg.NUM_GPUS:
-        #     preds = preds.cpu()
-        #     labels = labels.cpu()
-        #     video_ids = video_ids.cpu()
-
-        # test_meter.iter_toc()
-        # # Update and log stats.
-        # test_meter.update_stats(preds.detach(), labels.detach(), video_ids.detach())
-        # test_meter.log_iter_stats(cur_iter)
-
-        # test_meter.iter_tic()
-
-    # TODO: may run into issues if any video index overwriting happens, want it to enum the entries
-    # print(data_dict)
-
-    # print("check the length of the results dataframe, make sure all entries have same length")
-    # pdb.set_trace()
     results_dataframe = pd.DataFrame.from_dict(data_dict)
-    if os.path.exists(cfg.METRICS.CSV_PATH):
-        results_dataframe.to_csv(cfg.METRICS.CSV_PATH, mode='a', index=False, header=False)
-    else:
-        results_dataframe.to_csv(cfg.METRICS.CSV_PATH, index=False)
+    
+    output_path = cfg.METRICS.CSV_PATH
+    if use_frames:
+        output_path = f"{output_path[:-4]}_frames.csv"
 
+    if os.path.exists(output_path):
+        results_dataframe.to_csv(output_path, mode='a', index=False, header=False)
+    else:
+        results_dataframe.to_csv(output_path, index=False)
+
+    if not os.path.exists(output_path):
+        pdb.set_trace()
 
     # TODO log testing stats e.g. accuracy - figure out a nice way to do this 
 
