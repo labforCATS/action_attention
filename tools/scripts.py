@@ -100,14 +100,14 @@ def reformat_output_dirs(outputs_dir, override=False):
         experiment_root_dir, "synthetic_motion_test.json"
     )
 
-        # get all target classes
-        with open(input_json_path, "r") as f:
-            vid_logs = json.load(f)  # list of dictionaries
-        class_names = set([vid_log["labels"] for vid_log in vid_logs])
-        print(class_names)
+    # get all target classes
+    with open(input_json_path, "r") as f:
+        vid_logs = json.load(f)  # list of dictionaries
+    class_names = set([vid_log["labels"] for vid_log in vid_logs])
+    print(class_names)
 
-        last_folder = os.path.basename(outputs_dir)
-        second_last_folder = os.path.basename(os.path.dirname(outputs_dir))
+    last_folder = os.path.basename(outputs_dir)
+    second_last_folder = os.path.basename(os.path.dirname(outputs_dir))
 
     # if the target classes folder already exist, manually clear all of them 
     if override:
@@ -213,10 +213,10 @@ def reformat_output_dirs(outputs_dir, override=False):
                     and last_folder == "videos"
                 ):
                     raise NotImplementedError
-    except Exception as e:
-        print(traceback.format_exc())
-        pdb.set_trace()
-        raise e
+    # except Exception as e:
+    #     print(traceback.format_exc())
+    #     pdb.set_trace()
+    #     raise e
 
 
 def run_reformat_output_dirs(cfg, override=False):
