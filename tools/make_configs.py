@@ -99,7 +99,6 @@ def generate_all_configs(use_specific_epoch: bool = False):
     pre_trained_i3d = "/research/cwloka/data/action_attn/synthetic_motion_experiments/pretrained_weights/I3D_8x8_R50.pkl"
     pre_trained_i3d_nln = "/research/cwloka/data/action_attn/synthetic_motion_experiments/pretrained_weights/I3D_NLN_8x8_R50.pkl"
 
-    csv_output_path = "/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results/full_results.csv"
 
     # dictionary of config file information for each of the networks
     model_dicts = {
@@ -400,7 +399,6 @@ def generate_all_configs(use_specific_epoch: bool = False):
                     metric_params = {
                         "FUNCS": ["kl_div", "mse", "covariance", "pearson", "iou"],
                         "ENABLE": False,
-                        "CSV_PATH": csv_output_path
                     }
 
                     # combine all the params in a single dictionary
@@ -587,8 +585,17 @@ def generate_all_configs(use_specific_epoch: bool = False):
             for gradcam_variant in gradcam_variants:
                 # iterate over pre/post softmax
                 for softmax_option in post_softmax:
+                    
                     model_params = copy.deepcopy(model_params_original)
-
+                    csv_output_folder = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results/experiment_{exp}/{model}/{gradcam_variant}"
+                    if not os.path.exists(csv_output_folder):
+                        os.makedirs(csv_output_folder)
+                    pre_post_softmax = "post"
+                    if softmax_option == False:
+                        pre_post_softmax = "pre"
+                    csv_output_path = os.path.join(csv_output_folder, f"exp_{exp}_{model}_{pre_post_softmax}_softmax.csv")
+                
+                    
                     train_params = {
                         "ENABLE": False,
                         "DATASET": "SyntheticMotion",

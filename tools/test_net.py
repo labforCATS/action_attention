@@ -254,9 +254,19 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
     else:
         raise NotImplementedError("add in number of channels for architecture")
 
-    entry_multiplier = dataset_size * num_channels
+    entry_multiplier = 0
     if use_frames:
-        entry_multiplier = entry_multiplier * num_frames
+        if num_channels == 1:
+            entry_multiplier = dataset_size * num_frames
+        elif num_channels == 2:
+            # because of how we created the synthetic motion dataset, this
+            # calculation is still consistent with literature
+            slow_frame_rate = num_frames / cfg.SLOWFAST.ALPHA
+            fast_frame_rate = num_frames
+            entry_multiplier = dataset_size * (slow_frame_rate + fast_frame_rate)
+    else:
+        entry_multiplier = dataset_size * num_channels
+
 
     data_dict = {
         # experiment params are the same for all videos in the dataset
@@ -347,6 +357,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
 
                 assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps {sample_heatmap_frame_path}; cannot compute metrics if heatmaps do not exist"
                 
+                pdb.set_trace()
 
                 # Compute metrics over the heatmap
                 metric_results = heatmap_metrics(
@@ -379,12 +390,14 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                             data_dict[metric] += metric_results[metric].tolist()
                     else:
                         data_dict[metric].append(metric_results[metric])
+                pdb.set_trace()
                 
-
+    pdb.set_trace()
     results_dataframe = pd.DataFrame.from_dict(data_dict)
     
     output_path = cfg.METRICS.CSV_PATH
     if use_frames:
+        # if use frames, change the csv name to include frames
         output_path = f"{output_path[:-4]}_frames.csv"
 
     if os.path.exists(output_path):
