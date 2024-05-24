@@ -263,7 +263,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
             # calculation is still consistent with literature
             slow_frame_rate = num_frames / cfg.SLOWFAST.ALPHA
             fast_frame_rate = num_frames
-            entry_multiplier = dataset_size * (slow_frame_rate + fast_frame_rate)
+            entry_multiplier = int(dataset_size * (slow_frame_rate + fast_frame_rate))
     else:
         entry_multiplier = dataset_size * num_channels
 
@@ -357,7 +357,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
 
                 assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps {sample_heatmap_frame_path}; cannot compute metrics if heatmaps do not exist"
                 
-                pdb.set_trace()
+                # pdb.set_trace()
 
                 # Compute metrics over the heatmap
                 metric_results = heatmap_metrics(
@@ -390,7 +390,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                             data_dict[metric] += metric_results[metric].tolist()
                     else:
                         data_dict[metric].append(metric_results[metric])
-                pdb.set_trace()
+                # pdb.set_trace()
                 
     pdb.set_trace()
     results_dataframe = pd.DataFrame.from_dict(data_dict)
