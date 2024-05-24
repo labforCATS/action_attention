@@ -9,6 +9,7 @@ from slowfast.visualization.connected_components_utils import (
     plot_heatmap,
     load_heatmaps,
 )
+from scripts import output_idx_to_input
 
 import matplotlib.pyplot as plt
 import torch
@@ -210,9 +211,9 @@ class GradCAM:
         self, output_dir, inputs, video_indices, cfg, labels=None, alpha=0.5
     ):
         """
-        Visualize the localization maps on their corresponding inputs as heatmap,
-        using Grad-CAM.
-        # TODO: fix docstring
+        Visualize localization maps on their corresponding inputs as heatmaps
+        using Grad-CAM, Eigen-CAM, or Grad-CAM++ and saves heatmap-related
+        information
 
         Args:
             inputs (list of tensor(s)): the input clips.
@@ -230,57 +231,77 @@ class GradCAM:
         alpha = 0.5
         result_ls = []
 
+        # isolate the epoch number for the file
+        isolate_epoch_file = cfg.TEST.CHECKPOINT_FILE_PATH.split("/")[-1]
+        remove_tag = isolate_epoch_file.split(".")
+        epoch_selected = (remove_tag[0].split("_"))[2]
+
         # retrieve heatmaps
         localization_maps, preds = self._calculate_localization_map(
             inputs,
             labels=labels,
         )
 
-        # save heatmaps
+        # isolate the json file corresponding to the labels for the motion classes
+        experiment_root_dir = "/".join(output_dir.split("/")[:-1])
+        input_json_path = os.path.join(
+            experiment_root_dir, "synthetic_motion_test.json"
+        )
+
+        # information for saving videos
+        save_vid_overlay = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        crop_size = (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE)
+
+        #######################################################################
+        ##  SETTING UP ROOT DIRECTORIES FOR HEATMAPS                         ##
+        #######################################################################
+
+        # root directory for all heatmap-related functionality
         heatmaps_root_dir = os.path.join(
             output_dir,
-            "heatmaps",
+            f"heatmaps_epoch_{epoch_selected}",
             cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
             "post_softmax"
             if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
             else "pre_softmax",
         )
+
+        # root directory for heatmap frames
         heatmaps_frames_root_dir = os.path.join(
             heatmaps_root_dir,
             "frames",
         )
+
+        # root directory for heatmap volumes
         heatmap_volume_root_dir = os.path.join(heatmaps_root_dir, "3d_volumes")
-        # heatmap frame overlay root directory
+
+        # root directory for original input overlaid with heatmap frames
         heatmap_overlay_frames_root_dir = os.path.join(
             heatmaps_root_dir,
             "heatmap_overlay",
             "frames",
         )
-        # heatmap overlay video root directory
+
+        # root directory for original input video overlaid with heatmap activations
         heatmap_overlay_video_root_dir = os.path.join(
             heatmaps_root_dir,
             "heatmap_overlay",
             "videos",
         )
-        save_vid_overlay = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO
 
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        crop_size = (cfg.DATA.TEST_CROP_SIZE, cfg.DATA.TEST_CROP_SIZE)
-
-        # iterate over channels (e.g. slow and fast)
+        # iterate over channels (e.g. rgb, slow, fast)
         for channel_idx, localization_map in enumerate(localization_maps):
             if cfg.MODEL.ARCH == "slowfast":
                 channel = "slow" if channel_idx == 0 else "fast"
             elif cfg.MODEL.ARCH == "i3d":
                 channel = "rgb"
             else:
-                # since other visualization architectures don't necessarily
-                # only have two input pathways, you have to add logic for it
                 raise NotImplementedError(
-                    "make subfolders for each pathway and put frames in correct subfolder for the specific visualization method"
+                    "implement channel logic for this architecture"
                 )
 
-            # Convert (B, 1, T, H, W) to (B, T, H, W)
+            # Convert localization map from (B, 1, T, H, W) to (B, T, H, W)
             localization_map = localization_map.squeeze(dim=1)
             if localization_map.device != torch.device("cpu"):
                 localization_map = localization_map.cpu()
@@ -312,9 +333,15 @@ class GradCAM:
                 # heatmap overlay to save
                 overlay_to_save = curr_inp[v, :, :, :, :]
 
+                # retrieve the target class and index for the current input
+                target_class, input_vid_idx = output_idx_to_input(input_json_path, vid_idx)
+
                 # paths for heatmap frames and overlaid frames, respectively
                 visualization_path = os.path.join(
-                    heatmaps_frames_root_dir, f"{vid_idx:06d}"
+                    heatmaps_frames_root_dir, 
+                    target_class,
+                    f"{target_class}_{input_vid_idx:06d}",
+                    channel,
                 )
                 overlay_path = os.path.join(
                     heatmap_overlay_frames_root_dir, f"{vid_idx:06d}"
@@ -324,6 +351,7 @@ class GradCAM:
                 video_path = os.path.join(
                     heatmap_overlay_video_root_dir, f"{vid_idx:06d}"
                 )
+
                 if not os.path.exists(video_path):
                     os.makedirs(video_path)
 
@@ -349,10 +377,14 @@ class GradCAM:
 
                     one_based_frame_idx = frame_idx + 1
                     frame_name = (
-                        f"{vid_idx.item():06d}_{one_based_frame_idx:06d}.jpg"
+                        f"{target_class}_{input_vid_idx:06d}_{channel}_{one_based_frame_idx:06d}.jpg"
                     )
 
+                    if not os.path.exists(visualization_path):
+                        os.makedirs(visualization_path)
+                    
                     frame_path = os.path.join(visualization_path, frame_name)
+                    
                     overlay_frame_tag = (
                         f"{vid_idx:06d}_{one_based_frame_idx:06d}.jpg"
                     )
@@ -360,14 +392,12 @@ class GradCAM:
                         overlay_path, overlay_frame_tag
                     )
 
+                    # save overlay frames
                     if cfg.MODEL.ARCH == "slowfast":
                         # heatmap channel folder
                         channel_folder = os.path.join(
                             visualization_path, channel
                         )
-                        frame_path = os.path.join(channel_folder, frame_name)
-                        if not os.path.exists(channel_folder):
-                            os.makedirs(channel_folder)
 
                         if save_vid_overlay:
                             overlay_channel_folder = os.path.join(
@@ -383,9 +413,6 @@ class GradCAM:
                         channel_folder = os.path.join(
                             visualization_path, channel
                         )
-                        frame_path = os.path.join(channel_folder, frame_name)
-                        if not os.path.exists(channel_folder):
-                            os.makedirs(channel_folder)
 
                         if save_vid_overlay:
                             overlay_channel_folder = os.path.join(
@@ -398,12 +425,12 @@ class GradCAM:
                                 os.makedirs(overlay_channel_folder)
 
                     else:
-                        # since other visualization architectures don't necessarily
-                        # only have two input pathways, you have to add logic for it
+                        # add in logic to save the overlays
                         raise NotImplementedError(
                             "make subfolders for each pathway and put frames in correct subfolder for the specific visualization method"
                         )
 
+                    # save the heatmap frame
                     cv2.imwrite(frame_path, frame_map)
                     if save_vid_overlay:
                         cv2.imwrite(overlay_frame_name, overlay_map)
@@ -414,13 +441,17 @@ class GradCAM:
                 # generate 3d heatmap volumes for the video
                 t_scale = 0.25
                 s_scale = 1 / 8
+
                 img_stack = load_heatmaps(
-                    channel_folder, t_scale=t_scale, s_scale=s_scale
+                    visualization_path, t_scale=t_scale, s_scale=s_scale
                 )
                 heatmap_fname = os.path.join(
                     heatmap_volume_root_dir,
-                    f"{vid_idx:06d}/{channel}_{vid_idx:06d}.html",
+                    target_class,
+                    f"{target_class}_{input_vid_idx:06d}",
+                    f"{target_class}_{input_vid_idx:06d}_{channel}.html",
                 )
+
                 plot_heatmap(
                     volume=img_stack,
                     fpath=heatmap_fname,

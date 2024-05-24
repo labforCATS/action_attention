@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pdb  
     
-def generate_commands(server, run_train=True, run_vis=True):
+def generate_commands(server, run_train=False, run_vis=False, run_metrics=False):
     """
     generate_commands takes in information about the server and processes
     that are to be spawned and returns a string consisting of bash commands
@@ -13,9 +13,11 @@ def generate_commands(server, run_train=True, run_vis=True):
     Parameters:
         server: string, either shadowfax or shuffler
         run_train: boolean signifying whether training commands should
-            be generated, default True
+            be generated, default False
         run_vis: boolean signifying whether visualization commands should
-            be generated, default True
+            be generated, default False
+        run_metrics: boolean signifying whether metrics should be run, default
+            True
     Returns:
         string; bash commands that can be entered into a terminal
     """
@@ -63,6 +65,24 @@ def generate_commands(server, run_train=True, run_vis=True):
                 # add slowfast networks' visualization configs to list of commands
                 slowfast_vis_configs = [config for config in vis_configs if "slowfast" in config]
                 for c in slowfast_vis_configs:
+                    file_path = os.path.join(exp_folder, c)
+                    commands += f"python3 tools/run_net.py --cfg {file_path}; "
+            else:
+                raise NotImplementedError("Logic for this server needs to be added in")
+        
+        if run_metrics:
+            # filter out non-metric config files
+            metric_configs = [config for config in configs if "metric" in config]
+            if server == "shadowfax":
+                # add both i3d networks' metrics configs to list of commands
+                i3d_metric_configs = [config for config in metric_configs if "i3d" in config]
+                for c in i3d_metric_configs:
+                    file_path = os.path.join(exp_folder, c)
+                    commands += f"python3 tools/run_net.py --cfg {file_path}; "
+            elif server == "shuffler":
+                # add slowfast networks' metrics configs to list of commands
+                slowfast_metric_configs = [config for config in metric_configs if "slowfast" in config]
+                for c in slowfast_metric_configs:
                     file_path = os.path.join(exp_folder, c)
                     commands += f"python3 tools/run_net.py --cfg {file_path}; "
             else:

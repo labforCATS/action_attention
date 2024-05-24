@@ -1114,6 +1114,19 @@ _C.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT: 0
 _C.DATA_LOADER.INSPECT.SHUFFLE: True
 
 
+# (added 11/8)
+_C.METRICS = CfgNode()
+
+# metrics to run
+_C.METRICS.FUNCS = []
+
+# whether or not to run metric calculations
+_C.METRICS.ENABLE = True
+
+# (added 12/7) path to save the csv results to
+_C.METRICS.CSV_PATH = ""
+
+
 # Add custom config with default values.
 custom_config.add_custom_config(_C)
 
