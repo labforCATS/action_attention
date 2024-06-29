@@ -180,7 +180,7 @@ def single_energy_plot(
     activation_values,
     metric: str,
     motion_class=None,
-    output_dir="/research/cwloka/projects/nikki_sandbox/action_attention/metric_exploration/plots",
+    output_dir="/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results/plots",
 ):
     """
     Makes an energy plot where framewise metric values can be compared
@@ -446,7 +446,6 @@ def main():
     # conditions to generate plots
     experiments = [1, 2, 3, 4, 5, "5b"]
     architectures = ["slowfast", "i3d", "i3d_nln"]
-    architectures = ["i3d", "i3d_nln"]
     gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
     softmax_status = ["pre_softmax", "post_softmax"]
     metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
@@ -455,13 +454,15 @@ def main():
     # non-framewise plots, and whether to create separate plots for each
     # motion class
     use_energy = False
-    use_single_plots = False
+    use_single_plots = True
     use_motion_classes = False
-    calc_framewise_activations = True
+    calc_framewise_activations = False
 
     # base directories
     exp_base_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
-    output_base_folder = "/research/cwloka/projects/nikki_sandbox/action_attention/metric_exploration/plots"
+    output_base_folder = (
+        "/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results"
+    )
     base_dir = os.path.join(exp_base_dir, "metric_results")
 
     for exp in experiments:
@@ -478,14 +479,7 @@ def main():
             for vis_technique in gc_variants:
                 for softmax in softmax_status:
                     for channel in channels:
-                        """
-                            experiment,
-                            architecture,
-                            gc_variant,
-                            softmax,
-                            channel,
-                            exp_base_dir="/research/cwloka/data/action_attn/synthetic_motion_experiments",
-                        """
+
                         if calc_framewise_activations:
                             store_framewise_activations(
                                 exp,
@@ -493,17 +487,12 @@ def main():
                                 vis_technique,
                                 softmax,
                                 channel,
-                                exp_base_dir = exp_base_dir,
+                                exp_base_dir=exp_base_dir,
                             )
 
                         # create the plot output folder
                         output_folder = os.path.join(
-                            output_base_folder,
-                            f"experiment_{exp}",
-                            arch,
-                            vis_technique,
-                            softmax,
-                            channel,
+                            output_base_folder, f"experiment_{exp}", arch, vis_technique
                         )
                         if not os.path.exists(output_folder):
                             os.makedirs(output_folder)
@@ -573,7 +562,7 @@ def main():
                                     output_folder,
                                     motion_class=None,
                                 )
-                        # pdb.set_trace()
+                        pdb.set_trace()
 
 
 if __name__ == "__main__":
