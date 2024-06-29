@@ -450,13 +450,13 @@ def main():
     softmax_status = ["pre_softmax", "post_softmax"]
     metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
 
-    # booleans for whether or not to create framewise energy plots,
-    # non-framewise plots, and whether to create separate plots for each
-    # motion class
-    use_energy = False
-    use_single_plots = True
-    use_motion_classes = False
-    calc_framewise_activations = False
+    #################################################
+    #     booleans to control what is generated     #
+    #################################################
+    use_energy = False  # create energy plots
+    use_single_plots = True  # create box + whisker plots and histograms
+    use_motion_classes = False  # whether all values should be done per motion class
+    calc_framewise_activations = False  # create new framewise activation CSV's
 
     # base directories
     exp_base_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
