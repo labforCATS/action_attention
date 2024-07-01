@@ -414,7 +414,7 @@ def save_inputs(data_loader, cfg, mode):
     if not (
         cfg.DATA_LOADER.INSPECT.SAVE_FRAMES
         or cfg.DATA_LOADER.INSPECT.SAVE_VIDEO
-    ):
+        ):
         return
     if mode != "train" and mode != "test" and mode != "val":
         raise ValueError("mode must be 'train' or 'test' or 'val'")

@@ -308,8 +308,12 @@ def visualize(cfg):
         model.eval()
         if du.is_master_proc() and cfg.LOG_MODEL_INFO:
             misc.log_model_info(model, cfg, use_train_input=False)
-
+        
+        # cu.load_test_checkpoint(cfg, model)
+        print("VISUALIZATION.PY 311: I'm looking for the output directory at:", cfg.OUTPUT_DIR, "/n")
         cu.load_test_checkpoint(cfg, model)
+        print("VISUALIZATION.PY 312: after loading checkpoint, the output directory is now ", cfg.OUTPUT_DIR, "/n")
+        print("VISUALIZATION.PY 312: The checkpoint path is START", cfg.TEST.CHECKPOINT_FILE_PATH, "END")
 
         # Create video testing loaders.
         vis_loader = loader.construct_loader(cfg, "test")

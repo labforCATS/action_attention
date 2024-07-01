@@ -59,7 +59,7 @@ class ContrastiveModel(nn.Module):
         )
         self.nce_loss_fun = losses.get_loss_func("contrastive_loss")(reduction="mean")
         assert self.cfg.MODEL.LOSS_FUNC == "contrastive_loss"
-        self.softmax = nn.Softmax(dim=1).cuda()
+        self.softmax = nn.Softmax(dim=-1).cuda()
 
         if self.type == "mem":
             self.mem_type = cfg.CONTRASTIVE.MEM_TYPE
@@ -863,7 +863,7 @@ class ContrastiveModel(nn.Module):
             return (Q / torch.sum(Q, dim=0, keepdim=True)).t().float()
 
     def KLDivLoss(self, out, code):
-        softmax = nn.Softmax(dim=1).cuda()
+        softmax = nn.Softmax(dim=-1).cuda()
         p = softmax(out / self.T)
         loss = torch.mean(-torch.sum(code * torch.log(p), dim=1))
         return loss

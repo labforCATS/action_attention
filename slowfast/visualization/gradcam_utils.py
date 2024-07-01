@@ -20,6 +20,7 @@ import cv2
 import os
 import pdb
 import copy
+import gc
 
 logger = logging.get_logger(__name__)
 
@@ -56,19 +57,26 @@ class GradCAM:
                 See https://matplotlib.org/3.3.0/tutorials/colors/colormaps.html
         """
         self.model = model
+        self.post_softmax = post_softmax
         # Run in eval mode.
         self.model.eval()
-
-        self.post_softmax = post_softmax
+        print("GC UTILS 63: init is running")
+       
         if not post_softmax:
-            # create copy of model without softmax for gradient computations
+            #create copy of model without softmax for gradient computations
             model_copy = copy.deepcopy(self.model)
+
             self.model_without_softmax = replace_layer(
                 model=model_copy,
                 layer_name=cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.SOFTMAX_LAYER,
                 replacement_layer=torch.nn.Identity(),
             )
+
             self.model_without_softmax.eval()
+
+        
+
+            ### TODO: troubleshoot 6/25/24
 
         self.target_layers = target_layers
 
@@ -131,19 +139,43 @@ class GradCAM:
                 each corresponding input.
             preds (tensor): shape (n_instances, n_class). Model predictions for `inputs`.
         """
+
         assert len(inputs) == len(
             self.target_layers
         ), "Must register the same number of target layers as the number of input pathways."
-        input_clone = [inp.clone() for inp in inputs]
-        preds = self.model(input_clone)
+
+        # input_clone = [inp.clone() for inp in inputs]
+        # with torch.no_grad():
+        #     input_clone = [inp.clone() for inp in inputs]
+        #     print("no grad")
+        #     preds = self.model(input_clone)
+
 
         # get scores for all classes
         if self.post_softmax:
             # compute score after softmax
+            input_clone = [inp.clone() for inp in inputs]
+            preds = self.model(input_clone)
+
+            # print("GC UTILS 145: running post softmax before scores assigned")
+            # # print(torch.cuda.memory_summary())
             scores_for_all_classes = preds
+            # print("GC UTILS 148: running post softmax, preds set")
+            # print(torch.cuda.memory_summary())
         else:
+            with torch.no_grad():
+                input_clone = [inp.clone() for inp in inputs]
+                print("no grad")
+                preds = self.model(input_clone)
+            
             # compute score before softmax
+            # print("GC UTILS 152: running PRE softmax before scores assigned")
+            # print(torch.cuda.memory_summary())
             scores_for_all_classes = self.model_without_softmax(input_clone)
+
+            # print("GC UTILS 155: running PRE softmax, preds set")
+            # print(torch.cuda.memory_summary())
+          
 
         # get score for single class
         if labels is None:  # get score for top predicted class
@@ -153,14 +185,22 @@ class GradCAM:
                 labels = labels.unsqueeze(-1)
             score = torch.gather(scores_for_all_classes, dim=1, index=labels)
 
+        # print("GC UTILS 176")
+        # print(torch.cuda.memory_summary())
+
         # compute the gradient of the score wrt the target layers
         score = torch.sum(score)
         self.model.zero_grad()
         score.backward()  # Computes the gradient of current tensor w.r.t. graph leaves
 
+        # print("GC UTILS 184")
+        # print(torch.cuda.memory_summary())
+
         localization_maps = []
         for i, inp in enumerate(inputs):
             _, _, T, H, W = inp.size()
+
+
 
             gradients = self.gradients[self.target_layers[i]]
             activations = self.activations[self.target_layers[i]]
@@ -205,6 +245,11 @@ class GradCAM:
 
             localization_maps.append(localization_map)
 
+
+        print("GC UTILS 221: running outside at the end of for loop")
+        print(torch.cuda.memory_summary())
+
+
         return localization_maps, preds
 
     def __call__(
@@ -231,10 +276,15 @@ class GradCAM:
         alpha = 0.5
         result_ls = []
 
-        # isolate the epoch number for the file
-        isolate_epoch_file = cfg.TEST.CHECKPOINT_FILE_PATH.split("/")[-1]
-        remove_tag = isolate_epoch_file.split(".")
-        epoch_selected = (remove_tag[0].split("_"))[2]
+        # find latest checkpoint from output folder
+        last_checkpoint = ""
+        for __,__,file in os.walk(cfg.OUTPUT_DIR + "checkpoints/"):
+            last_checkpoint = max(file)
+        if (last_checkpoint != ""): 
+            remove_file_ext = last_checkpoint.split(".")[0]
+            epoch_selected = (remove_file_ext.split("_"))[2] # separating epoch number from file path
+        else:
+            epoch_selected = 0 # for pretrained models
 
         # retrieve heatmaps
         localization_maps, preds = self._calculate_localization_map(
@@ -243,10 +293,13 @@ class GradCAM:
         )
 
         # isolate the json file corresponding to the labels for the motion classes
+        
         experiment_root_dir = "/".join(output_dir.split("/")[:-1])
+        
         input_json_path = os.path.join(
-            experiment_root_dir, "synthetic_motion_test.json"
+            cfg.DATA.PATH_TO_DATA_DIR, "{}-test.json".format((cfg.TRAIN.DATASET).capitalize())
         )
+        #TODO: I don't like having to capitalize here -- why do we have our JSONs named as Ucf.json instead of ucf.json? 
 
         # information for saving videos
         save_vid_overlay = cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO
@@ -340,16 +393,20 @@ class GradCAM:
                 visualization_path = os.path.join(
                     heatmaps_frames_root_dir, 
                     target_class,
-                    f"{target_class}_{input_vid_idx:06d}",
+                    # f"{target_class}_{input_vid_idx:06d}",
+                    # TODO: we changed this on 6/13/24
+                    f"{target_class}_{input_vid_idx}",
                     channel,
                 )
                 overlay_path = os.path.join(
-                    heatmap_overlay_frames_root_dir, f"{vid_idx:06d}"
+                    heatmap_overlay_frames_root_dir, 
+                    f"{input_vid_idx}" # TODO: Added this 6/14/24
                 )
 
                 # initialize video writer for saving overlaid heatmap video
                 video_path = os.path.join(
-                    heatmap_overlay_video_root_dir, f"{vid_idx:06d}"
+                    heatmap_overlay_video_root_dir, 
+                    f"{input_vid_idx}"
                 )
 
                 if not os.path.exists(video_path):
@@ -377,7 +434,9 @@ class GradCAM:
 
                     one_based_frame_idx = frame_idx + 1
                     frame_name = (
-                        f"{target_class}_{input_vid_idx:06d}_{channel}_{one_based_frame_idx:06d}.jpg"
+                        # f"{target_class}_{input_vid_idx:06d}_{channel}_{one_based_frame_idx:06d}.jpg"
+                        f"{target_class}_{input_vid_idx}_{channel}_{one_based_frame_idx:06d}.jpg"
+                        # TODO: edited this 6/13/24
                     )
 
                     if not os.path.exists(visualization_path):
@@ -448,8 +507,8 @@ class GradCAM:
                 heatmap_fname = os.path.join(
                     heatmap_volume_root_dir,
                     target_class,
-                    f"{target_class}_{input_vid_idx:06d}",
-                    f"{target_class}_{input_vid_idx:06d}_{channel}.html",
+                    f"{target_class}_{input_vid_idx}",
+                    f"{target_class}_{input_vid_idx}_{channel}.html",
                 )
 
                 plot_heatmap(
@@ -460,5 +519,6 @@ class GradCAM:
                     s_scale=s_scale,
                     slider=True,
                 )
+
 
         return result_ls, preds

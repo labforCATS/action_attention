@@ -89,27 +89,36 @@ class Ucf(torch.utils.data.Dataset):
             label_dict = json.load(f)
 
         # Loading labels.
-        label_file = os.path.join(
+        split_file = os.path.join(
+            # self.cfg.DATA.PATH_TO_DATA_DIR,
+            # "Ucf-{}.json".format("train" if self.mode == "train" else "validation"),
             self.cfg.DATA.PATH_TO_DATA_DIR,
-            "Ucf-{}.json".format("train" if self.mode == "train" else "validation"),
+            "Ucf-{}.json".format(self.mode),
         )
-        with pathmgr.open(label_file, "r") as f:
-            label_json = json.load(f)
+        with pathmgr.open(split_file, "r") as f:
+            split_json = json.load(f)
 
         self._video_names = []
         self._labels = []
         # Ucf-train/validation.json file
         # important keys: "id" and "template"
-        for video in label_json:
+        for video in split_json:
             video_name = video["id"]
             template = video["template"]
             template = template.replace("[", "")
             template = template.replace("]", "")
             label = int(label_dict[template])
-            self._video_names.append(str(int(video_name)))
+            self._video_names.append(str(video_name))
             self._labels.append(label)
 
         path_to_file = os.path.join(
+            self.cfg.DATA.PATH_TO_DATA_DIR,
+            "{}.csv".format(self.mode),
+        )
+
+        if not (pathmgr.exists(path_to_file)): 
+            # small datasets may use same annotations for val and test
+            path_to_file = os.path.join(
             self.cfg.DATA.PATH_TO_DATA_DIR,
             "{}.csv".format("train" if self.mode == "train" else "val"),
         )
@@ -137,6 +146,9 @@ class Ucf(torch.utils.data.Dataset):
 
         self._labels = new_labels
         self._path_to_videos = new_paths
+
+        print("UCF PY 144a: len(self._path_to_videos_dict) is ", len(self._path_to_videos_dict))
+        print("UCF PY 144b: len(new_paths) is ", len(new_paths))
 
         # Extend self when self._num_clips > 1 (during testing).
         self._path_to_videos = list(

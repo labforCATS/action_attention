@@ -215,10 +215,12 @@ def load_checkpoint(
         (int): the number of training epoch of the checkpoint.
     """
     logger.info("Loading network weights from {}.".format(path_to_checkpoint))
+    print("CHECKPOINT PY 217: start of load_checkpoint function call")
 
     # Account for the DDP wrapper in the multi-gpu setting.
     ms = model.module if data_parallel else model
     if convert_from_caffe2:
+        print("CHECKPOINT PY 221, converting from caffe")
         with pathmgr.open(path_to_checkpoint, "rb") as f:
             caffe2_checkpoint = pickle.load(f, encoding="latin1")
         state_dict = OrderedDict()
@@ -284,9 +286,11 @@ def load_checkpoint(
         ms.load_state_dict(state_dict, strict=False)
         epoch = -1
     else:
+        print("CHECKPOINT PY 286: using a single GPU")
         # Load the checkpoint on CPU to avoid GPU mem spike.
         with pathmgr.open(path_to_checkpoint, "rb") as f:
             checkpoint = torch.load(f, map_location="cpu")
+        print("CHECKPOINT PY 289: checkpoint is loaded and should be to ", path_to_checkpoint)
         model_state_dict_3d = (
             model.module.state_dict() if data_parallel else model.state_dict()
         )
@@ -343,6 +347,7 @@ def load_checkpoint(
                 scaler.load_state_dict(checkpoint["scaler_state"])
         else:
             epoch = -1
+    print("CHECKPOINT.PY 346: returning epoch", epoch, " from load_checkpoint")
     return epoch
 
 
@@ -454,6 +459,7 @@ def load_test_checkpoint(cfg, model):
         # If no checkpoint found in MODEL_VIS.CHECKPOINT_FILE_PATH or in the current
         # checkpoint folder, try to load checkpoint from
         # TEST.CHECKPOINT_FILE_PATH and test it.
+        print("CHECKPOINT PY 453, checkpoint file path is NOT empty")
         load_checkpoint(
             cfg.TEST.CHECKPOINT_FILE_PATH,
             model,
@@ -462,13 +468,18 @@ def load_test_checkpoint(cfg, model):
             inflation=False,
             convert_from_caffe2=cfg.TEST.CHECKPOINT_TYPE == "caffe2",
         )
+        print("CHECKPOINT PY 453, checkpoint at", cfg.TEST.CHECKPOINT_FILE_PATH, "END")
     elif has_checkpoint(cfg.OUTPUT_DIR):
+        print("CHECKPOINT PY 465, using the output directory")
         last_checkpoint = get_last_checkpoint(cfg.OUTPUT_DIR, cfg.TASK)
+        print("Checkpoint PY 466, last_checkpoint is set to", last_checkpoint, "END")
         load_checkpoint(last_checkpoint, model, cfg.NUM_GPUS > 1)
+        print("CHECKPOINT PY 467, loaded checkpoint at", cfg.TEST.CHECKPOINT_FILE_PATH, "END")
     elif cfg.TRAIN.CHECKPOINT_FILE_PATH != "":
         # If no checkpoint found in TEST.CHECKPOINT_FILE_PATH or in the current
         # checkpoint folder, try to load checkpoint from
         # TRAIN.CHECKPOINT_FILE_PATH and test it.
+        print("CHECKPOINT PY 468")
         load_checkpoint(
             cfg.TRAIN.CHECKPOINT_FILE_PATH,
             model,
@@ -478,6 +489,7 @@ def load_test_checkpoint(cfg, model):
             convert_from_caffe2=cfg.TRAIN.CHECKPOINT_TYPE == "caffe2",
         )
     else:
+        print("CHECKPOINT 481 ELSE CASE")
         logger.info(
             "Unknown way of loading checkpoint. Using with random initialization, only for debugging."
         )

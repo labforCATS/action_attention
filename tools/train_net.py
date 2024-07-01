@@ -92,16 +92,17 @@ def train_epoch(
         misc.frozen_bn_stats(model)
 
     weights = None
-    if (
-        cfg.TRAIN.DATASET.lower() == "ucf"
-        and cfg.MODEL.LOSS_FUNC == "cross_entropy"
-    ):
-        # assign weight to each of the classes (presumably to handle unbalanced
-        # training set?)
-        weights = torch.tensor(
-            [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 7.5, 11.54, 6.82]
-        )
-        weights = weights.cuda()
+    # TODO: commented out lines 96-105 because ucf50 needs 50 weights and this has 10 - fix??
+    # if (
+    #     cfg.TRAIN.DATASET.lower() == "ucf"
+    #     and cfg.MODEL.LOSS_FUNC == "cross_entropy"
+    # ):
+    #     # assign weight to each of the classes (presumably to handle unbalanced
+    #     # training set?)
+    #     weights = torch.tensor(
+    #         [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 7.5, 11.54, 6.82]
+    #     )
+    #     weights = weights.cuda()
     # Explicitly declare reduction to mean.
     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(
         weight=weights, reduction="mean"
@@ -405,27 +406,28 @@ def eval_epoch(val_loader, model, val_meter, cur_epoch, cfg, writer):
                     raise NotImplementedError
                 else:
                     weights = None
-                    if (
-                        cfg.TRAIN.DATASET.lower() == "ucf"
-                        and cfg.MODEL.LOSS_FUNC == "cross_entropy"
-                    ):
-                        # assign weight to each of the classes (presumably to handle unbalanced
-                        # training set?)
-                        weights = torch.tensor(
-                            [
-                                10.71,
-                                8.33,
-                                7.5,
-                                25.0,
-                                12.5,
-                                11.54,
-                                12.5,
-                                7.5,
-                                11.54,
-                                6.82,
-                            ]
-                        )
-                        weights = weights.cuda()
+                    # TODO: figure out if these should be manually set for ucf50 (commented out 6/12/24)
+                    # if (
+                    #     cfg.TRAIN.DATASET.lower() == "ucf"
+                    #     and cfg.MODEL.LOSS_FUNC == "cross_entropy"
+                    # ):
+                    #     # assign weight to each of the classes (presumably to handle unbalanced
+                    #     # training set?)
+                    #     weights = torch.tensor(
+                    #         [
+                    #             10.71,
+                    #             8.33,
+                    #             7.5,
+                    #             25.0,
+                    #             12.5,
+                    #             11.54,
+                    #             12.5,
+                    #             7.5,
+                    #             11.54,
+                    #             6.82,
+                    #         ]
+                    #     )
+                    #     weights = weights.cuda()
                     # Explicitly declare reduction to mean.
                     loss_fun = losses.get_loss_func(cfg.MODEL.LOSS_FUNC)(
                         weight=weights,

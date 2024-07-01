@@ -1,58 +1,48 @@
+# 6/7/24: Do we need this file anymore? Redundant with SLOWFAST-8x8_R50_gradcam.yaml
 TRAIN:
-  ENABLE: True
+  ENABLE: False
   DATASET: Ucf
   BATCH_SIZE: 1
   EVAL_PERIOD: 2
   CHECKPOINT_PERIOD: 1
   RESUME_FROM_CHECKPOINT: True
-  CHECKPOINT_FILE_PATH: slowfast/SLOWFAST_16x8_R50.pkl # please download from the model zoo.
-  # CHECKPOINT_FILE_PATH: slowfast/SLOWFAST_8x8_R50.pkl
-  CHECKPOINT_TYPE: pytorch
+  CHECKPOINT_FILE_PATH: /research/cwloka/data/action_attn/action_attention/SLOWFAST_8x8_R50.pkl
+  CHECKPOINT_TYPE: caffe2
   CHECKPOINT_EPOCH_RESET: True
+
 TENSORBOARD:
   ENABLE: False
-  CLASS_NAMES_PATH: /media/cats/32b7c353-4595-42d8-81aa-d029f1556567/ucf/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf/Ucf-labels.json
+  # CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_high_loop_slow/Ucf-labels.json
+  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_backwards/Ucf-labels.json
   MODEL_VIS:
     ENABLE: True
     MODEL_WEIGHTS: False # Set to True to visualize model weights.
     ACTIVATIONS: False # Set to True to visualize feature maps.
     INPUT_VIDEO: False # Set to True to visualize the input video(s) for the corresponding feature maps.
-    LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of layer names to visualize weights and activations for.
+    # LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of layer names to visualize weights and activations for.
     GRAD_CAM:
       ENABLE: True
       LAYER_LIST: ['s5/pathway1_res2', 's5/pathway0_res2'] # List of CNN layers to use for Grad-CAM visualization method.
                   # The number of layer must be equal to the number of pathway(s).
       USE_TRUE_LABEL: False
-DEMO:
-  ENABLE: False
-  LABEL_FILE_PATH: /media/cats/32b7c353-4595-42d8-81aa-d029f1556567/ucf/Ucf-labels.json
-  INPUT_VIDEO: 
-  OUTPUT_FILE: 
-  THREAD_ENABLE: True
-  NUM_VIS_INSTANCES: 1
-  NUM_CLIPS_SKIP: 0
-  DISPLAY_WIDTH: 224
-  DISPLAY_HEIGHT: 224
 DATA:
-  # PATH_TO_DATA_DIR: /media/cats/32b7c353-4595-42d8-81aa-d029f1556567/something_something/20bn-something-something-v2
-  PATH_TO_DATA_DIR: /media/cats/32b7c353-4595-42d8-81aa-d029f1556567/ucf
+  # PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_high_loop_slow
+  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_backwards
   NUM_FRAMES: 64
   SAMPLING_RATE: 2
   TRAIN_JITTER_SCALES: [256, 320]
-  TRAIN_CROP_SIZE: 224
+  TRAIN_CROP_SIZE: 256
   TEST_CROP_SIZE: 256
   INPUT_CHANNEL_NUM: [3, 3]
-  INV_UNIFORM_SAMPLE: True
   RANDOM_FLIP: False
-  REVERSE_INPUT_CHANNEL: True
+
 SLOWFAST:
   ALPHA: 4
   BETA_INV: 8
   FUSION_CONV_CHANNEL_RATIO: 2
   FUSION_KERNEL_SZ: 7
 RESNET:
-  SPATIAL_STRIDES: [[1, 1], [2, 2], [2, 2], [2, 2]]
-  SPATIAL_DILATIONS: [[1, 1], [1, 1], [1, 1], [1, 1]]
   ZERO_INIT_FINAL_BN: True
   WIDTH_PER_GROUP: 64
   NUM_GROUPS: 1
@@ -60,6 +50,8 @@ RESNET:
   TRANS_FUNC: bottleneck_transform
   STRIDE_1X1: False
   NUM_BLOCK_TEMP_KERNEL: [[3, 3], [4, 4], [6, 6], [3, 3]]
+  SPATIAL_STRIDES: [[1, 1], [2, 2], [2, 2], [2, 2]]
+  SPATIAL_DILATIONS: [[1, 1], [1, 1], [1, 1], [1, 1]]
 NONLOCAL:
   LOCATION: [[[], []], [[], []], [[], []], [[], []]]
   GROUP: [[1, 1], [1, 1], [1, 1], [1, 1]]
@@ -67,31 +59,30 @@ NONLOCAL:
 BN:
   USE_PRECISE_STATS: True
   NUM_BATCHES_PRECISE: 200
-  NORM_TYPE: sync_batchnorm
-  NUM_SYNC_DEVICES: 4
 SOLVER:
-  # BASE_LR: 0.03
-  BASE_LR: 0.3
+  BASE_LR: 0.0001
+  # BASE_LR: 0.3
   LR_POLICY: steps_with_relative_lrs
   LRS: [1, 0.1, 0.01, 0.001, 0.0001, 0.00001]
-  STEPS: [0, 14, 18]
+  # LRS: [.01, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001]
+  STEPS: [0, 40, 60]
   # MAX_EPOCH: 22
   MAX_EPOCH: 200
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-6
-  WARMUP_EPOCHS: 0.19
+  WARMUP_EPOCHS: 0.0
   WARMUP_START_LR: 0.0001
   OPTIMIZING_METHOD: sgd
 MODEL:
   NUM_CLASSES: 10
   ARCH: slowfast
+  MODEL_NAME: SlowFast
   LOSS_FUNC: cross_entropy
-  # WEIGHTS: [10.71, 8.33, 7.5, 25.0, 12.5, 11.54, 12.5, 4.55, 6.82]
   DROPOUT_RATE: 0.5
-  DETACH_FINAL_FC: True
+  # DETACH_FINAL_FC: True
 TEST:
   ENABLE: True
-  DATASET: ucf
+  DATASET: Ucf
   BATCH_SIZE: 1
   NUM_ENSEMBLE_VIEWS: 1
   NUM_SPATIAL_CROPS: 1
@@ -100,6 +91,9 @@ DATA_LOADER:
   PIN_MEMORY: True
 NUM_GPUS: 1
 NUM_SHARDS: 1
+SHARD_ID: 0
 RNG_SEED: 0
-OUTPUT_DIR: .
+# OUTPUT_DIR: /research/cwloka/data/action_attn/output_slowfast
+# OUTPUT_DIR: /research/cwloka/data/action_attn/high_loop_slow_output
+OUTPUT_DIR: /research/cwloka/data/action_attn/ucf_backwards_output_slowfast
 LOG_MODEL_INFO: False

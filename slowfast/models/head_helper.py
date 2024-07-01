@@ -99,7 +99,7 @@ class ResNetRoIHead(nn.Module):
 
         # Softmax for evaluation and testing.
         if act_func == "softmax":
-            self.act = nn.Softmax(dim=1)
+            self.act = nn.Softmax(dim=-1)
         elif act_func == "sigmoid":
             self.act = nn.Sigmoid()
         else:
@@ -270,7 +270,7 @@ class ResNetBasicHead(nn.Module):
 
         # Softmax for evaluation and testing.
         if act_func == "softmax":
-            self.act = nn.Softmax(dim=4)
+            self.act = nn.Softmax(dim=-1)
         elif act_func == "sigmoid":
             self.act = nn.Sigmoid()
         elif act_func == "none":
@@ -446,7 +446,7 @@ class X3DHead(nn.Module):
 
         # Softmax for evaluation and testing.
         if self.act_func == "softmax":
-            self.act = nn.Softmax(dim=4)
+            self.act = nn.Softmax(dim=-1)
         elif self.act_func == "sigmoid":
             self.act = nn.Sigmoid()
         else:
@@ -530,7 +530,7 @@ class TransformerBasicHead(nn.Module):
 
         # Softmax for evaluation and testing.
         if act_func == "softmax":
-            self.act = nn.Softmax(dim=1)
+            self.act = nn.Softmax(dim=-1)
         elif act_func == "sigmoid":
             self.act = nn.Sigmoid()
         elif act_func == "none":

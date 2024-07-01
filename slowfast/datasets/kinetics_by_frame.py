@@ -22,7 +22,7 @@ logger = logging.get_logger(__name__)
 
 
 @DATASET_REGISTRY.register()
-class KineticsByFrame(torch.utils.data.Dataset):
+class KineticsByFrame():
     """
     Kinetics video loader which loads _frames_ instead of videos.
 
@@ -98,23 +98,23 @@ class KineticsByFrame(torch.utils.data.Dataset):
             ),
             "r",
         ) as f:
-            # dict that converts string to index
+            # dict that converts label string to numeric index (e.g. "abseiling" : 0)
             label_dict = json.load(f)
 
-        # Loading labels.
-        label_file = os.path.join(
+        # loading list of dictionaries with "id" and "template" keys for each video
+        split_file = os.path.join(
             self.cfg.DATA.PATH_TO_DATA_DIR,
             "Kinetics-{}.json".format(self.mode),
         )
-        with pathmgr.open(label_file, "r") as f:
-            label_json = json.load(f)
+        with pathmgr.open(split_file, "r") as f:
+            split_json = json.load(f)
 
         self._video_names = []
         self._labels = []
-        for video in label_json:
+        for video in split_json:
             video_name = video["id"]
             template = video["template"]
-            # whats the difference btwn the "template" keyword and the "label" keyword in the json?
+            # why is there a "label" keyword in the json? looks identical to "template"
             template = template.replace("[", "")
             template = template.replace("]", "")
             label = int(label_dict[template])
@@ -128,14 +128,35 @@ class KineticsByFrame(torch.utils.data.Dataset):
         )
         assert pathmgr.exists(path_to_file), "{} dir not found".format(path_to_file)
 
+        # loading list of dictionaries with "id" key for each vid
+        # key-value pair: "aOA7YvFWLic" : path_to_frame_1, path_to_frame_2, ...
         self._path_to_videos_dict, _ = utils.load_image_lists(
             path_to_file, self.cfg.DATA.PATH_PREFIX
         )
+
+        ### TODO: is there a more efficient way to do this? ###
+        # 6/18/24: K400 download included 14 'empty' videos in the testing split
+        # which have no frames that can be extracted. Should not test these misprocessed videos. 
+
+        misprocessed_video_indices = []
+        for i in range(len(self._video_names)):
+            if (self._video_names[i] in self._path_to_videos_dict):
+                continue
+            else:
+                misprocessed_video_indices.append(i)
+                print("kinetics_by_frame.py 140: test_NEW.csv is missing video", self._video_names[i])
+
+        for index in misprocessed_video_indices:
+            self._video_names.pop(index)
+            self._labels.pop(index)
+
+        ### END TROUBLESHOOT
 
         assert len(self._path_to_videos_dict) == len(self._video_names), (
             len(self._path_to_videos_dict),
             len(self._video_names),
         )
+        assert len(self._path_to_videos_dict) == len(self._labels)
 
         # From dict to list.
         new_paths, new_labels = [], []
@@ -144,8 +165,13 @@ class KineticsByFrame(torch.utils.data.Dataset):
                 new_paths.append(self._path_to_videos_dict[self._video_names[index]])
                 new_labels.append(self._labels[index])
 
-        self._labels = new_labels
-        self._path_to_videos = new_paths
+        # self._labels = new_labels
+        # self._path_to_videos = new_paths
+
+        #### TODO: switch this back, just for testing 6/18/24
+        self._labels = new_labels[-500:]
+        self._path_to_videos = new_paths[-500:]
+
 
         # Extend self when self._num_clips > 1 (during testing).
         self._path_to_videos = list(

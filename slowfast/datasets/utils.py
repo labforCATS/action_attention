@@ -245,6 +245,7 @@ def load_image_lists(frame_list_file, prefix="", return_list=False):
         labels (list or dict): list of list containing label of each frame.
             If return_list is False, then return in a dict form.
     """
+    print("UTILS 248: beginning the load_image_lists function")
     image_paths = defaultdict(list)
     labels = defaultdict(list)
     with pathmgr.open(frame_list_file, "r") as f:
@@ -256,14 +257,20 @@ def load_image_lists(frame_list_file, prefix="", return_list=False):
             video_name = row[0]
             if prefix == "":
                 path = row[3]
-            else:
+            else: 
                 path = os.path.join(prefix, row[3])
+            if (path in image_paths[video_name]):
+                print("UTILS 262. Problem: path has already been added to dictionary:", path)    
             image_paths[video_name].append(path)
             frame_labels = row[-1].replace('"', "")
+
             if frame_labels != "":
                 labels[video_name].append([int(x) for x in frame_labels.split(",")])
+
             else:
                 labels[video_name].append([])
+
+    print("UTILS 273: finished running the load_image_lists function")
 
     if return_list:
         keys = image_paths.keys()

@@ -5,6 +5,11 @@ import csv
 import cv2
 import numpy as np
 
+### Data loader for UCF sports data set. Should not need to be run again but keeping a copy for records.
+### Train/val splits and annotations are hardcoded in; this should *not* be used as a template for 
+### any future data processing. Validation and testing data are the same. 
+### Uses 150 videos from UCF sports original and 103 augmented versions. 
+
 # Text labels corresponding to the numbers
 labels = [
     "Diving",
@@ -548,8 +553,8 @@ def switch_to_json(filename, new_filename):
     Moves a txt file with two columns into json format
     (switching order of columns)
 
-    Useful for turning the UCF101 dataset labels
-    when originally downloaded to one for slowfast
+    Useful for turning the originally-downloaded 
+    UCF sports dataset labels to the format for SlowFast.
     """
     # Read in the file
     with open(filename, "r") as f:
@@ -668,7 +673,7 @@ def create_train_and_val_json(path):
         json.dump(test_json, f)
 
     # Write to the validation json (same data for ucf sports)
-    with open(path + "Ucf-validation.json", "w") as f:
+    with open(path + "Ucf-val.json", "w") as f:
         json.dump(test_json, f)
 
     # Create a list of dictionaries from train list
@@ -943,7 +948,3 @@ def flip_horizontally(new_path):
         count += 1
 
 
-# create_val_csv('./ucf2/')
-# create_train_csv('./ucf2/')
-# create_test_csv('./ucf2/')
-# create_train_and_val_json('./ucf2/')

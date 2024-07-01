@@ -43,7 +43,7 @@ def get_head_act(act_func):
         nn.Module: the activation layer.
     """
     if act_func == "softmax":
-        return nn.Softmax(dim=1)
+        return nn.Softmax(dim=-1)
     elif act_func == "sigmoid":
         return nn.Sigmoid()
     else:

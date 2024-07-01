@@ -189,7 +189,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
         writer (TensorboardWriter object, optional): TensorboardWriter object
             to writer Tensorboard log.
     """
-    # get the heatmap root dir and json containing the list of test data 
+    # get the heatmap root dir and json containing the list of test data
     isolate_epoch_file = cfg.TEST.CHECKPOINT_FILE_PATH.split("/")[-1]
     remove_tag = isolate_epoch_file.split(".")
     epoch_selected = (remove_tag[0].split("_"))[2]

@@ -37,8 +37,11 @@ def output_idx_to_input(input_json_path, output_vid_idx):
         vid_logs = json.load(f)  # list of dictionaries
 
     input_vid_log = vid_logs[output_vid_idx]
-    target_class = input_vid_log["labels"]
-    input_vid_idx = int(input_vid_log["video_id"].split("_")[1])
+    target_class = input_vid_log["label"]
+    # input_vid_idx = int(input_vid_log["video_id"].split("_")[1])
+    # input_vid_idx = int(input_vid_log["id"]) 
+    # TODO: why are these extra lines here?
+    input_vid_idx = input_vid_log["id"]
     return target_class, input_vid_idx
 
 def get_exp_and_root_dir(sub_dir):

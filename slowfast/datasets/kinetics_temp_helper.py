@@ -26,11 +26,13 @@ def make_csv(fdir="/research/cwloka/data/action_attn/kinetics_extracted"):
     video_id_list = [
         kinetics_test_dicts[i]["id"] for i in range(len(kinetics_test_dicts))
     ]
+    print(len(video_id_list))
 
     path_to_csv = os.path.join(fdir, fname)
     with open(path_to_csv, "w") as f:
         header = "original_vido_id video_id frame_id path labels\n"
         f.write(header)
+
 
         for video_id in tqdm(video_id_list, total=len(video_id_list)):
             video_dir = os.path.join(fdir, video_id)

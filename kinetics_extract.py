@@ -18,7 +18,8 @@ DESTINATION_FOLDER = "/research/cwloka/data/action_attn/kinetics_small/"
 
 
 def resize_videos(
-    origin="/research/cwloka/data/action_attn/kinetics/kinetics-dataset/k400/test/",
+    # origin="/research/cwloka/data/action_attn/kinetics/kinetics-dataset/k400/test/",
+    origin = DESTINATION_FOLDER,
 ):
     for __, __, files in os.walk(origin):
         total = len(files)
@@ -27,9 +28,11 @@ def resize_videos(
             if count % 1000 == 0:
                 print(count)
             video_name = f[:-18] + ".mp4"
-            vid = cv2.VideoCapture(f)
+            vid = cv2.VideoCapture(origin + f)
             height = vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            print(height)
             width = vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+            print(width)
             if height > width:
                 os.system(
                     "ffmpeg -i {0}  -vf scale='256:-1' {1}{2}".format(
@@ -43,6 +46,7 @@ def resize_videos(
                     )
                 )
             count += 1
+            break
 
 
 # read every video and turn it into frames

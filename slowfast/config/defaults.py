@@ -248,7 +248,7 @@ _C.TEST.NUM_SPATIAL_CROPS = 3
 # Checkpoint types include `caffe2` or `pytorch`.
 _C.TEST.CHECKPOINT_TYPE = "pytorch"
 # Path to saving prediction results file.
-_C.TEST.SAVE_RESULTS_PATH = ""
+_C.TEST.SAVE_RESULTS_PATH = "predictions"
 # -----------------------------------------------------------------------------
 # ResNet options
 # -----------------------------------------------------------------------------
@@ -905,7 +905,7 @@ _C.TENSORBOARD = CfgNode()
 
 # Log to summary writer, this will automatically.
 # log loss, lr and metrics during train/eval.
-_C.TENSORBOARD.ENABLE = False
+_C.TENSORBOARD.ENABLE = True
 # Provide path to prediction results for visualization.
 # This is a pickle file of [prediction_tensor, label_tensor]
 _C.TENSORBOARD.PREDICTIONS_PATH = ""
@@ -935,7 +935,7 @@ _C.TENSORBOARD.CONFUSION_MATRIX.SUBSET_PATH = ""
 # Config for histogram visualization.
 _C.TENSORBOARD.HISTOGRAM = CfgNode()
 # Visualize histograms.
-_C.TENSORBOARD.HISTOGRAM.ENABLE = False
+_C.TENSORBOARD.HISTOGRAM.ENABLE = True
 # Path to a subset of classes to plot histograms.
 # Class names must be separated by newline characters.
 _C.TENSORBOARD.HISTOGRAM.SUBSET_PATH = ""
@@ -953,13 +953,13 @@ _C.TENSORBOARD.MODEL_VIS = CfgNode()
 _C.TENSORBOARD.MODEL_VIS.ENABLE = False
 
 # If False, skip visualizing model weights.
-_C.TENSORBOARD.MODEL_VIS.MODEL_WEIGHTS = False
+_C.TENSORBOARD.MODEL_VIS.MODEL_WEIGHTS = True
 
 # If False, skip visualizing model activations.
-_C.TENSORBOARD.MODEL_VIS.ACTIVATIONS = False
+_C.TENSORBOARD.MODEL_VIS.ACTIVATIONS = True
 
 # If False, skip visualizing input videos.
-_C.TENSORBOARD.MODEL_VIS.INPUT_VIDEO = False
+_C.TENSORBOARD.MODEL_VIS.INPUT_VIDEO = True
 
 # List of strings containing data about layer names and their indexing to
 # visualize weights and activations for. The indexing is meant for
@@ -993,10 +993,10 @@ _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.COLORMAP = "viridis"
 _C.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX = True
 # (added 7/13, modified 7/18):
 # whether to save the heatmaps overlaid on inputs as a video
-_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO: False
+_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.SAVE_OVERLAY_VIDEO = True
 # (added 7/27):
 # whether to plot 
-_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.TRUE_TRAJECTORY_HEATMAP: False
+_C.TENSORBOARD.MODEL_VIS.GRAD_CAM.TRUE_TRAJECTORY_HEATMAP = True
 
 
 # Config for visualization for wrong prediction visualization.
@@ -1105,13 +1105,13 @@ _C.DATA_LOADER.INSPECT = CfgNode()
 
 # TODO: figure out why these default values aren't working
 # whether to save sampled videos as frames
-_C.DATA_LOADER.INSPECT.SAVE_FRAMES: False
+_C.DATA_LOADER.INSPECT.SAVE_FRAMES = False
 # whether to save sampled videos as videos
-_C.DATA_LOADER.INSPECT.SAVE_VIDEO: False
+_C.DATA_LOADER.INSPECT.SAVE_VIDEO = False
 # how many sampled videos from a dataloader to save
-_C.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT: 0
+_C.DATA_LOADER.INSPECT.SAVE_SEQ_COUNT = 0
 # whether to shuffle the dataloader before iterating over it
-_C.DATA_LOADER.INSPECT.SHUFFLE: True
+_C.DATA_LOADER.INSPECT.SHUFFLE = True
 
 
 # (added 11/8)
@@ -1121,7 +1121,7 @@ _C.METRICS = CfgNode()
 _C.METRICS.FUNCS = []
 
 # whether or not to run metric calculations
-_C.METRICS.ENABLE = True
+_C.METRICS.ENABLE = False
 
 # (added 12/7) path to save the csv results to
 _C.METRICS.CSV_PATH = ""

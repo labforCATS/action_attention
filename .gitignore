@@ -7,7 +7,9 @@ slowfast.egg-info/SOURCES.txt
 *SOURCES.txt
 
 # people's personal output folders
-/research/cwloka/projects/nikki_sandbox/output/*
+# /research/cwloka/projects/nikki_sandbox/output/*
 vis_model_input
-/research/cwloka/projects/nikki_sandbox/action_attention/output/*
+# /research/cwloka/projects/nikki_sandbox/action_attention/output/*
 metric_exploration/plots/
+
+**/output/*
