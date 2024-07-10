@@ -267,42 +267,51 @@ def frame_vs_metric_plot(
     base_dir = os.path.join(exp_base_dir, "metric_results")
 
     for arch in architectures:
-        output_folder = os.path.join(
-                            output_base_folder, f"experiment_{exp}", arch, vis_technique
-                        )
+        if arch == "slowfast":
+                channels = ["slow", "fast"]
+        elif arch in ["i3d", "i3d_nln"]:
+                channels = ["rgb"]
+        else:
+                raise NotImplementedError("Add in logic for handling channels")
+        for channel in channels:
 
-        if not os.path.exists(output_folder):
-                            os.makedirs(output_folder)
+            output_folder = os.path.join(
+                                output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
+                            )
+
+            if not os.path.exists(output_folder):
+                                os.makedirs(output_folder)
 
 
-        # retrieve and load csv for results
-        data_folder_path = os.path.join(
-            base_dir, f"experiment_{exp}", arch, vis_technique
-        )
+            # retrieve and load csv for results
+            data_folder_path = os.path.join(
+                base_dir, f"experiment_{exp}", arch, vis_technique
+            )
 
-        # retrieve and load csv with results
-        csv_path = os.path.join(
-            data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
-        )
-        df = pd.read_csv(csv_path)
+            # retrieve and load csv with results
+            csv_path = os.path.join(
+                data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
+            )
+            df = pd.read_csv(csv_path)
+            df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
 
-        for metric in metrics:
-            print("Creating frame vs metric plots for ", arch, " and ", metric)
+            for metric in metrics:
+                print("Creating frame vs metric plots for ", arch, " ", channel, " and ", metric)
 
-            metric_val = df[metric]
-            frame_id = df["frame_id"]
-            video_name = df["input_vid_idx"]
+                metric_val = df[metric]
+                frame_id = df["frame_id"]
+                video_name = df["input_vid_idx"]
 
-            s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
-            ax = s.plot(color='gray', linestyle='None', label="_hidden")
-            s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
-            ax.get_legend().remove() 
-            ax.set_xlabel("frame id")
-            ax.set_ylabel({metric})
+                s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
+                ax = s.plot(color='gray', linestyle='None', label="_hidden")
+                s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
+                ax.get_legend().remove() 
+                ax.set_xlabel("frame id")
+                ax.set_ylabel({metric})
 
-            file_path = os.path.join(output_folder, f"frames_vs_{metric}_.png")
-            plt.savefig(file_path)
-            plt.close()    
+                file_path = os.path.join(output_folder, f"frames_vs_{metric}_.png")
+                plt.savefig(file_path)
+                plt.close()    
 
 
 def multi_model_frame_vs_metric_plot(
@@ -320,51 +329,55 @@ def multi_model_frame_vs_metric_plot(
 
     for metric in metrics:
         print("Creating multi-model frame-vs-metric plots for ", metric)
-        # fig, axes = plt.subplots(nrows=2, ncols=3)
-        # df.plot(ax = axes[0,i])
-        i = 0
-        
-        df_list = []
 
+        pivot_list = []
 
         for arch in architectures:
-            print("Plotting data for ", arch)
-            output_folder = os.path.join(
-                                output_base_folder, f"experiment_{exp}"
-                            )
+            if arch == "slowfast":
+                channels = ["slow", "fast"]
+            elif arch in ["i3d", "i3d_nln"]:
+                channels = ["rgb"]
+            else:
+                raise NotImplementedError("Add in logic for handling channels")
+            for channel in channels:
+                print("Plotting data for ", arch, channel)
+                output_folder = os.path.join(
+                                    output_base_folder, f"experiment_{exp}"
+                                )
 
-            if not os.path.exists(output_folder):
-                                os.makedirs(output_folder)
+                if not os.path.exists(output_folder):
+                                    os.makedirs(output_folder)
 
-            # retrieve and load csv for results
-            data_folder_path = os.path.join(
-                base_dir, f"experiment_{exp}", arch, vis_technique
-            )
+                # retrieve and load csv for results
+                data_folder_path = os.path.join(
+                    base_dir, f"experiment_{exp}", arch, vis_technique
+                )
 
-            # retrieve and load csv with results
-            csv_path = os.path.join(
-                data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
-            )
-            df = pd.read_csv(csv_path)
+                # retrieve and load csv with results
+                csv_path = os.path.join(
+                    data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
+                )
+                df = pd.read_csv(csv_path)
+                df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
+            
+                metric_val = df[metric]
+                frame_id = df["frame_id"]
+                video_name = df["input_vid_idx"]
 
-        
-
-            metric_val = df[metric]
-            frame_id = df["frame_id"]
-            video_name = df["input_vid_idx"]
-
-            s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
-            # s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
-
-            df_list.append(s)
+                s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
+                pivot_list.append(s)
 
 
-        ax = (df_list[0]).mean(1).plot(color='b', label='Slowfast')
-        (df_list[1]).mean(1).plot(ax=ax, color='r', label='I3D')
+        # labels hardcoded from order of loop above, ideally would switch to be labeled by variable
+        # TODO is this a problem? ^^
+        ax = (pivot_list[0]).mean(1).plot(color='b', label='Slowfast SLOW')
+        (pivot_list[1]).mean(1).plot(ax=ax, color = 'g', label='Slowfast FAST')
+        (pivot_list[2]).mean(1).plot(ax=ax, color = 'r', label='I3D')
+        (pivot_list[3]).mean(1).plot(ax=ax, color = 'y', label='I3D NLN')
         ax.legend()
+        ax.set_xlabel("frame id")
+        ax.set_ylabel({metric})
 
-
-    
 
         file_path = os.path.join(output_folder, f"MULTI_MODEL_frames_vs_{metric}_.png")
         plt.savefig(file_path)
