@@ -23,22 +23,40 @@ gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
 softmax_status = ["pre_softmax", "post_softmax"]
 metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
 
-exp_base_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
+base_data_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
+output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
+results_dir = os.path.join(base_data_dir, "metric_results")
+
+# for subset plotting only
+video_id_to_plot = [0, 1, 2]
+
+
+######################### SAMPLE CALLS ############################
+# single_model_plot(
+#     2, 
+#     "grad_cam", 
+#     "pre_softmax", 
+#     xvar = "frame_id",
+#     yvar = "metric",
+#     subset = False,
+#     show_legend = True,
+# )
+##################################################################
+
 
 ######################################################################################################
 # Functions that we *are* using! (unnecessary but possibly useful-later functions are lower in file) #
 ######################################################################################################
 
-def frame_vs_metric_plot(
+def single_model_plot(
     exp,
     vis_technique,
     softmax,
-    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
+    xvar = "frame_id",
+    yvar = "metric",
+    subset = False,
+    show_legend = True,
 ):
-    
-    output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
-    base_dir = os.path.join(exp_base_dir, "metric_results")
-
     for arch in architectures:
         if arch == "slowfast":
                 channels = ["slow", "fast"]
@@ -47,7 +65,6 @@ def frame_vs_metric_plot(
         else:
                 raise NotImplementedError("Add in logic for handling channels")
         for channel in channels:
-
             output_folder = os.path.join(
                                 output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
                             )
@@ -55,48 +72,117 @@ def frame_vs_metric_plot(
             if not os.path.exists(output_folder):
                                 os.makedirs(output_folder)
 
-
-            # retrieve and load csv for results
             data_folder_path = os.path.join(
-                base_dir, f"experiment_{exp}", arch, vis_technique
+                results_dir, f"experiment_{exp}", arch, vis_technique
             )
 
-            # retrieve and load csv with results
-            csv_path = os.path.join(
-                data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
+            frame_metric_csv = os.path.join(
+                data_folder_path, 
+                f"exp_{exp}_{arch}_{softmax}_frames.csv"
             )
-            df = pd.read_csv(csv_path)
-            df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
+
+            df = pd.read_csv(frame_metric_csv)
+            df = df.loc[df["channel"] == channel]
+            # separate slow and fast channels
+
+            ###### get frame activations #######
+            framewise_root_dir = os.path.join(
+                base_data_dir,
+                f"experiment_{exp}",
+                f"{arch}_output",
+            )
+
+            heatmap_folder = ""
+            for entry in os.listdir(framewise_root_dir):
+                if "heatmaps_epoch_" in entry:
+                    heatmap_folder = entry
+
+            framewise_csv_path = os.path.join(
+                framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
+            )
+            framewisedf = pd.read_csv(framewise_csv_path)
+
+            df["mean_activations"] = framewisedf["mean_activations"].values
+            pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
+            pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
+            # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+            
+            ###### done getting frame activations ######
+
             df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
 
-            for metric in metrics:
-                # print("Creating frame vs metric plots for ", arch, " ", channel, " and ", metric)
+            if subset:
+                df = df[df["input_vid_idx"].isin(video_id_to_plot)]
 
-                metric_val = df[metric]
-                frame_id = df["frame_id"]
-                video_name = df["input_vid_idx"]
+            if yvar == "metric":
+                for metric in metrics:
+                    if xvar == "frame_id":
+                        s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric,
+                        aggfunc="mean")
+                        ax = s.plot(color='gray', label="input_vid_idx")
+                        s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
+                    elif xvar == "activation":
+                        fig, ax = plt.subplots()
+                        for i in range(len(video_id_to_plot)):
+                            vid_id_df = df[df["input_vid_idx"] == video_id_to_plot[i]] # plot each vid
+                            x = vid_id_df["mean_activations"]
+                            y = vid_id_df[metric]
+                            ax.scatter(x, y, label=video_id_to_plot[i])
 
-                s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
-                ax = s.plot(color='gray', label="_hidden")
-                s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
-                ax.get_legend().remove() 
-                ax.set_xlabel("frame id")
-                ax.set_ylabel({metric})
+                            z = np.polyfit(x, y, 1)
+                            p = np.poly1d(z)
+                            ax.plot(x, p(x))
+                    else:
+                        raise NotImplementedError("Add in logic to handle this kind of graph")
+                    if show_legend:
+                        ax.legend()
+                    else:
+                        ax.get_legend().remove() 
+                    ax.set_xlabel(xvar)
+                    ax.set_ylabel({metric})
 
-                file_path = os.path.join(output_folder, f"frames_vs_{metric}_.png")
-                plt.savefig(file_path)
-                plt.close()    
+                    if subset:
+                        file_path = os.path.join(output_folder, 
+                    f"subset_{xvar}_vs_{metric}.png")
+                    else: 
+                        file_path = os.path.join(output_folder, 
+                        f"{xvar}_vs_{metric}.png")
+                    
+                    plt.savefig(file_path)
+                    plt.close() 
 
-def gen_all_single_model_frame_vs_metric_plots():  
-    for exp in experiments:
-        for vis_technique in gc_variants:
-            for softmax in softmax_status:
-                frame_vs_metric_plot(
-                    exp,
-                    vis_technique,
-                    softmax,
-                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-                )
+            elif yvar == "activation":
+                if xvar == "frame_id":
+                    s = df.pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc='mean')
+                    ax = s.plot(color='gray', label="_hidden")
+                    s.mean(1).plot(ax=ax, color='r', linestyle='--', label='Mean')
+
+                    if show_legend:
+                        ax.legend()
+                    else:
+                        ax.get_legend().remove() 
+
+                    ax.set_xlabel(xvar)
+                    ax.set_ylabel(yvar)
+
+                    if subset:
+                        file_path = os.path.join(output_folder, 
+                    f"subset_{xvar}_vs_{yvar}.png")
+                    else: 
+                        file_path = os.path.join(output_folder, 
+                        f"{xvar}_vs_{yvar}.png")
+
+                    plt.savefig(file_path)
+                    plt.close()  
+
+                else:
+                    raise NotImplementedError("Add in logic to handle this kind of graph (unknown x vs activation)")
+                    
+            else:
+                raise NotImplementedError("Add in logic to handle this kind of graph (not metrics or activation on y-axis)")
+
+  
+
 
 def multi_model_frame_vs_metric_plot(
     exp,
@@ -105,8 +191,7 @@ def multi_model_frame_vs_metric_plot(
     metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
 ):
     
-    output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
-    base_dir = os.path.join(exp_base_dir, "metric_results")
+
 
     for metric in metrics:
         print("Creating multi-model frame-vs-metric plots for ", metric)
@@ -131,7 +216,7 @@ def multi_model_frame_vs_metric_plot(
 
                 # retrieve and load csv for results
                 data_folder_path = os.path.join(
-                    base_dir, f"experiment_{exp}", arch, vis_technique
+                    base_dir, f"resultsriment_{exp}", arch, vis_technique
                 )
 
                 # retrieve and load csv with results
@@ -144,9 +229,9 @@ def multi_model_frame_vs_metric_plot(
                 if channel == "slow":
                     df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
             
-                metric_val = df[metric]
-                frame_id = df["frame_id"]
-                video_name = df["input_vid_idx"]
+                # metric_val = df[metric]
+                # frame_id = df["frame_id"]
+                # video_name = df["input_vid_idx"]
 
                 s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
                 pivot_list.append(s)
@@ -164,107 +249,8 @@ def multi_model_frame_vs_metric_plot(
         plt.savefig(file_path)
         plt.close()
       
-def gen_all_multi_model_frame_vs_metric_plots():  
-    for exp in experiments:
-        for vis_technique in gc_variants:
-            for softmax in softmax_status:
-                multi_model_frame_vs_metric_plot(
-                    exp,
-                    vis_technique,
-                    softmax,
-                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-                )
 
-def frame_vs_activation_plot(
-    exp,
-    vis_technique,
-    softmax,
-    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-):
-    
-    output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
-    base_dir = os.path.join(exp_base_dir, "metric_results")
 
-    for arch in architectures:
-        if arch == "slowfast":
-                channels = ["slow", "fast"]
-        elif arch in ["i3d", "i3d_nln"]:
-                channels = ["rgb"]
-        else:
-                raise NotImplementedError("Add in logic for handling channels")
-        for channel in channels:
-
-            output_folder = os.path.join(
-                                output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
-                            )
-
-            if not os.path.exists(output_folder):
-                                os.makedirs(output_folder)
-
-            # retrieve and load csv for results
-            data_folder_path = os.path.join(
-                base_dir, f"experiment_{exp}", arch, vis_technique
-            )
-
-            # retrieve and load csv with results
-            csv_path = os.path.join(
-                data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
-            )
-            df = pd.read_csv(csv_path)
-            df.drop_duplicates(inplace=True)
-            df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
-            
-            print("Creating frame vs activation plots for ", arch, " ", channel)
-
-            framewise_root_dir = os.path.join(
-                exp_base_dir,
-                f"experiment_{exp}",
-                f"{arch}_output",
-            )
-
-            heatmap_folder = ""
-            for entry in os.listdir(framewise_root_dir):
-                if "heatmaps_epoch_" in entry:
-                    heatmap_folder = entry
-
-            framewise_csv_path = os.path.join(
-                framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
-            )
-            framewisedf = pd.read_csv(framewise_csv_path)
-            framewisedf.drop_duplicates(inplace=True)
-            
-            df["mean_activations"] = framewisedf["mean_activations"]
-            pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
-            pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
-            # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations csv
-
-            df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
-
-            activations_val = df["mean_activations"]
-            frame_id = df["frame_id"]
-            video_name = df["input_vid_idx"]
-
-            s = df.pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc='mean')
-            ax = s.plot(color='gray', label="_hidden")
-            s.mean(1).plot(ax=ax, color='r', linestyle='--', label='Mean')
-            ax.get_legend().remove() 
-            ax.set_xlabel("frame id")
-            ax.set_ylabel("mean activation")
-
-            file_path = os.path.join(output_folder, f"frames_vs_mean_activation_.png")
-            plt.savefig(file_path)
-            plt.close()  
-
-def gen_all_single_model_frame_vs_activation_plots():  
-    for exp in experiments:
-        for vis_technique in gc_variants:
-            for softmax in softmax_status:
-                frame_vs_activation_plot(
-                    exp,
-                    vis_technique,
-                    softmax,
-                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-                )  
 
 def multi_model_frame_vs_activation_plot(
     exp,
@@ -273,8 +259,7 @@ def multi_model_frame_vs_activation_plot(
     metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
 ):
     
-    output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
-    base_dir = os.path.join(exp_base_dir, "metric_results")
+
 
     pivot_list = []
 
@@ -293,10 +278,10 @@ def multi_model_frame_vs_activation_plot(
             if not os.path.exists(output_folder):
                                 os.makedirs(output_folder)
 
-            # retrieve and load csv for results
-            data_folder_path = os.path.join(
-                base_dir, f"experiment_{exp}", arch, vis_technique
-            )
+            # # retrieve and load csv for results
+            # data_folder_path = os.path.join(
+            #     base_dirresultsexperiment_{exp}", arch, vis_technique
+            # )
 
             # retrieve and load csv with results
             csv_path = os.path.join(
@@ -307,7 +292,7 @@ def multi_model_frame_vs_activation_plot(
             df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
 
             framewise_root_dir = os.path.join(
-                exp_base_dir,
+                base_data_dir,
                 f"experiment_{exp}",
                 f"{arch}_output",
             )
@@ -323,7 +308,7 @@ def multi_model_frame_vs_activation_plot(
             framewisedf = pd.read_csv(framewise_csv_path)
             framewisedf.drop_duplicates(inplace=True)
             
-            df["mean_activations"] = framewisedf["mean_activations"]
+            df["mean_activations"] = framewisedf["mean_activations"].values
             pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
             pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
             # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations csv
@@ -332,9 +317,9 @@ def multi_model_frame_vs_activation_plot(
             if channel == "slow":
                 df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
         
-            metric_val = df["mean_activations"]
-            frame_id = df["frame_id"]
-            video_name = df["input_vid_idx"]
+            # metric_val = df["mean_activations"]
+            # frame_id = df["frame_id"]
+            # video_name = df["input_vid_idx"]
 
             s = df.pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc='mean')
             pivot_list.append(s)
@@ -353,6 +338,140 @@ def multi_model_frame_vs_activation_plot(
     file_path = os.path.join(output_folder, f"frames_vs_activations_.png")
     plt.savefig(file_path)
     plt.close()
+
+
+ 
+
+def activation_vs_metric_plot(
+    exp,
+    vis_technique,
+    softmax,
+    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
+):
+    
+    
+
+
+    # for arch in architectures:
+    #     if arch == "slowfast":
+    #             # channels = ["slow", "fast"]
+    #             channels = ["fast"]
+    #     elif arch in ["i3d", "i3d_nln"]:
+    #             channels = ["rgb"]
+    #     else:
+    #             raise NotImplementedError("Add in logic for handling channels")
+    #     for channel in channels:
+
+            # output_folder = os.path.join(
+            #                     output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
+            #                 )
+
+            # if not os.path.exists(output_folder):
+            #                     os.makedirs(output_folder)
+
+            # # retrieve and load csv for results
+            # data_folder_path = os.path.join(
+            #     base_dirresultsexperiment_{exp}", arch, vis_technique
+            # )
+
+            # # retrieve and load csv with results
+            # csv_path = os.path.join(
+            #     data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
+            # )
+            # df = pd.read_csv(csv_path)
+            # df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
+            
+            # print("Creating activation vs metric plots for ", arch, " ", channel)
+
+            # framewise_root_dir = os.path.join(
+            #     base_data_dir,
+            #     f"experiment_{exp}",
+            #     f"{arch}_output",
+            # )
+
+            # heatmap_folder = ""
+            # for entry in os.listdir(framewise_root_dir):
+            #     if "heatmaps_epoch_" in entry:
+            #         heatmap_folder = entry
+
+            # framewise_csv_path = os.path.join(
+            #     framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
+            # )
+            # framewisedf = pd.read_csv(framewise_csv_path)
+            
+            # df["mean_activations"] = framewisedf["mean_activations"].values
+            # pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
+            # pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
+            # # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations csv
+
+            # df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
+            # df = df[df["input_vid_idx"].isin(video_id_to_plot)] # subset videos
+
+            for metric in metrics:
+
+                fig, ax = plt.subplots()
+                for i in range(len(video_id_to_plot)):
+                    vid_id_df = df[df["input_vid_idx"] == video_id_to_plot[i]] # plot each vid
+                    x = vid_id_df["mean_activations"]
+                    y = vid_id_df[metric]
+                    ax.scatter(x, y, label=video_id_to_plot[i])
+
+                    z = np.polyfit(x, y, 1)
+                    p = np.poly1d(z)
+                    ax.plot(x, p(x))
+
+                # for color in ['tab:blue', 'tab:orange', 'tab:green']:
+                #     n = 750
+                #     x, y = np.random.rand(2, n)
+                #     scale = 200.0 * np.random.rand(n)
+                #     ax.scatter(x, y, c=color, s=scale, label=color,
+                #             alpha=0.3, edgecolors='none')
+
+                # ax.legend()
+                # ax.set_xlabel("mean activation (of frame)")
+                # ax.set_ylabel({metric})
+
+                file_path = os.path.join(output_folder, f"mean_activation_vs_{metric}_.png")
+                plt.savefig(file_path)
+                plt.close()  
+
+######################################################################################################
+# "generate all" functions to generate one kind of plot for all applicable configurations
+######################################################################################################
+
+def gen_all_single_model_frame_vs_metric_plots():  
+    for exp in experiments:
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                frame_vs_metric_plot(
+                    exp,
+                    vis_technique,
+                    softmax,
+                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
+                )
+
+
+def gen_all_multi_model_frame_vs_metric_plots():  
+    for exp in experiments:
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                multi_model_frame_vs_metric_plot(
+                    exp,
+                    vis_technique,
+                    softmax,
+                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
+                )
+
+def gen_all_single_model_frame_vs_activation_plots():  
+    for exp in experiments:
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                frame_vs_activation_plot(
+                    exp,
+                    vis_technique,
+                    softmax,
+                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
+                )  
 
 def gen_all_multi_model_frame_vs_activation_plots():  
     for exp in experiments:
@@ -397,96 +516,3 @@ def accuracy_divided_metrics(
         metric_stats_inaccurate = metric_stats_inaccurate.drop(["experiment", "input_vid_idx", "label_numeric", "pred_numeric", "frame_id"])
     
         return metric_stats_accurate, metric_stats_inaccurate
-
-
-def make_accuracy_divided():
-
-    """ probably unnecessary function
-    created 7/9/24 
-    gets metrics stats for successfully-identified inputs vs incorrectly-identified inputs
-    interestingly, are almost identical! 
-    working under the assumption that incorrectly-identified inputs are not useful data 
-    """
-    #################################################
-    #     booleans to control what is generated     #
-    #################################################
-
-    use_accuracy_divided_boxplot = True
-    filter_high_activations = True
-
-    # base directories
-    exp_base_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
-    output_base_folder = (
-        "/research/cwloka/data/action_attn/alex_synthetic"
-    )
-    base_dir = os.path.join(exp_base_dir, "metric_results")
-
-    for exp in experiments:
-        for arch in architectures:
-            if arch == "slowfast":
-                channels = ["slow", "fast"]
-            elif arch in ["i3d", "i3d_nln"]:
-                channels = ["rgb"]
-            else:
-                raise NotImplementedError("Add in logic for handling channels")
-            for vis_technique in gc_variants:
-                for softmax in softmax_status:
-                    for channel in channels:
-
-                        # create the plot output folder
-                        output_folder = os.path.join(
-                            output_base_folder, f"experiment_{exp}", arch, vis_technique
-                        )
-                        if not os.path.exists(output_folder):
-                            os.makedirs(output_folder)
-
-                        # retrieve and load csv for results
-                        data_folder_path = os.path.join(
-                            base_dir, f"experiment_{exp}", arch, vis_technique
-                        )
-
-                        # retrieve and load csv with results
-                        csv_path = os.path.join(
-                            # data_folder_path, f"exp_{exp}_{arch}_{softmax}.csv"
-                            # TODO: switch back to use 3D volumes
-                            data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
-                        )
-                        df = pd.read_csv(csv_path)
-                        df.drop_duplicates(inplace=True)
-
-                        framewise_csv_path = os.path.join(exp_base_dir,
-                            f"experiment_{exp}/{arch}_output/heatmaps_epoch_00050/{vis_technique}/{softmax}/{channel}_framewise_activations.csv")
-
-                        framewisedf = pd.read_csv(framewise_csv_path)
-                        framewisedf.drop_duplicates(inplace=True)
-
-                        df["mean_activations"] = framewisedf["mean_activations"]
-
-                        print("made activations column!")
-                        print(df.head())
-
-                        pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"])
-                        pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"]) # frames are 1-indexed in one CSV< 0-indexed in other
-
-                        if filter_high_activations:
-                            df = df.loc[df["mean_activations"] > 5]
-
-                        print("df is dimensions ", df.shape)
-                        
-                        accurate_df, inaccurate_df = accuracy_divided_metrics(
-                                df,
-                                exp,
-                                arch,
-                                vis_technique,
-                                softmax,
-                                channel,
-                                output_folder,
-                                motion_class=None,
-                            )
-
-                        print("accurate-classification subset statistics below:")
-                        print(accurate_df.head())
-                        print()
-                        print("INaccurate-classification subset statistics below:")
-                        print(inaccurate_df.head())
-######
