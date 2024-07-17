@@ -14,13 +14,15 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import warnings
 from slowfast.visualization.connected_components_utils import load_heatmaps
 
 ### global variables ###
-experiments = [1, 2, 3, 4, 5, "5b"]
-# experiments = [4, 5, "5b"]
+# experiments = [1, 2, 3, 4, 5, "5b"]
+experiments = [4, 5, "5b"]
 architectures = ["slowfast", "i3d", "i3d_nln"]
 gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
+gc_variants = ["grad_cam","eigen_cam"]
 softmax_status = ["pre_softmax", "post_softmax"]
 metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
 
@@ -73,7 +75,7 @@ def single_model_plot(
                 raise NotImplementedError("Add in logic for handling channels")
         for channel in channels:
             output_folder = os.path.join(
-                                output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
+                                output_base_folder, f"experiment_{exp}", arch, vis_technique, softmax, channel
                             )
 
             if not os.path.exists(output_folder):
@@ -123,9 +125,19 @@ def single_model_plot(
                     fig, ax = plt.subplots()
 
                     if xvar == "frame_id":
+                        show_legend = False
                         s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc="mean")
                         ax = s.plot(color="gray", label="input_vid_idx")
                         s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
+
+
+                        # metric_integral = 0
+                        # for video in s.columns:
+                        #     single_video_integral = np.trapz(y=s[video], x=s.index)
+                        #     metric_integral += single_video_integral
+
+                        # print(f"for {arch}, {channel}, {metric}, the total integral is ", metric_integral)
+                
 
                             
                     elif xvar == "activation":
@@ -189,7 +201,7 @@ def subset_single_model_plot(
                 raise NotImplementedError("Add in logic for handling channels")
         for channel in channels:
             output_folder = os.path.join(
-                                output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
+                                output_base_folder, f"experiment_{exp}", arch, vis_technique, softmax, channel
                             )
 
             if not os.path.exists(output_folder):
@@ -282,6 +294,113 @@ def subset_single_model_plot(
                 plt.close() 
             else:
                 raise NotImplementedError("unsupported y-axis variable")
+
+def multi_experiment_frame_vs_metric_plots(
+    vis_technique,
+    softmax,
+):
+    experiment_subset_list = [1, 4]
+    warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
+    # TODO: is this a problem
+
+    for arch in architectures:
+        if arch == "slowfast":
+                channels = ["slow", "fast"]
+        elif arch in ["i3d", "i3d_nln"]:
+                channels = ["rgb"]
+        else:
+                raise NotImplementedError("Add in logic for handling channels")
+        for channel in channels:
+            output_folder = os.path.join(
+                                output_base_folder,
+                                f"multi_experiment_{experiment_subset_list}", arch, vis_technique, softmax, channel
+                            )
+
+            if not os.path.exists(output_folder):
+                                os.makedirs(output_folder)
+
+            dataframe_list = []
+
+            for i in range(len(experiment_subset_list)):
+                exp = experiment_subset_list[i]
+
+                data_folder_path = os.path.join(
+                    results_dir, f"experiment_{exp}", arch, vis_technique
+                )
+
+                frame_metric_csv = os.path.join(
+                    data_folder_path, 
+                    f"exp_{exp}_{arch}_{softmax}_frames.csv"
+                )
+
+                df = pd.read_csv(frame_metric_csv)
+                df = df.loc[df["channel"] == channel]
+                # separate slow and fast channels
+
+                ###### get frame activations #######
+                framewise_root_dir = os.path.join(
+                    base_data_dir,
+                    f"experiment_{exp}",
+                    f"{arch}_output",
+                )
+
+                heatmap_folder = ""
+                for entry in os.listdir(framewise_root_dir):
+                    if "heatmaps_epoch_" in entry:
+                        heatmap_folder = entry
+
+                framewise_csv_path = os.path.join(
+                    framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
+                )
+                framewisedf = pd.read_csv(framewise_csv_path)
+
+                df["mean_activations"] = framewisedf["mean_activations"].values
+                pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
+                pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
+                # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+                
+                df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
+
+                dataframe_list.append(df)
+
+            for metric in metrics:
+                fig, ax = plt.subplots()
+
+                pivot_list = []
+                legend_list = []
+                color_list = [(1, 0.73, 0.87, 0.3), (0.73, 0.82, 1, 0.3)]
+
+                for i in range(len(dataframe_list)):
+
+                    s = (dataframe_list[i]).pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
+                    s.rename(columns=lambda x: "_" + str(x), inplace=True)
+                    # s.plot(ax=ax, color=color_list[i], legend=False)
+                    s.plot(ax=ax, color=color_list[i])
+                    pivot_list.append(s)
+                    # legend_list.append(dataframe_list[i]["experiment"][0]) # stimulus set number; appending here guarantees matching order
+
+                # # ax = pivot_list[0].plot(color="green", label=f"All video data for {pivot_list[0]["experiment"]}")
+                # ax = pivot_list[0].plot(color=(1, 0.73, 0.87, 0.3), legend=False) # light red for RGBalpha
+                # (pivot_list[1]).plot(ax=ax, color=(0.73, 0.82, 1, 0.3)) # light blue for RGBalpha
+
+                (pivot_list[0]).mean(1).plot(ax=ax, color="r", label=experiment_subset_list[0])
+                (pivot_list[1]).mean(1).plot(ax=ax, color="b", label=experiment_subset_list[1])
+
+                # ax.legend(["line 1", "line 2"])
+                ax.legend()
+
+                ax.set_xlabel("frame id")
+                ax.set_ylabel({metric})
+
+                ############# keep below same
+
+                file_path = os.path.join(output_folder, f"multi_exp_frames_vs_{metric}_.png")
+                plt.savefig(file_path)
+                plt.close()
+            
+            print("plotted for", arch, channel)
+
+
 
 def multi_model_frame_vs_metric_plot(
     exp,
@@ -481,6 +600,39 @@ def gen_all_single_model_plots():
                 xvar = "activation",
                 yvar = "metric",
                 show_legend = False,
+                )
+
+def gen_all_subset_single_model_plots():
+    for exp in experiments:
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                print("subset single model plots for ", exp, vis_technique, softmax)
+
+                subset_single_model_plot(
+                exp,
+                vis_technique,
+                softmax,
+                xvar = "frame_id",
+                yvar = "metric",
+                show_legend = True,
+                )
+
+                subset_single_model_plot(
+                exp,
+                vis_technique,
+                softmax,
+                xvar = "frame_id",
+                yvar = "activation",
+                show_legend = True,
+                )
+
+                subset_single_model_plot(
+                exp,
+                vis_technique,
+                softmax,
+                xvar = "activation",
+                yvar = "metric",
+                show_legend = True,
                 )
 
 
