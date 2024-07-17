@@ -48,13 +48,19 @@ video_id_to_plot = [0, 1, 2]
 # Functions that we *are* using! (unnecessary but possibly useful-later functions are lower in file) #
 ######################################################################################################
 
+    ###### As of 7/16/24, possible graphs are (X vs Y):
+        # frame_id vs {metrics}
+        # frame_id vs framewise activations
+        # framewise activations vs {metrics}
+    ###### All graphs can be rendered with data for all videos in the stimulus set, or with only a few subset vids.
+
+
 def single_model_plot(
     exp,
     vis_technique,
     softmax,
     xvar = "frame_id",
     yvar = "metric",
-    subset = False,
     show_legend = True,
 ):
     for arch in architectures:
@@ -111,78 +117,169 @@ def single_model_plot(
 
             df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
 
-            if subset:
-                df = df[df["input_vid_idx"].isin(video_id_to_plot)]
+            if yvar == "metric":
+                for metric in metrics:
+                    fig, ax = plt.subplots()
+
+                    if xvar == "frame_id":
+                        s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc="mean")
+                        ax = s.plot(color="gray", label="input_vid_idx")
+                        s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
+                            
+                    elif xvar == "activation":
+                        # s = df.pivot_table(index="mean_activations", columns="input_vid_idx", values=metric, aggfunc="mean")
+                        # ax = s.plot(color="gray", label="input_vid_idx")
+                        # s.mean(1).plot(ax=ax, color='g', marker=".", linestyle = None, label='Mean')
+                        x = df["mean_activations"]
+                        y = df[metric]
+                        ax.scatter(x,y, marker=".", s=1, color="gray")
+                        z = np.polyfit(x, y, 1)
+                        p = np.poly1d(z)
+                        ax.plot(x, p(x), color="b", label ="trendline")
+                            
+                    else: 
+                        raise NotImplementedError("With metrics on the y-axis, x must be frame_id or activation.")
+
+                    file_path = os.path.join(output_folder, 
+                    f"{xvar}_vs_{metric}.png")
+                    ax.legend()
+                    if show_legend == False:
+                        ax.get_legend().remove() 
+                    ax.set_xlabel(xvar)
+                    ax.set_ylabel({metric})
+                    plt.savefig(file_path)
+                    plt.close() 
+            elif yvar == "activation":
+                if xvar == "frame_id":
+                    s = df.pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc="mean")
+                    ax = s.plot(color="gray",label="input_vid_idx")
+                    s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
+                else:
+                    raise NotImplementedError("unsupported x-variable for y-activation")
+                
+                file_path = os.path.join(output_folder, f"{xvar}_vs_{yvar}.png")
+                if show_legend:
+                    ax.legend()
+                else:
+                    ax.get_legend().remove() 
+                ax.set_xlabel(xvar)
+                ax.set_ylabel(yvar)
+                plt.savefig(file_path)
+                plt.close() 
+            else:
+                raise NotImplementedError("unsupported y-axis variable")
+
+
+def subset_single_model_plot(
+    exp,
+    vis_technique,
+    softmax,
+    xvar = "frame_id",
+    yvar = "metric",
+    show_legend = True,
+):
+    for arch in architectures:
+        if arch == "slowfast":
+                channels = ["slow", "fast"]
+        elif arch in ["i3d", "i3d_nln"]:
+                channels = ["rgb"]
+        else:
+                raise NotImplementedError("Add in logic for handling channels")
+        for channel in channels:
+            output_folder = os.path.join(
+                                output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
+                            )
+
+            if not os.path.exists(output_folder):
+                                os.makedirs(output_folder)
+
+            data_folder_path = os.path.join(
+                results_dir, f"experiment_{exp}", arch, vis_technique
+            )
+
+            frame_metric_csv = os.path.join(
+                data_folder_path, 
+                f"exp_{exp}_{arch}_{softmax}_frames.csv"
+            )
+
+            df = pd.read_csv(frame_metric_csv)
+            df = df.loc[df["channel"] == channel]
+            # separate slow and fast channels
+
+            ###### get frame activations #######
+            framewise_root_dir = os.path.join(
+                base_data_dir,
+                f"experiment_{exp}",
+                f"{arch}_output",
+            )
+
+            heatmap_folder = ""
+            for entry in os.listdir(framewise_root_dir):
+                if "heatmaps_epoch_" in entry:
+                    heatmap_folder = entry
+
+            framewise_csv_path = os.path.join(
+                framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
+            )
+            framewisedf = pd.read_csv(framewise_csv_path)
+
+            df["mean_activations"] = framewisedf["mean_activations"].values
+            pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
+            pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
+            # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+            
+            ###### done getting frame activations ######
+
+            df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
+            df = df[df["input_vid_idx"].isin(video_id_to_plot)] # different from all-data graphs!
 
             if yvar == "metric":
                 for metric in metrics:
+                    fig, ax = plt.subplots()
+
                     if xvar == "frame_id":
-                        s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric,
-                        aggfunc="mean")
-                        ax = s.plot(color='gray', label="input_vid_idx")
-                        s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
+                        s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc="mean")
+                        ax = s.plot(label="input_vid_idx")
                     elif xvar == "activation":
-                        fig, ax = plt.subplots()
                         for i in range(len(video_id_to_plot)):
                             vid_id_df = df[df["input_vid_idx"] == video_id_to_plot[i]] # plot each vid
                             x = vid_id_df["mean_activations"]
                             y = vid_id_df[metric]
                             ax.scatter(x, y, label=video_id_to_plot[i])
-
                             z = np.polyfit(x, y, 1)
                             p = np.poly1d(z)
                             ax.plot(x, p(x))
-                    else:
-                        raise NotImplementedError("Add in logic to handle this kind of graph")
+                    else: 
+                        raise NotImplementedError("With metrics on the y-axis, x must be frame_id or activation.")
+
+                    file_path = os.path.join(output_folder, 
+                    f"subset_{xvar}_vs_{metric}.png")
                     if show_legend:
                         ax.legend()
                     else:
                         ax.get_legend().remove() 
                     ax.set_xlabel(xvar)
                     ax.set_ylabel({metric})
-
-                    if subset:
-                        file_path = os.path.join(output_folder, 
-                    f"subset_{xvar}_vs_{metric}.png")
-                    else: 
-                        file_path = os.path.join(output_folder, 
-                        f"{xvar}_vs_{metric}.png")
-                    
                     plt.savefig(file_path)
                     plt.close() 
-
             elif yvar == "activation":
                 if xvar == "frame_id":
-                    s = df.pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc='mean')
-                    ax = s.plot(color='gray', label="_hidden")
-                    s.mean(1).plot(ax=ax, color='r', linestyle='--', label='Mean')
-
-                    if show_legend:
-                        ax.legend()
-                    else:
-                        ax.get_legend().remove() 
-
-                    ax.set_xlabel(xvar)
-                    ax.set_ylabel(yvar)
-
-                    if subset:
-                        file_path = os.path.join(output_folder, 
-                    f"subset_{xvar}_vs_{yvar}.png")
-                    else: 
-                        file_path = os.path.join(output_folder, 
-                        f"{xvar}_vs_{yvar}.png")
-
-                    plt.savefig(file_path)
-                    plt.close()  
-
+                    s = df.pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc="mean")
+                    ax = s.plot(label="input_vid_idx")
                 else:
-                    raise NotImplementedError("Add in logic to handle this kind of graph (unknown x vs activation)")
-                    
+                    raise NotImplementedError("unsupported x-variable for y-activation")
+                
+                file_path = os.path.join(output_folder, f"subset_{xvar}_vs_{yvar}.png")
+                if show_legend:
+                    ax.legend()
+                else:
+                    ax.get_legend().remove() 
+                ax.set_xlabel(xvar)
+                ax.set_ylabel(yvar)
+                plt.savefig(file_path)
+                plt.close() 
             else:
-                raise NotImplementedError("Add in logic to handle this kind of graph (not metrics or activation on y-axis)")
-
-  
-
+                raise NotImplementedError("unsupported y-axis variable")
 
 def multi_model_frame_vs_metric_plot(
     exp,
@@ -191,8 +288,6 @@ def multi_model_frame_vs_metric_plot(
     metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
 ):
     
-
-
     for metric in metrics:
         print("Creating multi-model frame-vs-metric plots for ", metric)
 
@@ -249,8 +344,6 @@ def multi_model_frame_vs_metric_plot(
         plt.savefig(file_path)
         plt.close()
       
-
-
 
 def multi_model_frame_vs_activation_plot(
     exp,
@@ -339,101 +432,6 @@ def multi_model_frame_vs_activation_plot(
     plt.savefig(file_path)
     plt.close()
 
-
- 
-
-def activation_vs_metric_plot(
-    exp,
-    vis_technique,
-    softmax,
-    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-):
-    
-    
-
-
-    # for arch in architectures:
-    #     if arch == "slowfast":
-    #             # channels = ["slow", "fast"]
-    #             channels = ["fast"]
-    #     elif arch in ["i3d", "i3d_nln"]:
-    #             channels = ["rgb"]
-    #     else:
-    #             raise NotImplementedError("Add in logic for handling channels")
-    #     for channel in channels:
-
-            # output_folder = os.path.join(
-            #                     output_base_folder, f"experiment_{exp}", arch, vis_technique, channel
-            #                 )
-
-            # if not os.path.exists(output_folder):
-            #                     os.makedirs(output_folder)
-
-            # # retrieve and load csv for results
-            # data_folder_path = os.path.join(
-            #     base_dirresultsexperiment_{exp}", arch, vis_technique
-            # )
-
-            # # retrieve and load csv with results
-            # csv_path = os.path.join(
-            #     data_folder_path, f"exp_{exp}_{arch}_{softmax}_frames.csv"
-            # )
-            # df = pd.read_csv(csv_path)
-            # df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
-            
-            # print("Creating activation vs metric plots for ", arch, " ", channel)
-
-            # framewise_root_dir = os.path.join(
-            #     base_data_dir,
-            #     f"experiment_{exp}",
-            #     f"{arch}_output",
-            # )
-
-            # heatmap_folder = ""
-            # for entry in os.listdir(framewise_root_dir):
-            #     if "heatmaps_epoch_" in entry:
-            #         heatmap_folder = entry
-
-            # framewise_csv_path = os.path.join(
-            #     framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
-            # )
-            # framewisedf = pd.read_csv(framewise_csv_path)
-            
-            # df["mean_activations"] = framewisedf["mean_activations"].values
-            # pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
-            # pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
-            # # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations csv
-
-            # df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
-            # df = df[df["input_vid_idx"].isin(video_id_to_plot)] # subset videos
-
-            for metric in metrics:
-
-                fig, ax = plt.subplots()
-                for i in range(len(video_id_to_plot)):
-                    vid_id_df = df[df["input_vid_idx"] == video_id_to_plot[i]] # plot each vid
-                    x = vid_id_df["mean_activations"]
-                    y = vid_id_df[metric]
-                    ax.scatter(x, y, label=video_id_to_plot[i])
-
-                    z = np.polyfit(x, y, 1)
-                    p = np.poly1d(z)
-                    ax.plot(x, p(x))
-
-                # for color in ['tab:blue', 'tab:orange', 'tab:green']:
-                #     n = 750
-                #     x, y = np.random.rand(2, n)
-                #     scale = 200.0 * np.random.rand(n)
-                #     ax.scatter(x, y, c=color, s=scale, label=color,
-                #             alpha=0.3, edgecolors='none')
-
-                # ax.legend()
-                # ax.set_xlabel("mean activation (of frame)")
-                # ax.set_ylabel({metric})
-
-                file_path = os.path.join(output_folder, f"mean_activation_vs_{metric}_.png")
-                plt.savefig(file_path)
-                plt.close()  
 
 ######################################################################################################
 # "generate all" functions to generate one kind of plot for all applicable configurations
