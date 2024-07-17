@@ -18,6 +18,7 @@ from slowfast.visualization.connected_components_utils import load_heatmaps
 
 ### global variables ###
 experiments = [1, 2, 3, 4, 5, "5b"]
+# experiments = [4, 5, "5b"]
 architectures = ["slowfast", "i3d", "i3d_nln"]
 gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
 softmax_status = ["pre_softmax", "post_softmax"]
@@ -125,6 +126,7 @@ def single_model_plot(
                         s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc="mean")
                         ax = s.plot(color="gray", label="input_vid_idx")
                         s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
+
                             
                     elif xvar == "activation":
                         # s = df.pivot_table(index="mean_activations", columns="input_vid_idx", values=metric, aggfunc="mean")
@@ -446,6 +448,39 @@ def gen_all_single_model_frame_vs_metric_plots():
                     vis_technique,
                     softmax,
                     metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
+                )
+
+def gen_all_single_model_plots():
+    for exp in experiments:
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                print("single model plots for ", exp, vis_technique, softmax)
+
+                single_model_plot(
+                exp,
+                vis_technique,
+                softmax,
+                xvar = "frame_id",
+                yvar = "metric",
+                show_legend = False,
+                )
+
+                single_model_plot(
+                exp,
+                vis_technique,
+                softmax,
+                xvar = "frame_id",
+                yvar = "activation",
+                show_legend = False,
+                )
+
+                single_model_plot(
+                exp,
+                vis_technique,
+                softmax,
+                xvar = "activation",
+                yvar = "metric",
+                show_legend = False,
                 )
 
 
