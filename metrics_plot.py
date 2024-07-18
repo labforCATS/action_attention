@@ -18,11 +18,10 @@ import warnings
 from slowfast.visualization.connected_components_utils import load_heatmaps
 
 ### global variables ###
-# experiments = [1, 2, 3, 4, 5, "5b"]
-experiments = [4, 5, "5b"]
+experiments = [1, 2, 3, 4, 5, "5b"]
+# experiments = [4, 5, "5b"]
 architectures = ["slowfast", "i3d", "i3d_nln"]
 gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
-gc_variants = ["grad_cam","eigen_cam"]
 softmax_status = ["pre_softmax", "post_softmax"]
 metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
 
@@ -33,18 +32,26 @@ results_dir = os.path.join(base_data_dir, "metric_results")
 # for subset plotting only
 video_id_to_plot = [0, 1, 2]
 
+# for multi experiment plotting only
+# hardcoded in RGB values, heavily modified from Okabe-Ito palette 
+vivid_experiment_color_dict = {
+    1 : "#0072B2", # dark blue
+    2 : "#12C34F", #green
+    3 : "#F3BB0B", # yellow
+    4 : "#E62B62",  # fuschia
+    5 : "#94027A", # dark purple
+    "5b" : "#56C8E9" # light blue
+}
 
-######################### SAMPLE CALLS ############################
-# single_model_plot(
-#     2, 
-#     "grad_cam", 
-#     "pre_softmax", 
-#     xvar = "frame_id",
-#     yvar = "metric",
-#     subset = False,
-#     show_legend = True,
-# )
-##################################################################
+# RBGA hex values use alpha = 0.3
+pastel_experiment_color_dict = {
+    1 : ("#62B6E44d"), # dark blue
+    2 : ("#85E8984d"), # green
+    3 : ("#F7F1A74d"), # yellow
+    4 : ("#FFBBCC4d"), # pink
+    5 : ("#C5C1F34d"), # light purple
+    "5b" : ("#94D8EC4d")# light blue
+}
 
 
 ######################################################################################################
@@ -295,115 +302,6 @@ def subset_single_model_plot(
             else:
                 raise NotImplementedError("unsupported y-axis variable")
 
-def multi_experiment_frame_vs_metric_plots(
-    vis_technique,
-    softmax,
-):
-    experiment_subset_list = [1, 4]
-    warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
-    # TODO: is this a problem
-
-    for arch in architectures:
-        if arch == "slowfast":
-                channels = ["slow", "fast"]
-        elif arch in ["i3d", "i3d_nln"]:
-                channels = ["rgb"]
-        else:
-                raise NotImplementedError("Add in logic for handling channels")
-
-        for channel in channels:
-            output_folder = os.path.join(
-                                output_base_folder,
-                                f"multi_experiment_{experiment_subset_list}", arch, vis_technique, softmax, channel
-                            )
-
-            if not os.path.exists(output_folder):
-                                os.makedirs(output_folder)
-
-            dataframe_list = []
-
-            for i in range(len(experiment_subset_list)):
-                exp = experiment_subset_list[i]
-
-                data_folder_path = os.path.join(
-                    results_dir, f"experiment_{exp}", arch, vis_technique
-                )
-
-                frame_metric_csv = os.path.join(
-                    data_folder_path, 
-                    f"exp_{exp}_{arch}_{softmax}_frames.csv"
-                )
-
-                df = pd.read_csv(frame_metric_csv)
-                df = df.loc[df["channel"] == channel]
-                # separate slow and fast channels
-
-                ###### get frame activations #######
-                framewise_root_dir = os.path.join(
-                    base_data_dir,
-                    f"experiment_{exp}",
-                    f"{arch}_output",
-                )
-
-                heatmap_folder = ""
-                for entry in os.listdir(framewise_root_dir):
-                    if "heatmaps_epoch_" in entry:
-                        heatmap_folder = entry
-
-                framewise_csv_path = os.path.join(
-                    framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
-                )
-                framewisedf = pd.read_csv(framewise_csv_path)
-
-                df["mean_activations"] = framewisedf["mean_activations"].values
-                pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
-                pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
-                # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
-
-                if channel == "slow":
-                    df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
-                
-                df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
-
-                dataframe_list.append(df)
-
-            for metric in metrics:
-                fig, ax = plt.subplots()
-
-                pivot_list = []
-                legend_list = []
-                alpha = 0.3
-                pastel_color_list = [
-                    (1, 0.73, 0.87, alpha), # red
-                    (0.73, 1, 0.78, alpha), # green
-                    (0.73, 0.82, 1, alpha), # blue
-                    (1, 1, 0.73, alpha), # yellow
-                    (1, 0.87, 0.73, alpha), # orange 
-                    (0.87, 0.73, 1, alpha) # purple
-                    ]
-                vivid_color_list = ["red", "green", "blue", "gold", "darkorange", "purple"]
-
-                for i in range(len(dataframe_list)):
-
-                    s = (dataframe_list[i]).pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
-                    s.rename(columns=lambda x: "_" + str(x), inplace=True)
-                    s.plot(ax=ax, color=pastel_color_list[i])
-                    pivot_list.append(s)
-
-                for i in range(len(dataframe_list)):
-                    (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_color_list[i], label=experiment_subset_list[i])
-
-                ax.legend()
-
-                ax.set_xlabel("frame id")
-                ax.set_ylabel({metric})
-
-                file_path = os.path.join(output_folder, f"multi_exp_frames_vs_{metric}_.png")
-                plt.savefig(file_path)
-                plt.close()
-            
-            print("plotted for", arch, channel)
-
 
 def multi_model_frame_vs_metric_plot(
     exp,
@@ -556,6 +454,208 @@ def multi_model_frame_vs_activation_plot(
     plt.savefig(file_path)
     plt.close()
 
+def multi_experiment_frame_vs_metric_plots(
+    vis_technique,
+    softmax,
+    arch
+):
+    experiment_subset_list = [1, 3, 4]
+    warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
+
+    if arch == "slowfast":
+            channels = ["slow", "fast"]
+    elif arch in ["i3d", "i3d_nln"]:
+            channels = ["rgb"]
+    else:
+            raise NotImplementedError("Add in logic for handling channels")
+
+    for channel in channels:
+        output_folder = os.path.join(
+                            output_base_folder,
+                            f"multi_experiment_{experiment_subset_list}", arch, vis_technique, softmax, channel
+                        )
+
+        if not os.path.exists(output_folder):
+                            os.makedirs(output_folder)
+
+        dataframe_list = []
+
+        for i in range(len(experiment_subset_list)):
+            exp = experiment_subset_list[i]
+
+            data_folder_path = os.path.join(
+                results_dir, f"experiment_{exp}", arch, vis_technique
+            )
+
+            frame_metric_csv = os.path.join(
+                data_folder_path, 
+                f"exp_{exp}_{arch}_{softmax}_frames.csv"
+            )
+
+            df = pd.read_csv(frame_metric_csv)
+            df = df.loc[df["channel"] == channel]
+            # separate slow and fast channels
+
+            ###### get frame activations #######
+            framewise_root_dir = os.path.join(
+                base_data_dir,
+                f"experiment_{exp}",
+                f"{arch}_output",
+            )
+
+            heatmap_folder = ""
+            for entry in os.listdir(framewise_root_dir):
+                if "heatmaps_epoch_" in entry:
+                    heatmap_folder = entry
+
+            framewise_csv_path = os.path.join(
+                framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
+            )
+            framewisedf = pd.read_csv(framewise_csv_path)
+
+            df["mean_activations"] = framewisedf["mean_activations"].values
+            pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
+            pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
+            # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+
+            if channel == "slow":
+                df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
+            
+            df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
+
+            dataframe_list.append(df)
+
+        for metric in metrics:
+            fig, ax = plt.subplots()
+
+            pivot_list = []
+            legend_list = []
+
+            for i in range(len(dataframe_list)):
+
+                s = (dataframe_list[i]).pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
+                s.rename(columns=lambda x: "_" + str(x), inplace=True)
+                # s.plot(ax=ax, color=pastel_color_list[i])
+                s.plot(ax=ax, color=pastel_experiment_color_dict[experiment_subset_list[i]])
+                pivot_list.append(s)
+
+            for i in range(len(dataframe_list)):
+                # (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_color_list[i], label=experiment_subset_list[i])
+                (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_subset_list[i])
+
+                # TODO fix coloring!!! 
+
+            ax.legend()
+
+            ax.set_xlabel("frame id")
+            ax.set_ylabel({metric})
+
+            file_path = os.path.join(output_folder, f"multi_exp_frames_vs_{metric}_.png")
+            plt.savefig(file_path)
+
+            plt.close()
+        
+        print("plotted for", arch, channel)
+
+def multi_experiment_frame_vs_activation_plots(
+    vis_technique,
+    softmax,
+):
+    experiment_subset_list = [1, 4]
+    warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
+    # TODO: is this a problem
+
+    for arch in architectures:
+        if arch == "slowfast":
+                channels = ["slow", "fast"]
+        elif arch in ["i3d", "i3d_nln"]:
+                channels = ["rgb"]
+        else:
+                raise NotImplementedError("Add in logic for handling channels")
+
+        for channel in channels:
+            output_folder = os.path.join(
+                                output_base_folder,
+                                f"multi_experiment_{experiment_subset_list}", arch, vis_technique, softmax, channel
+                            )
+
+            if not os.path.exists(output_folder):
+                                os.makedirs(output_folder)
+
+            dataframe_list = []
+
+            for i in range(len(experiment_subset_list)):
+                exp = experiment_subset_list[i]
+
+                data_folder_path = os.path.join(
+                    results_dir, f"experiment_{exp}", arch, vis_technique
+                )
+
+                frame_metric_csv = os.path.join(
+                    data_folder_path, 
+                    f"exp_{exp}_{arch}_{softmax}_frames.csv"
+                )
+
+                df = pd.read_csv(frame_metric_csv)
+                df = df.loc[df["channel"] == channel]
+                # separate slow and fast channels
+
+                ###### get frame activations #######
+                framewise_root_dir = os.path.join(
+                    base_data_dir,
+                    f"experiment_{exp}",
+                    f"{arch}_output",
+                )
+
+                heatmap_folder = ""
+                for entry in os.listdir(framewise_root_dir):
+                    if "heatmaps_epoch_" in entry:
+                        heatmap_folder = entry
+
+                framewise_csv_path = os.path.join(
+                    framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
+                )
+                framewisedf = pd.read_csv(framewise_csv_path)
+
+                df["mean_activations"] = framewisedf["mean_activations"].values
+                pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
+                pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
+                # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+
+                if channel == "slow":
+                    df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
+                
+                df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
+
+                dataframe_list.append(df)
+
+            
+            fig, ax = plt.subplots()
+
+            pivot_list = []
+            legend_list = []
+
+            for i in range(len(dataframe_list)):
+
+                s = (dataframe_list[i]).pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc='mean')
+                s.rename(columns=lambda x: "_" + str(x), inplace=True)
+                s.plot(ax=ax, color=pastel_experiment_color_dict[experiment_subset_list[i]])
+                pivot_list.append(s)
+
+            for i in range(len(dataframe_list)):
+                (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_subset_list[i])
+
+            ax.legend()
+
+            ax.set_xlabel("frame id")
+            ax.set_ylabel("mean_activations")
+
+            file_path = os.path.join(output_folder, f"multi_exp_frames_vs_activations_.png")
+            plt.savefig(file_path)
+            plt.close()
+        
+            print("plotted for", arch, channel)
+
 
 ######################################################################################################
 # "generate all" functions to generate one kind of plot for all applicable configurations
@@ -564,7 +664,18 @@ def multi_model_frame_vs_activation_plot(
 def gen_all_multi_experiment_frame_vs_metric_plots():
     for vis_technique in gc_variants:
         for softmax in softmax_status:
-            multi_experiment_frame_vs_metric_plots(
+            for arch in architectures:
+                multi_experiment_frame_vs_metric_plots(
+                    vis_technique,
+                    softmax,
+                    arch,
+                )
+                print("plotted for ", vis_technique, softmax)
+
+def gen_all_multi_experiment_frame_vs_activation_plots():
+    for vis_technique in gc_variants:
+        for softmax in softmax_status:
+            multi_experiment_frame_vs_activation_plots(
                 vis_technique,
                 softmax,
             )
