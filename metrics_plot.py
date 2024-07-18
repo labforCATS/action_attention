@@ -310,6 +310,7 @@ def multi_experiment_frame_vs_metric_plots(
                 channels = ["rgb"]
         else:
                 raise NotImplementedError("Add in logic for handling channels")
+
         for channel in channels:
             output_folder = os.path.join(
                                 output_base_folder,
@@ -358,6 +359,9 @@ def multi_experiment_frame_vs_metric_plots(
                 pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
                 pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
                 # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+
+                if channel == "slow":
+                    df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
                 
                 df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
 
@@ -368,38 +372,37 @@ def multi_experiment_frame_vs_metric_plots(
 
                 pivot_list = []
                 legend_list = []
-                color_list = [(1, 0.73, 0.87, 0.3), (0.73, 0.82, 1, 0.3)]
+                alpha = 0.3
+                pastel_color_list = [
+                    (1, 0.73, 0.87, alpha), # red
+                    (0.73, 1, 0.78, alpha), # green
+                    (0.73, 0.82, 1, alpha), # blue
+                    (1, 1, 0.73, alpha), # yellow
+                    (1, 0.87, 0.73, alpha), # orange 
+                    (0.87, 0.73, 1, alpha) # purple
+                    ]
+                vivid_color_list = ["red", "green", "blue", "gold", "darkorange", "purple"]
 
                 for i in range(len(dataframe_list)):
 
                     s = (dataframe_list[i]).pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
                     s.rename(columns=lambda x: "_" + str(x), inplace=True)
-                    # s.plot(ax=ax, color=color_list[i], legend=False)
-                    s.plot(ax=ax, color=color_list[i])
+                    s.plot(ax=ax, color=pastel_color_list[i])
                     pivot_list.append(s)
-                    # legend_list.append(dataframe_list[i]["experiment"][0]) # stimulus set number; appending here guarantees matching order
 
-                # # ax = pivot_list[0].plot(color="green", label=f"All video data for {pivot_list[0]["experiment"]}")
-                # ax = pivot_list[0].plot(color=(1, 0.73, 0.87, 0.3), legend=False) # light red for RGBalpha
-                # (pivot_list[1]).plot(ax=ax, color=(0.73, 0.82, 1, 0.3)) # light blue for RGBalpha
+                for i in range(len(dataframe_list)):
+                    (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_color_list[i], label=experiment_subset_list[i])
 
-                (pivot_list[0]).mean(1).plot(ax=ax, color="r", label=experiment_subset_list[0])
-                (pivot_list[1]).mean(1).plot(ax=ax, color="b", label=experiment_subset_list[1])
-
-                # ax.legend(["line 1", "line 2"])
                 ax.legend()
 
                 ax.set_xlabel("frame id")
                 ax.set_ylabel({metric})
-
-                ############# keep below same
 
                 file_path = os.path.join(output_folder, f"multi_exp_frames_vs_{metric}_.png")
                 plt.savefig(file_path)
                 plt.close()
             
             print("plotted for", arch, channel)
-
 
 
 def multi_model_frame_vs_metric_plot(
@@ -557,6 +560,15 @@ def multi_model_frame_vs_activation_plot(
 ######################################################################################################
 # "generate all" functions to generate one kind of plot for all applicable configurations
 ######################################################################################################
+
+def gen_all_multi_experiment_frame_vs_metric_plots():
+    for vis_technique in gc_variants:
+        for softmax in softmax_status:
+            multi_experiment_frame_vs_metric_plots(
+                vis_technique,
+                softmax,
+            )
+            print("plotted for ", vis_technique, softmax)
 
 def gen_all_single_model_frame_vs_metric_plots():  
     for exp in experiments:
