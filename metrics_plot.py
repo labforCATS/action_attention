@@ -26,12 +26,34 @@ gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
 softmax_status = ["pre_softmax", "post_softmax"]
 metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
 
+exp_comparisons = [[1, 4], [1, 3, 4], [1, 2], [4, 5], [4, "5b"]]
+
 base_data_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
 output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
 results_dir = os.path.join(base_data_dir, "metric_results")
 
 # for subset plotting only
 video_id_to_plot = [0, 1, 2]
+
+experiment_stimulus_name_dict = {
+    1 : "Motion",
+    2 : "Discrete Motion",
+    3 : "Motion-Appearance Bijection",
+    4 : "Appearance", 
+    5 : "Static Targets",
+    "5b" : "Solo Targets"
+}
+
+model_cam_name_dict = {
+    "eigen_cam" : "EigenCAM",
+    "grad_cam" : "GradCAM",
+    "grad_cam_plusplus" : "GradCAM++",
+    "cam_plusplus" : "GradCAM++", 
+    "i3d_rgb": "I3D",
+    "i3d_nln" : "NLN",
+    "slowfast_fast" : "SlowFast Fast",
+    "slowfast_slow" : "SlowFast Slow"
+}
 
 # for multi experiment plotting only
 # hardcoded in RGB values, heavily modified from Okabe-Ito palette 
@@ -53,6 +75,7 @@ pastel_experiment_color_dict = {
     5 : ("#C5C1F34d"), # light purple
     "5b" : ("#94D8EC4d")# light blue
 }
+
 
 
 ######################################################################################################
@@ -456,10 +479,10 @@ def multi_model_frame_vs_activation_plot(
     plt.close()
 
 def multi_experiment_frame_vs_metric_plots(
+    experiment_subset_list,
     vis_technique,
     softmax,
 ):
-    experiment_subset_list = [1, 4]
     warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
 
     for arch in architectures:
@@ -569,10 +592,10 @@ def multi_experiment_frame_vs_metric_plots(
             print("plotted for", arch, channel)
 
 def multi_experiment_frame_vs_activation_plots(
+    experiment_subset_list,
     vis_technique,
     softmax,
 ):
-    experiment_subset_list = [1, 4]
     warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
     # TODO: is this a problem
 
@@ -667,23 +690,10 @@ def multi_experiment_frame_vs_activation_plots(
         
             print("plotted for", arch, channel)
 
-# def image_grid(imgs, rows, cols):
-#     assert len(imgs) == rows*cols
-
-#     w, h = imgs[0].size
-#     grid = Image.new('RGB', size=(cols*w, rows*h))
-#     grid_w, grid_h = grid.size
-    
-#     for i, img in enumerate(imgs):
-#         grid.paste(img, box=(i%cols*w, i//cols*h))
-#     return grid
-
-# example input argument: /research/cwloka/data/action_attn/alex_synthetic/multi_experiment_[1, 3, 4]/arch_model_grid
 def arch_model_grid_metric(
     experiment_subset_list = [1, 4], metric = "iou", softmax = "pre_softmax"
     ):
 
-    # flattened_image_dir = os.path.join(output_base_folder, f"multi_experiment_{experiment_subset_list}", "arch_model_grid", softmax, "/")
     flattened_image_dir = os.path.join(output_base_folder, f"multi_experiment_{experiment_subset_list}", "arch_model_grid", softmax)
 
     image_name_list = []
@@ -691,67 +701,92 @@ def arch_model_grid_metric(
         for f in files:
             if f[10:(10+len(metric))] == metric:
                 image_name_list.append(f)
-                print("added ", f, " to image list")
+    
     assert len(image_name_list) == 12 # 4 arch/channel by 3 cams 
+    image_name_list.sort() 
+    # places in order of nln eigen, nln gc, nln ++, i3d eigen, i3d gc, i3d ++,
+    #                    fast eigen, fast gc, fast ++, slow eigen, slow gc, slow ++
 
-    new_im = Image.new('RGB', (1200,900))
+    assert image_name_list[0][-21:] == "nln_rgb_eigen_cam.png" # check sorting is correct
+    assert image_name_list[4][-20:] == "i3d_rgb_grad_cam.png" # check sorting is correct
+    assert image_name_list[-1][-26:] == "slow_grad_cam_plusplus.png" # check sorting is correct
 
-    img_index = 0
-    for i in range(0,1200,300):
-        for j in range(0,900,300):
-            im = Image.open(flattened_image_dir + "/" + image_name_list[img_index])
-            im.thumbnail((300,300))
-            new_im.paste(im, (i,j))
-            print("pasted in ", image_name_list[img_index])
-            img_index += 1
-    new_im.save("hola.png")
+    fig,ax = plt.subplots(3,4)
 
-    # w, h = image_list[0].size
-    # grid = Image.new('RGB', size=(4*w, 3*h))
-    # grid_w, grid_h = grid.size
-    # pdb.set_trace()
-    
-    # for i, img in enumerate(image_list):
-    #     grid.paste(img, box=(i%4*w, i//3*h))
-    
-    # return grid
+    plt.subplots_adjust(left=0.1,
+                    bottom=0.2, 
+                    right=0.9, 
+                    top=0.8, 
+                    wspace=0.05, 
+                    hspace=0.0001)
 
-# arch_cam_grid_path = os.path.join(arch_model_grid_folder, f"frames_vs_{metric}_{arch}_{channel}_{vis_technique}.png")
+    for j in range(4): # columns of models
+        for i in range(3): # rows of CAMs
+            name = image_name_list[(3*j)+i]
+            with open(flattened_image_dir + "/" + name, "rb") as f:
+                image = Image.open(f)
+                ax[i][j].imshow(image)
 
-# new_im = Image.new('RGB', (3000,3000))
+                if metric == "kl_div": # kl_div has a _ in the name, which disrupts later string handling
+                    name = "_".join(name.split("_")[:2]) + "_kldiv_" + "_".join(name.split("_")[4:])
 
-# index = 0
-# for i in xrange(0,3000,300):
-#     for j in xrange(0,3000,300):
-#         im = Image.open(files[index])
-#         im.thumbnail((300,300))
-#         new_im.paste(im, (i,j))
-#         index += 1
+                model_name = name.split("_")[3:5] # i3d_nln, i3d_rgb, or slowfast_channel
+                model_name = "_".join(model_name)
+                model_name = model_cam_name_dict[model_name]
+                cam_name = name.split("_")[-2:] # eigen_cam, grad_cam, or cam_plusplus
+                cam_name = "_".join(cam_name)
+                cam_name = cam_name[:-4] # remove png
+                cam_name = model_cam_name_dict[cam_name]
+                
+                ax[i][j].set_xlabel(model_name)
+                ax[i][j].set_ylabel(cam_name)
 
-# new_im.save("hola.png")
+    for a in ax.flat:
+        a.set_xticks([])
+        a.set_yticks([])
+        a.label_outer()
+
+    stimulus_set_names = [experiment_stimulus_name_dict[x] for x in experiment_subset_list]
+
+    fig.suptitle(f"{metric} for stimulus sets {stimulus_set_names} ({softmax})", x=0.5, y=0.85, fontsize=12)
+
+    file_path = os.path.join(flattened_image_dir, f"GRID_frames_vs_{metric}_{softmax}.png")
+    plt.savefig(file_path, dpi=500)
+    plt.close()
 
 
 ######################################################################################################
 # "generate all" functions to generate one kind of plot for all applicable configurations
 ######################################################################################################
 
+def gen_all_grid_plots_frame_vs_metric_plots():
+    for subset in exp_comparisons:
+        for metric in metrics:
+            for softmax in softmax_status:
+                arch_model_grid_metric(experiment_subset_list = subset, metric=metric, softmax=softmax)
+                print("plotted for", subset, metric, softmax)
+
 def gen_all_multi_experiment_frame_vs_metric_plots():
-    for vis_technique in gc_variants:
-        for softmax in softmax_status:
-                multi_experiment_frame_vs_metric_plots(
+    for subset in exp_comparisons:
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                    multi_experiment_frame_vs_metric_plots(
+                        subset,
+                        vis_technique,
+                        softmax,
+                    )
+                    print("plotted for ", subset, vis_technique, softmax)
+
+def gen_all_multi_experiment_frame_vs_activation_plots():
+    for subset in exp_comparisons:
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                multi_experiment_frame_vs_activation_plots(
+                    subset,
                     vis_technique,
                     softmax,
                 )
-                print("plotted for ", vis_technique, softmax)
-
-def gen_all_multi_experiment_frame_vs_activation_plots():
-    for vis_technique in gc_variants:
-        for softmax in softmax_status:
-            multi_experiment_frame_vs_activation_plots(
-                vis_technique,
-                softmax,
-            )
-            print("plotted for ", vis_technique, softmax)
+                print("plotted for ", subset, vis_technique, softmax)
 
 def gen_all_single_model_frame_vs_metric_plots():  
     for exp in experiments:
