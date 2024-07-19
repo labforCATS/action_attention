@@ -15,6 +15,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import warnings
+from PIL import Image
 from slowfast.visualization.connected_components_utils import load_heatmaps
 
 ### global variables ###
@@ -457,105 +458,115 @@ def multi_model_frame_vs_activation_plot(
 def multi_experiment_frame_vs_metric_plots(
     vis_technique,
     softmax,
-    arch
 ):
-    experiment_subset_list = [1, 3, 4]
+    experiment_subset_list = [1, 4]
     warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
 
-    if arch == "slowfast":
-            channels = ["slow", "fast"]
-    elif arch in ["i3d", "i3d_nln"]:
-            channels = ["rgb"]
-    else:
-            raise NotImplementedError("Add in logic for handling channels")
+    for arch in architectures:
+        if arch == "slowfast":
+                channels = ["slow", "fast"]
+        elif arch in ["i3d", "i3d_nln"]:
+                channels = ["rgb"]
+        else:
+                raise NotImplementedError("Add in logic for handling channels")
 
-    for channel in channels:
-        output_folder = os.path.join(
-                            output_base_folder,
-                            f"multi_experiment_{experiment_subset_list}", arch, vis_technique, softmax, channel
-                        )
+        for channel in channels:
+            output_folder = os.path.join(
+                                output_base_folder,
+                                f"multi_experiment_{experiment_subset_list}", arch, vis_technique, softmax, channel
+                            )
 
-        if not os.path.exists(output_folder):
-                            os.makedirs(output_folder)
+            if not os.path.exists(output_folder):
+                                os.makedirs(output_folder)
 
-        dataframe_list = []
+            arch_model_grid_folder = os.path.join(
+                                output_base_folder,
+                                f"multi_experiment_{experiment_subset_list}", "arch_model_grid", softmax)
 
-        for i in range(len(experiment_subset_list)):
-            exp = experiment_subset_list[i]
+            if not os.path.exists(arch_model_grid_folder):
+                                os.makedirs(arch_model_grid_folder)
 
-            data_folder_path = os.path.join(
-                results_dir, f"experiment_{exp}", arch, vis_technique
-            )
+            dataframe_list = []
 
-            frame_metric_csv = os.path.join(
-                data_folder_path, 
-                f"exp_{exp}_{arch}_{softmax}_frames.csv"
-            )
+            for i in range(len(experiment_subset_list)):
+                exp = experiment_subset_list[i]
 
-            df = pd.read_csv(frame_metric_csv)
-            df = df.loc[df["channel"] == channel]
-            # separate slow and fast channels
+                data_folder_path = os.path.join(
+                    results_dir, f"experiment_{exp}", arch, vis_technique
+                )
 
-            ###### get frame activations #######
-            framewise_root_dir = os.path.join(
-                base_data_dir,
-                f"experiment_{exp}",
-                f"{arch}_output",
-            )
+                frame_metric_csv = os.path.join(
+                    data_folder_path, 
+                    f"exp_{exp}_{arch}_{softmax}_frames.csv"
+                )
 
-            heatmap_folder = ""
-            for entry in os.listdir(framewise_root_dir):
-                if "heatmaps_epoch_" in entry:
-                    heatmap_folder = entry
+                df = pd.read_csv(frame_metric_csv)
+                df = df.loc[df["channel"] == channel]
+                # separate slow and fast channels
 
-            framewise_csv_path = os.path.join(
-                framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
-            )
-            framewisedf = pd.read_csv(framewise_csv_path)
+                ###### get frame activations #######
+                framewise_root_dir = os.path.join(
+                    base_data_dir,
+                    f"experiment_{exp}",
+                    f"{arch}_output",
+                )
 
-            df["mean_activations"] = framewisedf["mean_activations"].values
-            pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
-            pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
-            # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+                heatmap_folder = ""
+                for entry in os.listdir(framewise_root_dir):
+                    if "heatmaps_epoch_" in entry:
+                        heatmap_folder = entry
 
-            if channel == "slow":
-                df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
+                framewise_csv_path = os.path.join(
+                    framewise_root_dir, heatmap_folder, vis_technique, softmax, f"{channel}_framewise_activations.csv"
+                )
+                framewisedf = pd.read_csv(framewise_csv_path)
+
+                df["mean_activations"] = framewisedf["mean_activations"].values
+                pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
+                pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
+                # frames are 1-indexed in metrics CSV, 0-indexed in framewise activations CSV
+
+                if channel == "slow":
+                    df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
+                
+                df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
+
+                dataframe_list.append(df)
+
+            for metric in metrics:
+                fig, ax = plt.subplots()
+
+                pivot_list = []
+                legend_list = []
+
+                for i in range(len(dataframe_list)):
+
+                    s = (dataframe_list[i]).pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
+                    s.rename(columns=lambda x: "_" + str(x), inplace=True)
+                    # s.plot(ax=ax, color=pastel_color_list[i])
+                    s.plot(ax=ax, color=pastel_experiment_color_dict[experiment_subset_list[i]])
+                    pivot_list.append(s)
+
+                for i in range(len(dataframe_list)):
+                    # (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_color_list[i], label=experiment_subset_list[i])
+                    (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_subset_list[i])
+
+                    # TODO fix coloring!!! 
+
+                ax.legend()
+
+                ax.set_xlabel("frame id")
+                ax.set_ylabel({metric})
+
+                file_path = os.path.join(output_folder, f"multi_exp_frames_vs_{metric}_.png")
+                plt.savefig(file_path)
+
+                arch_cam_grid_path = os.path.join(arch_model_grid_folder, f"frames_vs_{metric}_{arch}_{channel}_{vis_technique}.png")
+                plt.savefig(arch_cam_grid_path)
+
+                plt.close()
             
-            df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
-
-            dataframe_list.append(df)
-
-        for metric in metrics:
-            fig, ax = plt.subplots()
-
-            pivot_list = []
-            legend_list = []
-
-            for i in range(len(dataframe_list)):
-
-                s = (dataframe_list[i]).pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
-                s.rename(columns=lambda x: "_" + str(x), inplace=True)
-                # s.plot(ax=ax, color=pastel_color_list[i])
-                s.plot(ax=ax, color=pastel_experiment_color_dict[experiment_subset_list[i]])
-                pivot_list.append(s)
-
-            for i in range(len(dataframe_list)):
-                # (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_color_list[i], label=experiment_subset_list[i])
-                (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_subset_list[i])
-
-                # TODO fix coloring!!! 
-
-            ax.legend()
-
-            ax.set_xlabel("frame id")
-            ax.set_ylabel({metric})
-
-            file_path = os.path.join(output_folder, f"multi_exp_frames_vs_{metric}_.png")
-            plt.savefig(file_path)
-
-            plt.close()
-        
-        print("plotted for", arch, channel)
+            print("plotted for", arch, channel)
 
 def multi_experiment_frame_vs_activation_plots(
     vis_technique,
@@ -656,6 +667,69 @@ def multi_experiment_frame_vs_activation_plots(
         
             print("plotted for", arch, channel)
 
+# def image_grid(imgs, rows, cols):
+#     assert len(imgs) == rows*cols
+
+#     w, h = imgs[0].size
+#     grid = Image.new('RGB', size=(cols*w, rows*h))
+#     grid_w, grid_h = grid.size
+    
+#     for i, img in enumerate(imgs):
+#         grid.paste(img, box=(i%cols*w, i//cols*h))
+#     return grid
+
+# example input argument: /research/cwloka/data/action_attn/alex_synthetic/multi_experiment_[1, 3, 4]/arch_model_grid
+def arch_model_grid_metric(
+    experiment_subset_list = [1, 4], metric = "iou", softmax = "pre_softmax"
+    ):
+
+    # flattened_image_dir = os.path.join(output_base_folder, f"multi_experiment_{experiment_subset_list}", "arch_model_grid", softmax, "/")
+    flattened_image_dir = os.path.join(output_base_folder, f"multi_experiment_{experiment_subset_list}", "arch_model_grid", softmax)
+
+    image_name_list = []
+    for __, __, files in os.walk(flattened_image_dir):
+        for f in files:
+            if f[10:(10+len(metric))] == metric:
+                image_name_list.append(f)
+                print("added ", f, " to image list")
+    assert len(image_name_list) == 12 # 4 arch/channel by 3 cams 
+
+    new_im = Image.new('RGB', (1200,900))
+
+    img_index = 0
+    for i in range(0,1200,300):
+        for j in range(0,900,300):
+            im = Image.open(flattened_image_dir + "/" + image_name_list[img_index])
+            im.thumbnail((300,300))
+            new_im.paste(im, (i,j))
+            print("pasted in ", image_name_list[img_index])
+            img_index += 1
+    new_im.save("hola.png")
+
+    # w, h = image_list[0].size
+    # grid = Image.new('RGB', size=(4*w, 3*h))
+    # grid_w, grid_h = grid.size
+    # pdb.set_trace()
+    
+    # for i, img in enumerate(image_list):
+    #     grid.paste(img, box=(i%4*w, i//3*h))
+    
+    # return grid
+
+# arch_cam_grid_path = os.path.join(arch_model_grid_folder, f"frames_vs_{metric}_{arch}_{channel}_{vis_technique}.png")
+
+# new_im = Image.new('RGB', (3000,3000))
+
+# index = 0
+# for i in xrange(0,3000,300):
+#     for j in xrange(0,3000,300):
+#         im = Image.open(files[index])
+#         im.thumbnail((300,300))
+#         new_im.paste(im, (i,j))
+#         index += 1
+
+# new_im.save("hola.png")
+
 
 ######################################################################################################
 # "generate all" functions to generate one kind of plot for all applicable configurations
@@ -664,11 +738,9 @@ def multi_experiment_frame_vs_activation_plots(
 def gen_all_multi_experiment_frame_vs_metric_plots():
     for vis_technique in gc_variants:
         for softmax in softmax_status:
-            for arch in architectures:
                 multi_experiment_frame_vs_metric_plots(
                     vis_technique,
                     softmax,
-                    arch,
                 )
                 print("plotted for ", vis_technique, softmax)
 
