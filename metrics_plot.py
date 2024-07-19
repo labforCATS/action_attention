@@ -150,6 +150,8 @@ def single_model_plot(
             ###### done getting frame activations ######
 
             df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
+            if channel == "slow":
+                    df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
 
             if yvar == "metric":
                 for metric in metrics:
@@ -161,20 +163,13 @@ def single_model_plot(
                         ax = s.plot(color="gray", label="input_vid_idx")
                         s.mean(1).plot(ax=ax, color='b', linestyle='--', label='Mean')
 
-
                         # metric_integral = 0
                         # for video in s.columns:
                         #     single_video_integral = np.trapz(y=s[video], x=s.index)
                         #     metric_integral += single_video_integral
-
                         # print(f"for {arch}, {channel}, {metric}, the total integral is ", metric_integral)
-                
-
-                            
+                   
                     elif xvar == "activation":
-                        # s = df.pivot_table(index="mean_activations", columns="input_vid_idx", values=metric, aggfunc="mean")
-                        # ax = s.plot(color="gray", label="input_vid_idx")
-                        # s.mean(1).plot(ax=ax, color='g', marker=".", linestyle = None, label='Mean')
                         x = df["mean_activations"]
                         y = df[metric]
                         ax.scatter(x,y, marker=".", s=1, color="gray")
@@ -277,6 +272,8 @@ def subset_single_model_plot(
 
             df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
             df = df[df["input_vid_idx"].isin(video_id_to_plot)] # different from all-data graphs!
+            if channel == "slow":
+                    df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
 
             if yvar == "metric":
                 for metric in metrics:
@@ -349,7 +346,7 @@ def multi_model_frame_vs_metric_plot(
             for channel in channels:
                 print("Plotting data for ", arch, channel)
                 output_folder = os.path.join(
-                                    output_base_folder, f"experiment_{exp}", "multi_model", vis_technique, softmax
+                                    output_base_folder, f"experiment_{exp}", "multi_model", vis_technique, softmax, channel
                                 )
 
                 if not os.path.exists(output_folder):
@@ -369,10 +366,6 @@ def multi_model_frame_vs_metric_plot(
                 df = df.loc[df["channel"] == channel] # separate slow and fast channels if needed
                 if channel == "slow":
                     df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
-            
-                # metric_val = df[metric]
-                # frame_id = df["frame_id"]
-                # video_name = df["input_vid_idx"]
 
                 s = df.pivot_table(index="frame_id", columns="input_vid_idx", values=metric, aggfunc='mean')
                 pivot_list.append(s)
@@ -399,7 +392,6 @@ def multi_model_frame_vs_activation_plot(
 ):
     
 
-
     pivot_list = []
 
     for arch in architectures:
@@ -411,7 +403,7 @@ def multi_model_frame_vs_activation_plot(
             raise NotImplementedError("Add in logic for handling channels")
         for channel in channels:
             output_folder = os.path.join(
-                                    output_base_folder, f"experiment_{exp}", "multi_model", vis_technique, softmax
+                                    output_base_folder, f"experiment_{exp}", "multi_model", vis_technique, softmax, channel
                                 )
 
             if not os.path.exists(output_folder):
@@ -455,10 +447,6 @@ def multi_model_frame_vs_activation_plot(
             df = df.loc[df["correct"] == True] # only use data from correctly-classified videos
             if channel == "slow":
                 df["frame_id"] *= 4 # slow channel has 1/4 the frame rate of all other channels
-        
-            # metric_val = df["mean_activations"]
-            # frame_id = df["frame_id"]
-            # video_name = df["input_vid_idx"]
 
             s = df.pivot_table(index="frame_id", columns="input_vid_idx", values="mean_activations", aggfunc='mean')
             pivot_list.append(s)
@@ -544,6 +532,10 @@ def multi_experiment_frame_vs_metric_plots(
                 )
                 framewisedf = pd.read_csv(framewise_csv_path)
 
+                ### TODO: debugging mismatched CSVs
+                assert df["frame_id"].size == framewisedf["mean_activations"].size, (f"mismatched CSVs for {exp} {vis_technique} {softmax}")
+                ###
+
                 df["mean_activations"] = framewisedf["mean_activations"].values
                 pd.testing.assert_series_equal(df["input_vid_idx"], framewisedf["input_vid_idx"], check_index=False)
                 pd.testing.assert_series_equal((df["frame_id"] + 1), framewisedf["frame_id"], check_index=False) 
@@ -574,8 +566,6 @@ def multi_experiment_frame_vs_metric_plots(
                     # (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_color_list[i], label=experiment_subset_list[i])
                     (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_subset_list[i])
 
-                    # TODO fix coloring!!! 
-
                 ax.legend()
 
                 ax.set_xlabel("frame id")
@@ -589,7 +579,7 @@ def multi_experiment_frame_vs_metric_plots(
 
                 plt.close()
             
-            print("plotted for", arch, channel)
+            print("plotted for", arch, channel, vis_technique, softmax)
 
 def multi_experiment_frame_vs_activation_plots(
     experiment_subset_list,
@@ -597,7 +587,6 @@ def multi_experiment_frame_vs_activation_plots(
     softmax,
 ):
     warnings.filterwarnings("ignore") # avoid spam of warnings that these lines are not on legend
-    # TODO: is this a problem
 
     for arch in architectures:
         if arch == "slowfast":
@@ -763,19 +752,26 @@ def gen_all_grid_plots_frame_vs_metric_plots():
     for subset in exp_comparisons:
         for metric in metrics:
             for softmax in softmax_status:
-                arch_model_grid_metric(experiment_subset_list = subset, metric=metric, softmax=softmax)
-                print("plotted for", subset, metric, softmax)
+                if 2 in subset and softmax == "post_softmax":
+                    continue
+                else: 
+                    arch_model_grid_metric(experiment_subset_list = subset, metric=metric, softmax=softmax)
+                    print("plotted for", subset, metric, softmax)
 
 def gen_all_multi_experiment_frame_vs_metric_plots():
     for subset in exp_comparisons:
         for vis_technique in gc_variants:
             for softmax in softmax_status:
-                    multi_experiment_frame_vs_metric_plots(
-                        subset,
-                        vis_technique,
-                        softmax,
-                    )
-                    print("plotted for ", subset, vis_technique, softmax)
+
+                    if 2 in subset and vis_technique == "eigen_cam" and softmax == "post_softmax":
+                        continue
+                    else: 
+                        multi_experiment_frame_vs_metric_plots(
+                            subset,
+                            vis_technique,
+                            softmax,
+                        )
+                        print("plotted for ", subset, vis_technique, softmax)
 
 def gen_all_multi_experiment_frame_vs_activation_plots():
     for subset in exp_comparisons:
@@ -788,11 +784,23 @@ def gen_all_multi_experiment_frame_vs_activation_plots():
                 )
                 print("plotted for ", subset, vis_technique, softmax)
 
-def gen_all_single_model_frame_vs_metric_plots():  
+def gen_all_multi_model_frame_vs_metric_plots():  
     for exp in experiments:
         for vis_technique in gc_variants:
             for softmax in softmax_status:
-                frame_vs_metric_plot(
+                multi_model_frame_vs_metric_plot(
+                    exp,
+                    vis_technique,
+                    softmax,
+                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
+                )
+
+def gen_all_multi_model_frame_vs_activation_plots():  
+    for exp in experiments:
+        print("experiment", exp)
+        for vis_technique in gc_variants:
+            for softmax in softmax_status:
+                multi_model_frame_vs_activation_plot(
                     exp,
                     vis_technique,
                     softmax,
@@ -865,40 +873,6 @@ def gen_all_subset_single_model_plots():
                 show_legend = True,
                 )
 
-
-def gen_all_multi_model_frame_vs_metric_plots():  
-    for exp in experiments:
-        for vis_technique in gc_variants:
-            for softmax in softmax_status:
-                multi_model_frame_vs_metric_plot(
-                    exp,
-                    vis_technique,
-                    softmax,
-                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-                )
-
-def gen_all_single_model_frame_vs_activation_plots():  
-    for exp in experiments:
-        for vis_technique in gc_variants:
-            for softmax in softmax_status:
-                frame_vs_activation_plot(
-                    exp,
-                    vis_technique,
-                    softmax,
-                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-                )  
-
-def gen_all_multi_model_frame_vs_activation_plots():  
-    for exp in experiments:
-        print("experiment", exp)
-        for vis_technique in gc_variants:
-            for softmax in softmax_status:
-                multi_model_frame_vs_activation_plot(
-                    exp,
-                    vis_technique,
-                    softmax,
-                    metrics=["kl_div", "iou", "pearson", "mse", "covariance"],
-                )
 
 ######################################################################################################
 # Functions that we are *NOT* currently using! (don't want to delete yet in case useful later) #
