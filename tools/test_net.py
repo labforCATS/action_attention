@@ -88,7 +88,6 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
             ori_boxes = ori_boxes.detach().cpu() if cfg.NUM_GPUS else ori_boxes.detach()
             metadata = metadata.detach().cpu() if cfg.NUM_GPUS else metadata.detach()
 
-
             if cfg.NUM_GPUS > 1:
                 preds = torch.cat(du.all_gather_unaligned(preds), dim=0)
                 ori_boxes = torch.cat(du.all_gather_unaligned(ori_boxes), dim=0)
@@ -174,7 +173,9 @@ def perform_test(test_loader, model, test_meter, cfg, writer=None):
 
 
 @torch.no_grad()
-def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_frames=False):
+def run_heatmap_metrics(
+    test_loader, model, test_meter, cfg, writer=None, use_frames=False
+):
     """
     For classification:
     Run metric computations over existing heatmaps. This will retrieve predictions for each video and compute the metrics declared in the config.
@@ -193,19 +194,23 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
     isolate_epoch_file = cfg.TEST.CHECKPOINT_FILE_PATH.split("/")[-1]
     remove_tag = isolate_epoch_file.split(".")
     epoch_selected = (remove_tag[0].split("_"))[2]
-    
+
     heatmaps_root_dir = os.path.join(
         cfg.OUTPUT_DIR,
         f"heatmaps_epoch_{epoch_selected}",
         cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD,
-        "post_softmax"
-        if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
-        else "pre_softmax",
+        (
+            "post_softmax"
+            if cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX
+            else "pre_softmax"
+        ),
     )
     input_json_path = os.path.join(
         cfg.DATA.PATH_TO_DATA_DIR, "synthetic_motion_test.json"
     )
-    label_json_path = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "synthetic_motion_labels.json")
+    label_json_path = os.path.join(
+        cfg.DATA.PATH_TO_DATA_DIR, "synthetic_motion_labels.json"
+    )
 
     # get details of the experiment, including experiment number and nonlocal
     exp, experiment_root_dir = get_exp_and_root_dir(cfg.DATA.PATH_TO_DATA_DIR)
@@ -213,8 +218,6 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
     # use_frames
     use_frames = True
     num_frames = cfg.DATA.NUM_FRAMES
-    
-
 
     print("heatmaps root directory:", heatmaps_root_dir)
     print("input json path:", input_json_path)
@@ -224,15 +227,15 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
     model.eval()
     # test_meter.iter_tic()
 
-    # get experiment properties 
+    # get experiment properties
     metrics = cfg.METRICS.FUNCS
     if use_frames:
         metrics = metrics + ["frame_id"]
 
-    nonlocal_location = np.array(cfg.NONLOCAL.LOCATION, dtype = "object")
+    nonlocal_location = np.array(cfg.NONLOCAL.LOCATION, dtype="object")
     nonlocal_location = nonlocal_location.flatten("F")
-    non_empty_elems = [x for x in nonlocal_location if len(x) != 0] 
-    # TODO ^ is this able to handle nested lists of arbitrary depth? 
+    non_empty_elems = [x for x in nonlocal_location if len(x) != 0]
+    # TODO ^ is this able to handle nested lists of arbitrary depth?
     print("cfg.NONLOCAL.LOCATION", cfg.NONLOCAL.LOCATION)
     print("nonlocal_location after flatten", nonlocal_location)
     print("non_empty_elems", non_empty_elems)
@@ -242,10 +245,9 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
     else:
         is_nonlocal = False
 
-
     # Create results dictionary (which will later be converted to a dataframe
     # and exported to csv)
-    # the keys will be the various properties, e.g. video index, label, experiment parameters, etc. and the values are lists, where the ith value of each list corresponds to the ith video we iterate over, aka the ith row in the dataframe after we convert it 
+    # the keys will be the various properties, e.g. video index, label, experiment parameters, etc. and the values are lists, where the ith value of each list corresponds to the ith video we iterate over, aka the ith row in the dataframe after we convert it
     dataset_size = len(test_loader.dataset)
     if cfg.MODEL.ARCH == "slowfast":
         num_channels = 2
@@ -255,26 +257,29 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
         raise NotImplementedError("add in number of channels for architecture")
 
     entry_multiplier = 0
+
+    # variables for slowfast channels
+    slow_frame_rate = num_frames / cfg.SLOWFAST.ALPHA
+    fast_frame_rate = num_frames
+
     if use_frames:
         if num_channels == 1:
             entry_multiplier = dataset_size * num_frames
         elif num_channels == 2:
             # because of how we created the synthetic motion dataset, this
             # calculation is still consistent with literature
-            slow_frame_rate = num_frames / cfg.SLOWFAST.ALPHA
-            fast_frame_rate = num_frames
             entry_multiplier = int(dataset_size * (slow_frame_rate + fast_frame_rate))
     else:
         entry_multiplier = dataset_size * num_channels
 
-
     data_dict = {
         # experiment params are the same for all videos in the dataset
-        "experiment": [exp] * entry_multiplier, 
+        "experiment": [exp] * entry_multiplier,
         "model": [cfg.MODEL.ARCH] * entry_multiplier,
         "nonlocal": [is_nonlocal] * entry_multiplier,
         "gradcam_variant": (
-            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD] * entry_multiplier),
+            [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.METHOD] * entry_multiplier
+        ),
         "post_softmax": (
             [cfg.TENSORBOARD.MODEL_VIS.GRAD_CAM.POST_SOFTMAX] * entry_multiplier
         ),
@@ -288,7 +293,6 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
         "correct": [],
     }
 
-    
     for metric in metrics:
         data_dict[metric] = []
     print("beginning iterations through testing loader")
@@ -319,17 +323,21 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
         # iterate over each video in the batch
         for label, pred, output_vid_idx in zip(labels, preds, video_ids):
             # retrieve the input vid index
-            target_class, input_vid_idx = output_idx_to_input(input_json_path, output_vid_idx)
+            target_class, input_vid_idx = output_idx_to_input(
+                input_json_path, output_vid_idx
+            )
 
-            # other option instead of using target_class is to convert the label (which is the integer encoding of the class) to the string. but that's annoying 
+            # other option instead of using target_class is to convert the label (which is the integer encoding of the class) to the string. but that's annoying
 
-            # get the actual prediction (preds has the cross entropy scores for all classes) 
+            # get the actual prediction (preds has the cross entropy scores for all classes)
             pred_numeric = torch.flatten(torch.argmax(pred, dim=-1)).item()
             pred_class = class_int_to_string(pred_numeric, label_json_path)
 
             if cfg.MODEL.ARCH not in ["slowfast", "i3d"]:
-                raise NotImplementedError("add in logic retrieving channels for this architecture")
-            
+                raise NotImplementedError(
+                    "add in logic retrieving channels for this architecture"
+                )
+
             if len(inputs) == 1:
                 channel_list = ["rgb"]
             else:
@@ -337,7 +345,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
 
             label_numeric = label.item()
             for channel in channel_list:
-                
+
                 # check that the heatmaps exist
                 # (let's just check the first frame)
                 heatmap_frames_dir = os.path.join(
@@ -347,39 +355,52 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                     f"{target_class}_{input_vid_idx:06d}",
                     channel,
                 )
-                trajectory_frames_dir = os.path.join(cfg.DATA.PATH_TO_DATA_DIR, "test", "target_masks", f"{target_class}", f"{target_class}_{input_vid_idx:06d}")
-                
+                trajectory_frames_dir = os.path.join(
+                    cfg.DATA.PATH_TO_DATA_DIR,
+                    "test",
+                    "target_masks",
+                    f"{target_class}",
+                    f"{target_class}_{input_vid_idx:06d}",
+                )
+
                 sample_heatmap_frame_path = os.path.join(
                     heatmap_frames_dir,
                     f"{target_class}_{input_vid_idx:06d}_{channel}_000001.jpg",
-
                 )
 
-                assert os.path.exists(sample_heatmap_frame_path), f"could not find heatmaps {sample_heatmap_frame_path}; cannot compute metrics if heatmaps do not exist"
-                
+                assert os.path.exists(
+                    sample_heatmap_frame_path
+                ), f"could not find heatmaps {sample_heatmap_frame_path}; cannot compute metrics if heatmaps do not exist"
+
                 # pdb.set_trace()
 
                 # Compute metrics over the heatmap
                 metric_results = heatmap_metrics(
-                    heatmap_dir=heatmap_frames_dir, 
-                    trajectory_dir=trajectory_frames_dir, 
+                    heatmap_dir=heatmap_frames_dir,
+                    trajectory_dir=trajectory_frames_dir,
                     metrics=metrics,
-                    pathway=channel, 
+                    pathway=channel,
                     thresh=0.2,
-                    use_frames = use_frames)
-                
+                    use_frames=use_frames,
+                )
+
                 # update video features in the data dictionary
                 frame_multiplier = 1
                 if use_frames:
-                    frame_multiplier = num_frames
-                
-                data_dict["input_vid_idx"] += [input_vid_idx]*frame_multiplier
+                    if channel == "slow":
+                        frame_multiplier = int(slow_frame_rate)
+                    elif channel == "fast":
+                        frame_multiplier = int(fast_frame_rate)
+
+                data_dict["input_vid_idx"] += [input_vid_idx] * frame_multiplier
                 data_dict["channel"] += [channel] * frame_multiplier
                 data_dict["label"] += [target_class] * frame_multiplier
                 data_dict["pred"] += [pred_class] * frame_multiplier
                 data_dict["label_numeric"] += [label_numeric] * frame_multiplier
                 data_dict["pred_numeric"] += [pred_numeric] * frame_multiplier
-                data_dict["correct"] += [(label_numeric == pred_numeric)] * frame_multiplier
+                data_dict["correct"] += [
+                    (label_numeric == pred_numeric)
+                ] * frame_multiplier
 
                 # update metric results in the data dictionary
                 for metric in metrics:
@@ -391,25 +412,27 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                     else:
                         data_dict[metric].append(metric_results[metric])
                 # pdb.set_trace()
-                
-    pdb.set_trace()
-    results_dataframe = pd.DataFrame.from_dict(data_dict)
-    
+
+    # pdb.set_trace()
+    try:
+        results_dataframe = pd.DataFrame.from_dict(data_dict)
+    except:
+        pdb.set_trace()
+
     output_path = cfg.METRICS.CSV_PATH
     if use_frames:
         # if use frames, change the csv name to include frames
         output_path = f"{output_path[:-4]}_frames.csv"
 
     if os.path.exists(output_path):
-        results_dataframe.to_csv(output_path, mode='a', index=False, header=False)
+        results_dataframe.to_csv(output_path, mode="a", index=False, header=False)
     else:
         results_dataframe.to_csv(output_path, index=False)
 
     if not os.path.exists(output_path):
         pdb.set_trace()
 
-    # TODO log testing stats e.g. accuracy - figure out a nice way to do this 
-
+    # TODO log testing stats e.g. accuracy - figure out a nice way to do this
 
 
 def test(cfg):
@@ -474,9 +497,11 @@ def test(cfg):
             test_loader.dataset.num_videos
             // (cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS),
             cfg.TEST.NUM_ENSEMBLE_VIEWS * cfg.TEST.NUM_SPATIAL_CROPS,
-            cfg.MODEL.NUM_CLASSES
-            if not cfg.TASK == "ssl"
-            else cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM,
+            (
+                cfg.MODEL.NUM_CLASSES
+                if not cfg.TASK == "ssl"
+                else cfg.CONTRASTIVE.NUM_CLASSES_DOWNSTREAM
+            ),
             len(test_loader),
             cfg.DATA.MULTI_LABEL,
             cfg.DATA.ENSEMBLE_METHOD,
@@ -492,9 +517,8 @@ def test(cfg):
         test_meter = run_heatmap_metrics(test_loader, model, test_meter, cfg, writer)
         logger.info("metric calculations done")
 
-
     # Perform multi-view test on the entire dataset.
-    if cfg.TEST.ENABLE: 
+    if cfg.TEST.ENABLE:
         test_meter = perform_test(test_loader, model, test_meter, cfg, writer)
         if writer is not None:
             writer.close()

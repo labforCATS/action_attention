@@ -12,4 +12,4 @@ vis_model_input
 # /research/cwloka/projects/nikki_sandbox/action_attention/output/*
 metric_exploration/plots/
 
-**/output/*
+/research/cwloka/projects/alex_sandbox/action_attention/output/*
