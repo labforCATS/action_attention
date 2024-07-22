@@ -57,7 +57,6 @@ slowfast/utils/benchmark.py
 slowfast/utils/bn_helper.py
 slowfast/utils/c2_model_loading.py
 slowfast/utils/checkpoint.py
-slowfast/utils/connected_components_utils.py
 slowfast/utils/distributed.py
 slowfast/utils/env.py
 slowfast/utils/logging.py
@@ -84,6 +83,7 @@ slowfast/utils/ava_evaluation/standard_fields.py
 slowfast/visualization/__init__.py
 slowfast/visualization/async_predictor.py
 slowfast/visualization/ava_demo_precomputed_boxes.py
+slowfast/visualization/connected_components_utils.py
 slowfast/visualization/demo_loader.py
 slowfast/visualization/frameEnergy.py
 slowfast/visualization/gradcam_utils.py
@@ -93,3 +93,14 @@ slowfast/visualization/tensorboard_vis.py
 slowfast/visualization/utils.py
 slowfast/visualization/video_visualizer.py
 slowfast/visualization/weight_calcs.py
+tools/__init__.py
+tools/benchmark.py
+tools/demo_net.py
+tools/generate_commands.py
+tools/make_configs.py
+tools/run_experiment_suite.py
+tools/run_net.py
+tools/scripts.py
+tools/test_net.py
+tools/train_net.py
+tools/visualization.py

@@ -175,6 +175,8 @@ def precision_3D(target_volume, heatmap_volume) -> float:
     total_volume_1 = target_vol.sum()
     total_volume_2 = heatmap_vol.sum()
 
+    if (total_volume_2 == 0):
+        return 0
     # compute true positive volume
     true_positive = np.logical_and(target_vol, heatmap_vol).sum()
 
@@ -202,7 +204,7 @@ def precision_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> n
     true_positive = np.logical_and(target_vol, heatmap_vol).sum(axis=(1,2))
 
     # compute precision
-    precision = true_positive/heatmap_totals
+    precision = np.divide(true_positive, heatmap_totals, out=np.zeros_like(true_positive, dtype=float), where=heatmap_totals!=0)
     return precision
 
 
@@ -219,6 +221,9 @@ def recall_3D(target_volume, heatmap_volume) -> float:
 
     total_volume_1 = target_vol.sum()
     total_volume_2 = heatmap_vol.sum()
+
+    if (total_volume_1 == 0):
+        return 0
 
     # compute true positive volume
     true_positive = np.logical_and(target_vol, heatmap_vol).sum()
@@ -651,15 +656,16 @@ def heatmap_metrics(
 
     if use_frames:
         for metric_name in metrics:
-            if metric_name == "kl_div":
-                result = KL_div_frames(target_volume, heatmap_volume)
-            elif metric_name == "mse":
-                result = MSE_frames(target_volume, heatmap_volume)
-            elif metric_name == "covariance":
-                result = covariance_frames(target_volume, heatmap_volume)
-            elif metric_name == "pearson":
-                result = pearson_correlation_frames(target_volume, heatmap_volume)
-            elif metric_name == "iou":
+            # if metric_name == "kl_div":
+            #     result = KL_div_frames(target_volume, heatmap_volume)
+            # elif metric_name == "mse":
+            #     result = MSE_frames(target_volume, heatmap_volume)
+            # elif metric_name == "covariance":
+            #     result = covariance_frames(target_volume, heatmap_volume)
+            # elif metric_name == "pearson":
+            #     result = pearson_correlation_frames(target_volume, heatmap_volume)
+            # elif metric_name == "iou":
+            if metric_name == "iou":
                 result = IOU_frames(target_volume, binarized_heatmap)
             elif metric_name == "precision":
                 result = precision_frames(target_volume, binarized_heatmap)
@@ -677,21 +683,21 @@ def heatmap_metrics(
     else:
         # iterate through list of metrics, computing the values
         for metric_name in metrics:
-            if metric_name == "kl_div":
-                result = KL_div(target_volume, heatmap_volume)
-            elif metric_name == "mse":
-                result = MSE(target_volume, heatmap_volume)
-            elif metric_name == "covariance":
-                result = covariance(target_volume, heatmap_volume)
-            elif metric_name == "pearson":
-                result = pearson_correlation(target_volume, heatmap_volume)
-            elif metric_name == "iou":
+            # if metric_name == "kl_div":
+            #     result = KL_div(target_volume, heatmap_volume)
+            # elif metric_name == "mse":
+            #     result = MSE(target_volume, heatmap_volume)
+            # elif metric_name == "covariance":
+            #     result = covariance(target_volume, heatmap_volume)
+            # elif metric_name == "pearson":
+            #     result = pearson_correlation(target_volume, heatmap_volume)
+            # elif metric_name == "iou":
+            if metric_name == "iou":
                 result = IOU_3D(target_volume, binarized_heatmap)
             elif metric_name == "precision":
                 result = precision_3D(target_volume, binarized_heatmap)
             elif metric_name == "recall":
                 result = recall_3D(target_volume, binarized_heatmap)
-            elif metric_name == "frame_id":
             else:
                 raise NotImplementedError(
                     "Unrecognized metric; implement metric and add logic"

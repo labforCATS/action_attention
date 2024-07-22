@@ -26,7 +26,8 @@ def generate_commands(server, run_train=False, run_vis=False, run_metrics=False)
     vis_techniques = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
     post_softmax = [False, True]
 
-    data_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
+    # data_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
+    data_dir = "/research/cwloka/data/action_attn/diane_synthetic"
     commands = "python setup.py build develop; "
 
     # iterate through each experiment
@@ -34,41 +35,41 @@ def generate_commands(server, run_train=False, run_vis=False, run_metrics=False)
         # retrieve config folder for each experiment
         exp_folder = os.path.join(data_dir, f"experiment_{experiment}/configs")
         configs = os.listdir(exp_folder)
-        if run_train:
-            # filter out non-training configs
-            train_configs = [config for config in configs if "train" in config]
-            if server == "shadowfax":
-                # add both i3d network training configs to the list of commands
-                i3d_train_configs = [config for config in train_configs if "i3d" in config]
-                for c in i3d_train_configs:
-                    file_path = os.path.join(exp_folder, c)
-                    commands += f"python3 tools/run_net.py --cfg {file_path}; "
-            elif server == "shuffler":
-                # add slowfast training configs to the list of commands
-                slowfast_train_configs = [config for config in train_configs if "slowfast" in config]
-                for c in slowfast_train_configs:
-                    file_path = os.path.join(exp_folder, c)
-                    commands += f"python3 tools/run_net.py --cfg {file_path}; "
-            else:
-                raise NotImplementedError("Logic for this server needs to be added in")
+        # if run_train:
+        #     # filter out non-training configs
+        #     train_configs = [config for config in configs if "train" in config]
+        #     if server == "shadowfax":
+        #         # add both i3d network training configs to the list of commands
+        #         i3d_train_configs = [config for config in train_configs if "i3d" in config]
+        #         for c in i3d_train_configs:
+        #             file_path = os.path.join(exp_folder, c)
+        #             commands += f"python3 tools/run_net.py --cfg {file_path}; "
+        #     elif server == "shuffler":
+        #         # add slowfast training configs to the list of commands
+        #         slowfast_train_configs = [config for config in train_configs if "slowfast" in config]
+        #         for c in slowfast_train_configs:
+        #             file_path = os.path.join(exp_folder, c)
+        #             commands += f"python3 tools/run_net.py --cfg {file_path}; "
+        #     else:
+        #         raise NotImplementedError("Logic for this server needs to be added in")
         
-        if run_vis:
-            # filter out non-visualization config files
-            vis_configs = [config for config in configs if "vis" in config]
-            if server == "shadowfax":
-                # add both i3d networks' visualization configs to list of commands
-                i3d_vis_configs = [config for config in vis_configs if "i3d" in config]
-                for c in i3d_vis_configs:
-                    file_path = os.path.join(exp_folder, c)
-                    commands += f"python3 tools/run_net.py --cfg {file_path}; "
-            elif server == "shuffler":
-                # add slowfast networks' visualization configs to list of commands
-                slowfast_vis_configs = [config for config in vis_configs if "slowfast" in config]
-                for c in slowfast_vis_configs:
-                    file_path = os.path.join(exp_folder, c)
-                    commands += f"python3 tools/run_net.py --cfg {file_path}; "
-            else:
-                raise NotImplementedError("Logic for this server needs to be added in")
+        # if run_vis:
+        #     # filter out non-visualization config files
+        #     vis_configs = [config for config in configs if "vis" in config]
+        #     if server == "shadowfax":
+        #         # add both i3d networks' visualization configs to list of commands
+        #         i3d_vis_configs = [config for config in vis_configs if "i3d" in config]
+        #         for c in i3d_vis_configs:
+        #             file_path = os.path.join(exp_folder, c)
+        #             commands += f"python3 tools/run_net.py --cfg {file_path}; "
+        #     elif server == "shuffler":
+        #         # add slowfast networks' visualization configs to list of commands
+        #         slowfast_vis_configs = [config for config in vis_configs if "slowfast" in config]
+        #         for c in slowfast_vis_configs:
+        #             file_path = os.path.join(exp_folder, c)
+        #             commands += f"python3 tools/run_net.py --cfg {file_path}; "
+        #     else:
+        #         raise NotImplementedError("Logic for this server needs to be added in")
         
         if run_metrics:
             # filter out non-metric config files

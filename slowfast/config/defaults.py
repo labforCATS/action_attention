@@ -1118,7 +1118,7 @@ _C.DATA_LOADER.INSPECT.SHUFFLE = True
 _C.METRICS = CfgNode()
 
 # metrics to run
-_C.METRICS.FUNCS = []
+_C.METRICS.FUNCS = ["IOU", "precision", "recall"]
 
 # whether or not to run metric calculations
 _C.METRICS.ENABLE = False

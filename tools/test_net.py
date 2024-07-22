@@ -392,7 +392,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                         data_dict[metric].append(metric_results[metric])
                 # pdb.set_trace()
                 
-    pdb.set_trace()
+    # pdb.set_trace()
     results_dataframe = pd.DataFrame.from_dict(data_dict)
     
     output_path = cfg.METRICS.CSV_PATH
