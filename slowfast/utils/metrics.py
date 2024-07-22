@@ -22,6 +22,8 @@ METRIC_FUNCS = [
     "covariance",
     "pearson",
     "iou",
+    "precision",
+    "recall",
 ]
 
 
@@ -155,6 +157,104 @@ def IOU_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> np.ndar
     # compute IOU
     iou = intersect / union
     return iou
+
+################
+# I ADDED THIS #
+################
+def precision_3D(target_volume, heatmap_volume) -> float:
+    """
+    """
+    assert target_volume.shape == heatmap_volume.shape
+
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
+
+    target_vol = target_vol.astype(bool)
+    heatmap_vol = heatmap_vol.astype(bool)
+
+    total_volume_1 = target_vol.sum()
+    total_volume_2 = heatmap_vol.sum()
+
+    # compute true positive volume
+    true_positive = np.logical_and(target_vol, heatmap_vol).sum()
+
+    # compute precision
+    precision = true_postive / total_volume_2
+    return precision
+    
+
+def precision_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> np.ndarray:
+    """
+    """
+    # shape (time, width, height) for both
+    assert target_volume.shape == heatmap_volume.shape
+
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
+
+    target_vol = target_vol.astype(bool)
+    heatmap_vol = heatmap_vol.astype(bool)
+
+    target_totals = target_vol.sum(axis=(1,2))
+    heatmap_totals = heatmap_vol.sum(axis=(1,2))
+
+    # compute true positive volume
+    true_positive = np.logical_and(target_vol, heatmap_vol).sum(axis=(1,2))
+
+    # compute precision
+    precision = true_positive/heatmap_totals
+    return precision
+
+
+def recall_3D(target_volume, heatmap_volume) -> float:
+    """
+    """
+    assert target_volume.shape == heatmap_volume.shape
+
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
+
+    target_vol = target_vol.astype(bool)
+    heatmap_vol = heatmap_vol.astype(bool)
+
+    total_volume_1 = target_vol.sum()
+    total_volume_2 = heatmap_vol.sum()
+
+    # compute true positive volume
+    true_positive = np.logical_and(target_vol, heatmap_vol).sum()
+
+    # compute recall
+    recall = true_postive / total_volume_1
+    return recall
+
+
+def recall_frames(target_volume: np.ndarray, heatmap_volume: np.ndarray) -> np.ndarray:
+    """
+    """
+    # shape (time, width, height) for both
+    assert target_volume.shape == heatmap_volume.shape
+
+    target_vol = copy.deepcopy(target_volume)
+    heatmap_vol = copy.deepcopy(heatmap_volume)
+
+    target_vol = target_vol.astype(bool)
+    heatmap_vol = heatmap_vol.astype(bool)
+
+    target_totals = target_vol.sum(axis=(1,2))
+    heatmap_totals = heatmap_vol.sum(axis=(1,2))
+
+    # compute true positive area
+    true_positive = np.logical_and(target_vol, heatmap_vol).sum(axis=(1,2))
+
+    # compute recall
+    recall = true_positive / target_totals
+    return recall
+
+
+    #########################
+    # DONE ADDING FUNCTIONS #
+    #########################
+
 
 
 def convert_to_prob_dist(target_volume, heatmap_volume):
@@ -561,6 +661,10 @@ def heatmap_metrics(
                 result = pearson_correlation_frames(target_volume, heatmap_volume)
             elif metric_name == "iou":
                 result = IOU_frames(target_volume, binarized_heatmap)
+            elif metric_name == "precision":
+                result = precision_frames(target_volume, binarized_heatmap)
+            elif metric_name == "recall":
+                result = recall_frames(target_volume, binarized_heatmap)
             elif metric_name == "frame_id":
                 pass
             else:
@@ -583,6 +687,11 @@ def heatmap_metrics(
                 result = pearson_correlation(target_volume, heatmap_volume)
             elif metric_name == "iou":
                 result = IOU_3D(target_volume, binarized_heatmap)
+            elif metric_name == "precision":
+                result = precision_3D(target_volume, binarized_heatmap)
+            elif metric_name == "recall":
+                result = recall_3D(target_volume, binarized_heatmap)
+            elif metric_name == "frame_id":
             else:
                 raise NotImplementedError(
                     "Unrecognized metric; implement metric and add logic"
