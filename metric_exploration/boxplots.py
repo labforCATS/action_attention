@@ -81,7 +81,7 @@ def multiple_box_plot(
     output_folder,
     motion_class = None,
     exp_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results",
-    experiments = [1,2, 3, 4,5 ,"5b"],
+    experiments = [ 4, "5b"],
 ):
     """
     Creates one plot containing multiple box and whisker plots.
@@ -93,7 +93,7 @@ def multiple_box_plot(
 
     all_exp_metric_filtered = []
     # DIANE PLEASE REMEMBER TO CHANGE THE NAME BEFORE RUNNING PLS
-    folder_name = "all_experiments"
+    folder_name = "experiment_4_5b"
 
     # Find correct file with metric calculations
     for exp in experiments:
@@ -253,11 +253,14 @@ def diane_main():
     This is a main function of sorts but I don't want it to run everytime I run my code.
     By changing the booleans corresponding to different types of boxplots and the conditions,
     you can generate all boxplots associated to the different conditions. 
+
+    This code is to generate ALL plots of a kind. To create just one or a couple, I reccomend
+    just doing function calls in ipython terminal. 
     """
     #####################################
     #     WHAT BOXPLOTS DO YOU WANT?    #
     #####################################
-    compare_experiments = False
+    compare_experiments = True
     compare_configs = False
     activation_plots = False
     
