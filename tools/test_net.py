@@ -372,6 +372,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                 frame_multiplier = 1
                 if use_frames:
                     frame_multiplier = num_frames
+                    if channel == "slow":
+                        frame_multiplier = frame_multiplier // cfg.SLOWFAST.ALPHA
                 
                 data_dict["input_vid_idx"] += [input_vid_idx]*frame_multiplier
                 data_dict["channel"] += [channel] * frame_multiplier
@@ -380,6 +382,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                 data_dict["label_numeric"] += [label_numeric] * frame_multiplier
                 data_dict["pred_numeric"] += [pred_numeric] * frame_multiplier
                 data_dict["correct"] += [(label_numeric == pred_numeric)] * frame_multiplier
+        
 
                 # update metric results in the data dictionary
                 for metric in metrics:
@@ -392,7 +395,7 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
                         data_dict[metric].append(metric_results[metric])
                 # pdb.set_trace()
                 
-    # pdb.set_trace()
+    pdb.set_trace()
     results_dataframe = pd.DataFrame.from_dict(data_dict)
     
     output_path = cfg.METRICS.CSV_PATH
@@ -407,6 +410,8 @@ def run_heatmap_metrics(test_loader, model, test_meter, cfg, writer=None, use_fr
 
     if not os.path.exists(output_path):
         pdb.set_trace()
+
+    pdb.set_trace()
 
     # TODO log testing stats e.g. accuracy - figure out a nice way to do this 
 
