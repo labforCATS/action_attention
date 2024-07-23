@@ -387,20 +387,18 @@ def run_heatmap_metrics(
                 # update video features in the data dictionary
                 frame_multiplier = 1
                 if use_frames:
+                    frame_multiplier = num_frames
                     if channel == "slow":
-                        frame_multiplier = int(slow_frame_rate)
-                    elif channel == "fast":
-                        frame_multiplier = int(fast_frame_rate)
-
-                data_dict["input_vid_idx"] += [input_vid_idx] * frame_multiplier
+                        frame_multiplier = frame_multiplier // cfg.SLOWFAST.ALPHA
+                
+                data_dict["input_vid_idx"] += [input_vid_idx]*frame_multiplier
                 data_dict["channel"] += [channel] * frame_multiplier
                 data_dict["label"] += [target_class] * frame_multiplier
                 data_dict["pred"] += [pred_class] * frame_multiplier
                 data_dict["label_numeric"] += [label_numeric] * frame_multiplier
                 data_dict["pred_numeric"] += [pred_numeric] * frame_multiplier
-                data_dict["correct"] += [
-                    (label_numeric == pred_numeric)
-                ] * frame_multiplier
+                data_dict["correct"] += [(label_numeric == pred_numeric)] * frame_multiplier
+        
 
                 # update metric results in the data dictionary
                 for metric in metrics:
@@ -431,6 +429,8 @@ def run_heatmap_metrics(
 
     if not os.path.exists(output_path):
         pdb.set_trace()
+
+    pdb.set_trace()
 
     # TODO log testing stats e.g. accuracy - figure out a nice way to do this
 
