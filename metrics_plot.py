@@ -63,8 +63,8 @@ video_id_to_plot = [0, 1, 2]
 
 experiment_stimulus_name_dict = {
     1 : "Motion",
-    2 : "Discrete Motion",
-    3 : "Motion-Appearance Bijection",
+    2 : "Discr. Motion",
+    3 : "Bijection",
     4 : "Appearance", 
     5 : "Static Targets",
     "5b" : "Solo Targets"
@@ -958,13 +958,6 @@ def gen_all_subset_single_model_plots():
                 )
 
                 single_model_frames_vs_activation(
-                    exp,
-                    vis_technique,
-                    softmax,
-                    plot_subset=True,
-                )
-
-                single_model_metric_vs_activation(
                     exp,
                     vis_technique,
                     softmax,
