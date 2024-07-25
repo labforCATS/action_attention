@@ -1,6 +1,10 @@
 # this script generates config files for training, testing, and visualizing
 # each of our experiments
 
+# to rerun the metrics pipeline with new metrics, look at lines 575, 599, 686 to change pathing and METRIC FUNCS
+# the new metrics themselves are calculated in metrics.py
+# as of 7/25/24, old metric CSVs (before calculating precision and recall) are in data -> backup_synthetic_metric_results
+
 import yaml
 import os
 import pdb
@@ -568,7 +572,8 @@ def generate_all_configs(use_specific_epoch: bool = True):
         # iterate over experiment
         for exp in experiments:
             data_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}"
-            config_root_dir = f"/research/cwloka/data/action_attn/diane_synthetic/experiment_{exp}"
+            config_root_dir = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/experiment_{exp}"
+            # ^^ change here to avoid rewriting config files if rerunning metrics pipeline
             output_dir = os.path.join(data_dir, f"{model}_output")
             print("model:", model, "experiment: ", exp)
             if use_specific_epoch:
@@ -591,7 +596,8 @@ def generate_all_configs(use_specific_epoch: bool = True):
                 for softmax_option in post_softmax:
                     
                     model_params = copy.deepcopy(model_params_original)
-                    csv_output_folder = f"/research/cwloka/data/action_attn/diane_synthetic/metric_results/experiment_{exp}/{model}/{gradcam_variant}"
+                    csv_output_folder = f"/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results/experiment_{exp}/{model}/{gradcam_variant}"
+                    # ^^ change here to avoid overwriting CSV files if rerunning metrics pipeline
                     if not os.path.exists(csv_output_folder):
                         os.makedirs(csv_output_folder)
                     pre_post_softmax = "post"
@@ -677,7 +683,7 @@ def generate_all_configs(use_specific_epoch: bool = True):
                     }
 
                     metric_params = {
-                        "FUNCS": ["iou", "precision", "recall"],
+                        "FUNCS": ["kl_div", "iou", "pearson", "mse", "covariance", "precision", "recall"], # change here if changing metrics to run!
                         "ENABLE": True,
                         "CSV_PATH": csv_output_path
                     }
@@ -726,5 +732,3 @@ if __name__ == "__main__":
 
     generate_all_configs(use_specific_epoch=args.use_specific_epochs)
 
-# TODO: 7/22/24 reminder, changed lines 570, 592, 678, 703 to add precision/recall and rerun metrics
-# added line to generate_all_configs to force use_specific_epochs to true, makes line numbers above weird 
