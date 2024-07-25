@@ -48,15 +48,15 @@ experiments = [1, 2, 3, 4, 5, "5b"]
 architectures = ["slowfast", "i3d", "i3d_nln"]
 gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
 softmax_status = ["pre_softmax", "post_softmax"]
-metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
-# metrics = ["kl_div", "iou", "pearson", "mse", "covariance", "precision", "recall"]
+# metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
+metrics = ["kl_div", "iou", "pearson", "mse", "covariance", "precision", "recall"]
 
 exp_comparisons = [[1, 4], [1, 3, 4], [1, 2], [4, 5], [4, "5b"]]
 
 base_data_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
 output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
-results_dir = os.path.join(base_data_dir, "metric_results")
-# results_dir = os.path.join("/research/cwloka/data/action_attn/diane_synthetic", "metric_results")
+# results_dir = os.path.join(base_data_dir, "metric_results")
+results_dir = os.path.join("/research/cwloka/data/action_attn/diane_synthetic", "metric_results")
 
 # for subset plotting only
 video_id_to_plot = [0, 1, 2]
@@ -210,6 +210,8 @@ def single_model_frames_vs_metric(
                 plt.savefig(file_path)
                 plt.cla()
                 plt.clf()
+
+                print("plotting for ", arch, channel, metric)
      plt.close()
             
 def single_model_frames_vs_activation(
