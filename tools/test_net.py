@@ -430,8 +430,6 @@ def run_heatmap_metrics(
     if not os.path.exists(output_path):
         pdb.set_trace()
 
-    pdb.set_trace()
-
     # TODO log testing stats e.g. accuracy - figure out a nice way to do this
 
 

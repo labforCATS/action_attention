@@ -156,14 +156,13 @@ def multiple_box_plot(
     # pdb.set_trace()
 
 
-
 def mult_config_boxplot(
     experiment,
     architecture,
     channel,
     metric,
     output_folder,
-    exp_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results",
+    input_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments/metric_results",
 ):
     """
     Creates 6 side-by-side box-and-whisker plots. Each of the 6 boxplots corresponds to a combination 
@@ -190,7 +189,7 @@ def mult_config_boxplot(
 
             # open appropriate csv file
             csv_path = os.path.join(
-                exp_dir, f"experiment_{experiment}", architecture, gc_variant,
+                input_dir, f"experiment_{experiment}", architecture, gc_variant,
                 f"exp_{experiment}_{architecture}_{softmax}.csv"
             )
             df = pd.read_csv(csv_path)
@@ -248,6 +247,121 @@ def mult_config_boxplot(
     plt.close()
 
 
+def activation_boxplot(
+    experiments,
+    architecture,
+    gc_variant,
+    softmax,
+    channel,
+    output_folder,
+    motion_class = None,
+    input_dir =  "/research/cwloka/data/action_attn/synthetic_motion_experiments" 
+):
+    all_activations = []
+    file_name = "experiment"
+
+    for exp in experiments:
+
+        file_name += f"_{exp}"
+
+        framewise_root_dir = os.path.join(
+            input_dir,
+            f"experiment_{exp}",
+            f"{architecture}_output",
+        )
+
+        heatmap_folder = ""
+        for entry in os.listdir(framewise_root_dir):
+            if "heatmaps_epoch_" in entry:
+                heatmap_folder = entry
+        framewise_csv_path = os.path.join(
+            framewise_root_dir, heatmap_folder, gc_variant, softmax, f"{channel}_framewise_activations.csv"
+        )
+        df = pd.read_csv(framewise_csv_path)
+        activations_only = df.loc[df["channel"] == channel]
+        activations_only = activations_only["mean_activations"].tolist()
+
+        all_activations.append(activations_only)
+    
+    file_path = os.path.join(
+        output_folder, file_name, f"{architecture}", f"{channel}", f"{gc_variant}", f"{softmax}")
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+
+     # PLOT!
+    fig,ax = plt.subplots()
+    for i,lst in enumerate(all_activations): 
+        ax.boxplot(lst,positions=[i], widths = 0.5)  
+
+    # Label axis
+    plt.xlabel(f"Configuration")
+    plt.ylabel("activation per frame")
+
+    # relabel x-axis with correct configuration
+    plt.xticks(range(len(experiments)), experiments)
+    ax.tick_params(axis='both', which='major', labelsize=8)
+
+    # save plots
+    plt.savefig(os.path.join(file_path,f"boxplot_activations.png"))
+    plt.close()
+
+
+def precision_recall_boxplot(
+    experiments,
+    architecture,
+    gc_variant,
+    softmax,
+    channel,
+    output_folder,
+    motion_class = None,
+    input_dir = "/research/cwloka/data/action_attn/diane_synthetic/metric_results/" 
+):  
+    for metric in ["precision", "recall"]:
+        all_metric_values = []
+        file_name = "experiment"
+        for exp in experiments:
+            file_name += f"_{exp}"
+            framewise_root_dir = os.path.join(
+                input_dir,
+                f"experiment_{exp}",
+                f"{architecture}",
+                f"{gc_variant}"
+            )
+            framewise_csv_path = os.path.join(
+                framewise_root_dir, f"exp_{exp}_{architecture}_{softmax}_frames.csv"
+            )
+            df = pd.read_csv(framewise_csv_path)
+
+            metric_filtered = df.loc[df["channel"] == channel]   
+            metric_filtered = metric_filtered[metric].tolist()
+            nan_filtered = []
+            for x in metric_filtered:
+                if x == x:
+                    nan_filtered.append(x)
+
+            all_metric_values.append(nan_filtered)
+
+        file_path = os.path.join(
+            output_folder, file_name, f"{architecture}", f"{channel}", f"{gc_variant}", f"{softmax}")
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        
+        fig,ax = plt.subplots()
+        for i,lst in enumerate(all_metric_values): 
+            ax.boxplot(lst,positions=[i], widths = 0.5)  
+
+        # Label axis
+        plt.xlabel(f"Experiment")
+        plt.ylabel(f"{metric} per frame")
+
+        # relabel x-axis with correct configuration
+        plt.xticks(range(len(experiments)), experiments)
+        ax.tick_params(axis='both', which='major', labelsize=8)
+
+        # save plots
+        plt.savefig(os.path.join(file_path,f"boxplot_{metric}.png"))
+        plt.close()
+
 def diane_main():
     """
     This is a main function of sorts but I don't want it to run everytime I run my code.
@@ -260,15 +374,16 @@ def diane_main():
     #####################################
     #     WHAT BOXPLOTS DO YOU WANT?    #
     #####################################
-    compare_experiments = True
+    compare_experiments = False
     compare_configs = False
-    activation_plots = False
+    activation_plots = True
+    precision_recall = False
     
     # conditions to generate plots
-    experiments = [1, 2, 3, 4, 5, "5b"]
-    architectures = ["i3d", "slowfast"] #["slowfast", "i3d", "i3d_nln"]
+    experiments = [1, 2, 3, 4, 5, "5b"]                 #[1, 2, 3, 4, 5, "5b"]
+    architectures = ["slowfast", "i3d", "i3d_nln"]
     gc_variants = ["grad_cam", "grad_cam_plusplus", "eigen_cam"]
-    softmax_status = ["pre_softmax", "post_softmax"] #["pre_softmax", "post_softmax"]
+    softmax_status = ["pre_softmax", "post_softmax"]
     metrics = ["kl_div", "iou", "pearson", "mse", "covariance"]
 
     # base directories
@@ -325,7 +440,55 @@ def diane_main():
                             metric, 
                             output_base_folder)
 
-            
+    if activation_plots:
+        for arch in architectures:
+            for cam in gc_variants:
+                for softmax in softmax_status:
+
+                    if (arch == "slowfast"):
+                            for channel in ["slow", "fast"]:
+                                activation_boxplot(
+                                    experiments,
+                                    arch,
+                                    cam,
+                                    softmax,
+                                    channel,
+                                    output_base_folder,
+                                )
+                    else:
+                        activation_boxplot(
+                            experiments,
+                            arch,
+                            cam,
+                            softmax,
+                            "rgb",
+                            output_base_folder,
+                        ) 
+
+    if precision_recall:
+        for arch in architectures:
+            for cam in gc_variants:
+                for softmax in softmax_status:
+                    if (arch == "slowfast"):
+                            for channel in ["slow", "fast"]:
+                                precision_recall_boxplot(
+                                    experiments,
+                                    arch,
+                                    cam,
+                                    softmax,
+                                    channel,
+                                    output_base_folder,
+                                )
+                    else:
+                        precision_recall_boxplot(
+                            experiments,
+                            arch,
+                            cam,
+                            softmax,
+                            "rgb",
+                            output_base_folder,
+                        ) 
+
 
 
 

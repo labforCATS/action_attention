@@ -90,28 +90,28 @@ def create_csv(
                     else:
                         channel = "rgb"
 
-                    for metric in metrics:
-                        metric_filtered = config_filtered[metric]
-                        metric_filtered = metric_filtered.tolist()
+                        for metric in metrics:
+                            metric_filtered = config_filtered[metric]
+                            metric_filtered = metric_filtered.tolist()
 
-                        nan_filtered = [x for x in metric_filtered if x == x]
+                            nan_filtered = [x for x in metric_filtered if x == x]
 
-                        
+                            
 
-                        d = {"exp": experiment, "model": architecture, "nonlocal": non_local, "gradcam_variant": gc_variant,
-                             "post_softmax": softmax, "channel": channel, "correct": correct, "metric": metric}
-                        d["total_videos"] = len(nan_filtered)
-                        d["min"] = min(nan_filtered)
-                        d["max"] = max(nan_filtered)
-                        d["range"] = max(nan_filtered) - min(nan_filtered)
-                        d["mean"] = statistics.fmean(nan_filtered)
-                        d["median"] = statistics.median(nan_filtered)
-                        d["Q1"] = np.quantile(nan_filtered, .25)
-                        d["Q3"] = np.quantile(nan_filtered, .75)
-                        d["stdev"] = statistics.pstdev(nan_filtered)
+                            d = {"exp": experiment, "model": architecture, "nonlocal": non_local, "gradcam_variant": gc_variant,
+                                "post_softmax": softmax, "channel": channel, "correct": correct, "metric": metric}
+                            d["total_videos"] = len(nan_filtered)
+                            d["min"] = min(nan_filtered)
+                            d["max"] = max(nan_filtered)
+                            d["range"] = max(nan_filtered) - min(nan_filtered)
+                            d["mean"] = statistics.fmean(nan_filtered)
+                            d["median"] = statistics.median(nan_filtered)
+                            d["Q1"] = np.quantile(nan_filtered, .25)
+                            d["Q3"] = np.quantile(nan_filtered, .75)
+                            d["stdev"] = statistics.pstdev(nan_filtered)
 
-                        csv_rows += [d]
-                        #pdb.set_trace()
+                            csv_rows += [d]
+                            #pdb.set_trace()
 
     # write to csv
     keys = csv_rows[0].keys()

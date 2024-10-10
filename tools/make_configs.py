@@ -677,7 +677,7 @@ def generate_all_configs(use_specific_epoch: bool = True):
                     }
 
                     metric_params = {
-                        "FUNCS": ["iou", "precision", "recall"],
+                        "FUNCS": ["kl_div", "iou", "pearson", "mse", "covariance", "precision", "recall"],
                         "ENABLE": True,
                         "CSV_PATH": csv_output_path
                     }
