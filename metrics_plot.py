@@ -16,11 +16,11 @@ As of 7/23/24, implemented plots are:
     single_model_frames_vs_activation():  # with subset plotting available
     single_model_metric_vs_activation(): 
 
-    multi_model_frames_vs_metric_():
-    multi_model_frames_vs_activation():
+    multi_model_frames_vs_metric_plot():
+    multi_model_frames_vs_activation_plot():
 
-    multi_experiment_frames_vs_metric():
-    multi_experiment_frames_vs_activation():
+    multi_experiment_frames_vs_metric_plots():
+    multi_experiment_frames_vs_activation_plots():
 
     arch_model_grid_metric():
     arch_model_grid_activation():
@@ -55,8 +55,8 @@ exp_comparisons = [[1, 4], [1, 3, 4], [1, 2], [4, 5], [4, "5b"]]
 
 base_data_dir = "/research/cwloka/data/action_attn/synthetic_motion_experiments"
 output_base_folder = "/research/cwloka/data/action_attn/alex_synthetic"
-results_dir = os.path.join(base_data_dir, "metric_results")
-# results_dir = os.path.join("/research/cwloka/data/action_attn/diane_synthetic", "metric_results")
+# results_dir = os.path.join(base_data_dir, "metric_results") # once metrics is rerun for prec/recall, uncommment
+results_dir = "/research/cwloka/data/action_attn/backup_synthetic_metric_results/metric_results"
 
 # for subset plotting only
 video_id_to_plot = [0, 1, 2]
@@ -210,6 +210,8 @@ def single_model_frames_vs_metric(
                 plt.savefig(file_path)
                 plt.cla()
                 plt.clf()
+
+                print("plotting for ", arch, channel, metric)
      plt.close()
             
 def single_model_frames_vs_activation(
@@ -659,7 +661,7 @@ def multi_experiment_frames_vs_metric_plots(
 
                 for i in range(len(dataframe_list)):
                     # (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_color_list[i], label=experiment_subset_list[i])
-                    (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_subset_list[i])
+                    (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_stimulus_name_dict[experiment_subset_list[i]])
 
                 ax.legend()
 
@@ -772,7 +774,7 @@ def multi_experiment_frames_vs_activation_plots(
                 pivot_list.append(s)
 
             for i in range(len(dataframe_list)):
-                (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_subset_list[i])
+                (pivot_list[i]).mean(1).plot(ax=ax, color=vivid_experiment_color_dict[experiment_subset_list[i]], label=experiment_stimulus_name_dict[experiment_subset_list[i]])
 
             ax.legend()
 
@@ -847,7 +849,7 @@ def arch_model_grid_metric(
 
     stimulus_set_names = [experiment_stimulus_name_dict[x] for x in experiment_subset_list]
 
-    fig.suptitle(f"{metric} for stimulus sets {stimulus_set_names} ({softmax})", x=0.5, y=0.85, fontsize=12)
+    fig.suptitle(f"{metric} for {stimulus_set_names} ({softmax})", x=0.5, y=0.85, fontsize=10)
 
     file_path = os.path.join(flattened_image_dir, f"GRID_frames_vs_{metric}_{softmax}.png")
     plt.savefig(file_path, dpi=500)
