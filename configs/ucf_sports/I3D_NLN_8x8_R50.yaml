@@ -12,8 +12,8 @@ TRAIN:
   SAVE_INPUT_VIDEO: False
 
 TENSORBOARD:
-  ENABLE: True
-  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf/Ucf-labels.json
+  ENABLE: False
+  CLASS_NAMES_PATH: /research/cwloka/data/action_attn/ucf_sports/Ucf-labels.json
   MODEL_VIS:
     ENABLE: True
     MODEL_WEIGHTS: True # Set to True to visualize model weights.
@@ -29,7 +29,7 @@ TENSORBOARD:
       POST_SOFTMAX: True 
       SOFTMAX_LAYER: 'head/act'
 DATA:
-  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf
+  PATH_TO_DATA_DIR: /research/cwloka/data/action_attn/ucf_sports
   NUM_FRAMES: 64
   SAMPLING_RATE: 1
   TRAIN_JITTER_SCALES: [256, 320]
@@ -54,12 +54,14 @@ BN:
   USE_PRECISE_STATS: True
   NUM_BATCHES_PRECISE: 200
 SOLVER:
+  # BASE_LR: 0.0001
   BASE_LR: 0.0001
   LR_POLICY: steps_with_relative_lrs
   LRS: [1, 0.1, 0.01, 0.001, 0.0001, 0.00001]
-  STEPS: [0, 20, 40]
+  # STEPS: [0, 20, 40]
+  STEPS: [0, 12, 20]
   # MAX_EPOCH: 22
-  MAX_EPOCH: 50
+  MAX_EPOCH: 25
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-6
   WARMUP_EPOCHS: 0.0
@@ -89,5 +91,5 @@ RNG_SEED: 0
 # OUTPUT_DIR: /research/cwloka/data/action_attn/output_i3d
 # OUTPUT_DIR: /research/cwloka/projects/alex_sandbox/action_attention/output/i3d_nln
 OUTPUT_DIR: /research/cwloka/projects/alex_sandbox/action_attention/output/ucf_sports/i3d_nln/
-VIS_MODEL_INPUT_DIR: /research/cwloka/data/action_attn/ucf
+VIS_MODEL_INPUT_DIR: /research/cwloka/data/action_attn/ucf_sports
 LOG_MODEL_INFO: False

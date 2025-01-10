@@ -246,10 +246,6 @@ class GradCAM:
             localization_maps.append(localization_map)
 
 
-        print("GC UTILS 221: running outside at the end of for loop")
-        print(torch.cuda.memory_summary())
-
-
         return localization_maps, preds
 
     def __call__(

@@ -37,9 +37,10 @@ def output_idx_to_input(input_json_path, output_vid_idx):
         vid_logs = json.load(f)  # list of dictionaries
 
     input_vid_log = vid_logs[output_vid_idx]
-    target_class = input_vid_log["labels"]
-    input_vid_idx = int(input_vid_log["video_id"].split("_")[1])
-    # input_vid_idx = int(input_vid_log["id"]) 
+    # target_class = input_vid_log["labels"]
+    target_class = input_vid_log["label"]
+    # input_vid_idx = int(input_vid_log["video_id"].split("_")[1])
+    input_vid_idx = int(input_vid_log["id"]) 
     # TODO: why are these extra lines here?
     return target_class, input_vid_idx
 

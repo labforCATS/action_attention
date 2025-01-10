@@ -76,13 +76,19 @@ def generate_commands(server, run_train=False, run_vis=False, run_metrics=False)
             metric_configs = [config for config in configs if "metric" in config]
             if server == "shadowfax":
                 # add both i3d networks' metrics configs to list of commands
-                i3d_metric_configs = [config for config in metric_configs if "i3d" in config]
+                i3d_metric_configs = [config for config in metric_configs if ("i3d" in config and "nln" not in config)]
                 for c in i3d_metric_configs:
                     file_path = os.path.join(exp_folder, c)
                     commands += f"python3 tools/run_net.py --cfg {file_path}; "
+            # elif server == "shuffler":
+            #     # add slowfast networks' metrics configs to list of commands
+            #     slowfast_metric_configs = [config for config in metric_configs if "slowfast" in config]
+            #     for c in slowfast_metric_configs:
+            #         file_path = os.path.join(exp_folder, c)
+            #         commands += f"python3 tools/run_net.py --cfg {file_path}; "
             elif server == "shuffler":
                 # add slowfast networks' metrics configs to list of commands
-                slowfast_metric_configs = [config for config in metric_configs if "slowfast" in config]
+                slowfast_metric_configs = [config for config in metric_configs if ("i3d" in config and "nln" in config)]
                 for c in slowfast_metric_configs:
                     file_path = os.path.join(exp_folder, c)
                     commands += f"python3 tools/run_net.py --cfg {file_path}; "

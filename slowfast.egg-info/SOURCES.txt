@@ -98,6 +98,7 @@ tools/benchmark.py
 tools/demo_net.py
 tools/generate_commands.py
 tools/make_configs.py
+tools/reformat_new_metrics.py
 tools/run_experiment_suite.py
 tools/run_net.py
 tools/scripts.py
