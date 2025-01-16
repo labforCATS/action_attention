@@ -11,6 +11,7 @@ experiment_stimulus_name_dict = {
     5 : "Static Targets",
     "5b" : "Solo Targets"
 }
+
 model_cam_name_dict = {
     "eigen_cam" : "EigenCAM",
     "grad_cam" : "GradCAM",
@@ -24,14 +25,11 @@ model_cam_name_dict = {
     "slowfastFalsefast": "SlowFast Fast",
     "slowfast_slow" : "SlowFast Slow",
     "slowfastFalseslow": "SlowFast Slow",
+    "i3d" : "I3D",
+    "slow" : "SlowFast Slow",
+    "fast": "SlowFast Fast",
 }
 
-multi_model_color_dict = {
-    "i3dFalsergb" : "#AC5EF0", # I3d is purple
-    "i3dTruergb" : "#BD075F", # NLN is pink
-    "slowfastFalsefast" : "#FBB705", # Fast is yellow
-    "slowfastFalseslow" : "#02A1A5",  # Slow is teal
-}
 
 vivid_experiment_color_dict = {
     1 : "#0072B2", # dark blue
@@ -51,22 +49,6 @@ pastel_experiment_color_dict = {
     "5b" : ("#94D8EC4d")# light blue
 }
 
-label_color_dict = {
-    "circle": ("#82e3e8"),
-    "line": ("#74bcdb"),
-    "quadrilateral": ("#d1f0e9"),
-    "sinusoid": ("#d1eef0"),
-    "spiral": ("#d1d8f0"),
-    "triangle": ("#6dc2ae"),
-    "zigzag": ("#8faeeb"),
-    "Cat": ("#f7c1c1"),
-    "Cattle": ("#fcc0b1"),
-    "Fish": ("#fccfac"),
-    "Flower": ("#fcacc7"),
-    "Motorcycle": ("#f0afd7"),
-    "Train": ("#f59fe8"),
-    "Truck": ("#dbabc6")
-}
 
 label_marker_dict = {
     "circle": "x",
@@ -85,8 +67,19 @@ label_marker_dict = {
     "Truck": "h"
 }
 
-# dictionary of absolute maximum of metric across all CAM and models
-cleaned_metric_dict = {'kl_div_1_pre_softmax': 7.035656107244919,
+class_id_marker_dict = {
+    0 : "x",
+    1 : "o",
+    2 : "v",
+    3 : "^",
+    4 : "<", 
+    5 : ">",
+    6 : "s",
+    7 : "D",
+    8 : "h"
+}
+
+synthetic_target_masks_maximums = {'kl_div_1_pre_softmax': 7.035656107244919,
  'iou_1_pre_softmax': 0.2293559305863784,
  'pearson_1_pre_softmax': 5.984556658297634e-06,
  'mse_1_pre_softmax': 0.18324503864892436,
@@ -183,14 +176,68 @@ cleaned_metric_dict = {'kl_div_1_pre_softmax': 7.035656107244919,
  'activation_5b_pre_softmax': 44.96758355034722,
  'activation_5b_post_softmax': 44.96758355034722}
 
-class_id_marker_dict = {
-    0 : "x",
-    1 : "o",
-    2 : "v",
-    3 : "^",
-    4 : "<", 
-    5 : ">",
-    6 : "s",
-    7 : "D",
-    8 : "h"
-}
+synthetic_bounding_box_maximums = {'activation_1_pre_softmax': 89.94815963745117,
+ 'kl_div_1_pre_softmax': 7.18120962842407,
+ 'iou_1_pre_softmax': 0.2539947570319652,
+ 'pearson_1_pre_softmax': 6.374090753558233e-06,
+ 'mse_1_pre_softmax': 0.18440907843499102,
+ 'covariance_1_pre_softmax': 0.003423260630937713,
+ 'precision_1_pre_softmax': 0.3690542145404286,
+ 'recall_1_pre_softmax': 0.9999880177816121,
+ 'activation_1_post_softmax': 16.170370483398436,
+ 'kl_div_1_post_softmax': 3.257848297968047,
+ 'iou_1_post_softmax': 0.24418529762833505,
+ 'pearson_1_post_softmax': 0.0004313235929311126,
+ 'mse_1_post_softmax': 0.2638435201657842,
+ 'covariance_1_post_softmax': 0.00415172885830987,
+ 'precision_1_post_softmax': 0.314408386486877,
+ 'recall_1_post_softmax': 1.0,
+ 'activation_4_pre_softmax': 28.10983488831339,
+ 'kl_div_4_pre_softmax': 5.5313737559762615,
+ 'iou_4_pre_softmax': 0.2981331071838672,
+ 'pearson_4_pre_softmax': 8.249012610743233e-06,
+ 'mse_4_pre_softmax': 0.06132057771583014,
+ 'covariance_4_pre_softmax': 0.002749900241438346,
+ 'precision_4_pre_softmax': 0.45743238043290174,
+ 'recall_4_pre_softmax': 0.6485834487900792,
+ 'activation_4_post_softmax': 3.3719471364781475,
+ 'kl_div_4_post_softmax': 3.60780385044089,
+ 'iou_4_post_softmax': 0.23225930765381345,
+ 'pearson_4_post_softmax': 0.0001541691946628713,
+ 'mse_4_post_softmax': 0.034096511428995724,
+ 'covariance_4_post_softmax': 0.0022141552804120952,
+ 'precision_4_post_softmax': 0.41658569567752823,
+ 'recall_4_post_softmax': 0.907001582278481}
+
+synthetic_rotated_bounding_box_maximums = {'activation_1_pre_softmax': 89.94815963745117,
+ 'kl_div_1_pre_softmax': 1.0000204083446258,
+ 'iou_1_pre_softmax': 0.7103159387748673,
+ 'pearson_1_pre_softmax': 8.234469501485327e-06,
+ 'mse_1_pre_softmax': 0.13429655903423504,
+ 'covariance_1_pre_softmax': 0.005163555993953094,
+ 'precision_1_pre_softmax': 0.9999953038442113,
+ 'recall_1_pre_softmax': 0.7103231448159985,
+ 'activation_1_post_softmax': 16.170370483398436,
+ 'kl_div_1_post_softmax': 0.5968183655867658,
+ 'iou_1_post_softmax': 0.9979779052734375,
+ 'pearson_1_post_softmax': 0.0004775155974818964,
+ 'mse_1_post_softmax': 0.1880595952876306,
+ 'covariance_1_post_softmax': 0.005826278193361069,
+ 'precision_1_post_softmax': 0.9998965454101563,
+ 'recall_1_post_softmax': 0.9980918884277343,
+ 'activation_4_pre_softmax': 28.10983488831339,
+ 'kl_div_4_pre_softmax': 0.9776290587835658,
+ 'iou_4_pre_softmax': 0.21824646594687896,
+ 'pearson_4_pre_softmax': 9.320679367136825e-06,
+ 'mse_4_pre_softmax': 0.049468308859564374,
+ 'covariance_4_pre_softmax': 0.0030536911557083645,
+ 'precision_4_pre_softmax': 0.9998943460274786,
+ 'recall_4_pre_softmax': 0.21825277344352212,
+ 'activation_4_post_softmax': 3.3719471364781475,
+ 'kl_div_4_post_softmax': 0.9776290587835658,
+ 'iou_4_post_softmax': 0.9122958134539807,
+ 'pearson_4_post_softmax': 0.00016455692817965952,
+ 'mse_4_post_softmax': 0.030487274396323993,
+ 'covariance_4_post_softmax': 0.002447767049240079,
+ 'precision_4_post_softmax': 0.9745775053772745,
+ 'recall_4_post_softmax': 0.9124093788568333}
